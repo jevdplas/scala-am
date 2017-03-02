@@ -94,10 +94,9 @@ class SExpLexer extends Lexical with SExpTokens {
   def chr(c: Char): Parser[Char] = elem(s"character $c", _ == c)
   def sign: Parser[Option[Char]] = opt(chr('+') | chr('-'))
   def stringContent: Parser[String] = {
-    ('\\' ~ any ~ stringContent ^^ { case '\\' ~ c ~ s => "\\$c$s" } ) |
+    ('\\' ~ any ~ stringContent ^^ { case '\\' ~ c ~ s => "\\$c$s" }) |
       (rep(chrExcept('\"', '\n')) ^^ (_.mkString))
   }
-
   def bool: Parser[SExpToken] =
     '#' ~> ('t' ^^ (_ => TBoolean(true)) | 'f' ^^ (_ => TBoolean(false)))
   def integer: Parser[SExpToken] =
@@ -218,25 +217,29 @@ object SExpParser extends TokenParsers {
   /**
     * Verifies whether unquotes appear in legal positions.
     * If an unquote appears outside a quasiquotation, an exception is thrown.
-    * This procedure will scan the entire parse tree.
+    * Scans the entire SExp given as its argument and returns a boolean that indicates the correctness of the SExp.
     */
-  private def verifyUnquote(exp: SExp): Unit = verifyUnquote(List((exp, 0)))
-  private def verifyUnquote(explist: List[(SExp, Int)]): Unit = explist match {
-    case Nil =>
+  private def verifyUnquote(exp: SExp): Boolean = verifyUnquote(List((exp, 0)))
+  private def verifyUnquote(explist: List[(SExp, Int)]): Boolean = explist match {
+    case Nil => true
     case (exp, depth) :: rest => exp match {
       case SExpQuasiQuoted(e, _) => verifyUnquote(List((e, depth + 1)) ::: rest)
       case SExpUnquoted(e, _) =>
-        if (depth == 0) throw new Exception("Cannot parse expression: illegual unquotation.")
+        if (depth == 0) false
         else verifyUnquote(List((e, depth - 1)) ::: rest)
       case SExpSpliced(e, _) =>
-        if(depth == 0) throw new Exception("Cannot parse expression: illegal unquote-splicing.")
+        if (depth == 0) false
         else verifyUnquote(List((e, depth - 1)) ::: rest)
       case SExpPair(car, cdr, _) => verifyUnquote(List((car, depth), (cdr, depth)) ::: rest)
-      case _ =>
+      case _ => verifyUnquote(rest)
     }
   }
 
-  def exp: Parser[SExp] = value | identifier | list | quoted | quasiquoted | spliced | unquoted ^^ (exp => {verifyUnquote(exp); exp})
+  def exp: Parser[SExp] = value | identifier | list | quoted | quasiquoted | spliced | unquoted ^^ (exp => {
+    if (verifyUnquote(exp))
+      exp
+    else throw new Exception("Cannot parse expression: illegal unquotation.")
+  })
   def expList: Parser[List[SExp]] = rep1(exp)
 
   def parse(s: String): List[SExp] = expList(new lexical.Scanner(s)) match {
