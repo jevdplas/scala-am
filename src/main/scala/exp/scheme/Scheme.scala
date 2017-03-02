@@ -341,7 +341,7 @@ object SchemeCompiler {
         SExpPair(index, SExpPair(eold, SExpPair(enew, SExpValue(ValueNil, _), _), _), _), _), _) =>
       SchemeCasVector(variable, compile(index), compile(eold), compile(enew), exp.pos)
     case SExpPair(SExpId(Identifier("cas-vector", _)), _, _) =>
-      throw new Exception(s"Indavil Scheme cas-vector: $exp")
+      throw new Exception(s"Invalid Scheme cas-vector: $exp")
     case SExpPair(SExpId(Identifier("acquire", _)),
       SExpPair(exp, SExpValue(ValueNil, _), _), _) =>
       SchemeAcquire(compile(exp), exp.pos)
