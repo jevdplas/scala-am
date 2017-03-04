@@ -217,7 +217,7 @@ object SExpParser extends TokenParsers {
   /**
     * Verifies whether unquotes appear in legal positions.
     * If an unquote appears outside a quasiquotation, an exception is thrown.
-    * Scans the entire SExp given as its argument and returns a boolean that indicates the correctness of the SExp.
+    * Scans the entire SExp given as its argument and returns a boolean indicating the correctness of the SExp.
     */
   private def verifyUnquote(exp: SExp): Boolean = verifyUnquote(List((exp, 0)))
   private def verifyUnquote(explist: List[(SExp, Int)]): Boolean = explist match {
@@ -235,12 +235,14 @@ object SExpParser extends TokenParsers {
     }
   }
 
-  def exp: Parser[SExp] = value | identifier | list | quoted | quasiquoted | spliced | unquoted ^^ (exp => {
-    if (verifyUnquote(exp))
-      exp
-    else throw new Exception("Cannot parse expression: illegal unquotation.")
+  def exp: Parser[SExp] = value | identifier | list | quoted | quasiquoted | spliced | unquoted
+  /* Only verify the entire expression at once since references to exp exist from within quasiquoted. */
+  def checkedexp: Parser[SExp] = exp ^^ (e => {
+    if (verifyUnquote(e))
+     e
+    else throw new Exception("Cannot parse expression: unquotation not in quasiquote.")
   })
-  def expList: Parser[List[SExp]] = rep1(exp)
+  def expList: Parser[List[SExp]] = rep1(checkedexp)
 
   def parse(s: String): List[SExp] = expList(new lexical.Scanner(s)) match {
     case Success(res, _) => res
