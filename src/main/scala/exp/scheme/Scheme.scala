@@ -178,6 +178,34 @@ case class SchemeValue(value: Value, pos: Position) extends SchemeExp {
 }
 
 /**
+  * A quasiquoted list: `(foo bar)
+  */
+case class SchemeQuasiQuotedList(exp: List[SchemeExp], pos: Position) extends SchemeExp {
+  override def toString = s"`(${exp.mkString(" ")})"
+}
+
+/**
+  * A quasiquoted element: `foo
+  */
+case class SchemeQuasiQuotedEl(exp: SchemeExp, pos: Position) extends SchemeExp {
+  override def toString = s"`$exp"
+}
+
+/**
+  * An unquoted expression: ,foo
+  */
+case class SchemeUnquoted(exp: SchemeExp, pos: Position) extends SchemeExp {
+  override def toString = s",$exp"
+}
+
+/**
+  * A spliced expression: @foo (only allowed after an unquotation)
+  */
+case class SchemeSpliced(exp: SchemeExp, pos: Position) extends SchemeExp {
+  override def toString = s"@$exp"
+}
+
+/**
  * Compare-and-swap, concurrency synchronization primitive.
  */
 case class SchemeCas(variable: Identifier, eold: SchemeExp, enew: SchemeExp, pos: Position) extends SchemeExp {
@@ -270,13 +298,26 @@ object SchemeCompiler {
   /**
     * Reserved keywords
     */
-  val reserved: List[String] = List("lambda", "if", "let", "let*", "letrec", "cond", "case", "set!", "begin", "define", "cas", "acquire", "release", "cas-vector")
+  val reserved: List[String] = List("lambda", "if", "let", "let*", "letrec", "cond", "case", "set!",
+    "begin", "define", "cas", "acquire", "release", "cas-vector", "quote", "quasiquote", "unquote", "unquote-splicing")
 
   def compile(exp: SExp): SchemeExp = exp match {
     case SExpPair(SExpId(Identifier("quote", _)), SExpPair(quoted, SExpValue(ValueNil, _), _), _) =>
       compile(SExpQuoted(quoted, exp.pos))
     case SExpPair(SExpId(Identifier("quote", _)), _, _) =>
       throw new Exception(s"Invalid Scheme quote: $exp (${exp.pos})")
+    case SExpPair(SExpId(Identifier("unquote", _)), SExpPair(unquoted, SExpValue(ValueNil, _), _), _) =>
+      compile(SExpUnquoted(unquoted, exp.pos))
+    case SExpPair(SExpId(Identifier("unquote", _)), _, _) =>
+      throw new Exception(s"Invalid Scheme unquote: $exp (${exp.pos})")
+    case SExpPair(SExpId(Identifier("unquote-splicing", _)), SExpPair(unquoted, SExpValue(ValueNil, _), _), _) =>
+      compile(SExpSpliced(unquoted, exp.pos))
+    case SExpPair(SExpId(Identifier("unquote-splicing", _)), _, _) =>
+      throw new Exception(s"Invalid scheme unquote-splicing: $exp (${exp.pos})")
+    case SExpPair(SExpId(Identifier("quasiquote", _)), SExpPair(quasiquoted, SExpValue(ValueNil, _), _), _) =>
+      compile(SExpQuasiQuoted(quasiquoted, exp.pos))
+    case SExpPair(SExpId(Identifier("quasiquote", _)), _, _) =>
+      throw new Exception(s"Invalid Scheme quasiquote: $exp (${exp.pos})")
     case SExpPair(SExpId(Identifier("lambda", _)),
       SExpPair(args, SExpPair(first, rest, _), _), _) =>
       SchemeLambda(compileArgs(args), compile(first) :: compileBody(rest), exp.pos)
@@ -391,6 +432,29 @@ object SchemeCompiler {
     }
     case SExpValue(value, _) => SchemeValue(value, exp.pos)
     case SExpQuoted(quoted, _) => SchemeQuoted(quoted, exp.pos)
+    case SExpUnquoted(unquoted, _) => SchemeUnquoted(compile(unquoted), exp.pos)
+    case SExpSpliced(spliced, _) => SchemeSpliced(compile(spliced), exp.pos)
+    case SExpQuasiQuoted(qq, _) => qq match {
+      case pair @ SExpPair(_, _, _) => SchemeQuasiQuotedList(compileQQList(pair), exp.pos)
+      case _ => SchemeQuasiQuotedEl(compileQQEl(qq), exp.pos)
+    }
+  }
+
+  /**
+    * Make sure that only unquoted elements are converted to Scheme expressions.
+    * Other elements remain s-expressions.
+    */
+  def compileQQEl(exp: SExp): SchemeExp = exp match {
+    case SExpSpliced(s, _) => SchemeSpliced(compile(s), exp.pos)
+    case SExpUnquoted(u, _) => SchemeUnquoted(compile(u), exp.pos)
+    case _ => compile(SExpQuoted(exp, exp.pos)) // Other elements become quoted and stay s-expressions!
+  }
+
+  def compileQQList(exp: SExp): List[SchemeExp] = exp match {
+    case SExpPair(car, cdr, _) => compileQQEl(car) :: compileQQList(cdr)
+    case SExpValue(ValueNil, _) => Nil
+    case SExpValue(value, _) => List(SchemeValue(value, exp.pos)) // Improper lists are also allowed in a quasiquotation.
+    case _ => throw new Exception(s"Invalid Scheme quasiquote: $exp (${exp.pos})")
   }
 
   def compileActorDefs(defs: SExp): List[(Identifier, (List[Identifier], List[SchemeExp]))] = defs match {
