@@ -199,10 +199,10 @@ case class SchemeUnquoted(exp: SchemeExp, pos: Position) extends SchemeExp {
 }
 
 /**
-  * A spliced expression: @foo (only allowed after an unquotation)
+  * An unquoted-spliced expression: ,@foo
   */
 case class SchemeSpliced(exp: SchemeExp, pos: Position) extends SchemeExp {
-  override def toString = s"@$exp"
+  override def toString = s",@$exp"
 }
 
 /**
@@ -447,7 +447,7 @@ object SchemeCompiler {
   def compileQQEl(exp: SExp): SchemeExp = exp match {
     case SExpSpliced(s, _) => SchemeSpliced(compile(s), exp.pos)
     case SExpUnquoted(u, _) => SchemeUnquoted(compile(u), exp.pos)
-    case _ => compile(SExpQuoted(exp, exp.pos)) // Other elements become quoted and stay s-expressions!
+    case _ => compile(SExpQuoted(exp, exp.pos)) // Other elements become quoted and stay s-expressions! TODO: Support nested quasiquotations like `(1 2 `(1 ,,(list 1 2 3)))
   }
 
   def compileQQList(exp: SExp): List[SchemeExp] = exp match {
