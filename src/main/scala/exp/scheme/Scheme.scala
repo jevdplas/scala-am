@@ -453,7 +453,6 @@ object SchemeCompiler {
   def compileQQList(exp: SExp): List[SchemeExp] = exp match {
     case SExpPair(car, cdr, _) => compileQQEl(car) :: compileQQList(cdr)
     case SExpValue(ValueNil, _) => Nil
-    case SExpValue(value, _) => List(SchemeValue(value, exp.pos)) // Improper lists are also allowed in a quasiquotation.
     case _ => throw new Exception(s"Invalid Scheme quasiquote: $exp (${exp.pos})")
   }
 
