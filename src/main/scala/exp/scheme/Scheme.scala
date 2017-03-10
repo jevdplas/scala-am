@@ -755,6 +755,10 @@ object SchemeUndefiner {
         case SchemeVar(id) => SchemeVar(id)
         case SchemeQuoted(quoted, pos) => SchemeQuoted(quoted, pos)
         case SchemeValue(value, pos) => SchemeValue(value, pos)
+        case SchemeQuasiQuotedEl(quasiquoted, pos) => SchemeQuasiQuotedEl(undefine1(quasiquoted), pos)
+        case SchemeQuasiQuotedList(quasiquoted, pos) => SchemeQuasiQuotedList(undefineBody(quasiquoted), pos)
+        case SchemeUnquoted(unquoted, pos) => SchemeUnquoted(undefine1(unquoted), pos)
+        case SchemeSpliced(spliced, pos) => SchemeSpliced(undefine1(spliced), pos)
         case SchemeCas(variable, eold, enew, pos) => SchemeCas(variable, undefine1(eold), undefine1(enew), pos)
         case SchemeCasVector(variable, index, eold, enew, pos) => SchemeCasVector(variable, undefine1(index), undefine1(eold), undefine1(enew), pos)
         case SchemeAcquire(exp, pos) => SchemeAcquire(undefine1(exp), pos)
@@ -768,6 +772,30 @@ object SchemeUndefiner {
         case SchemeTerminate(pos) => SchemeTerminate(pos)
       }
       exp2 :: undefineBody(rest)
+    }
+  }
+}
+
+object UnquoteVerifier {
+  /**
+    * Verifies whether unquotes appear in legal positions.
+    * If an unquote appears outside a quasiquotation, an exception should be thrown.
+    * Scans the entire SExp given as its argument and returns a boolean indicating the correctness of the SExp.
+    * This implementation is tail recursive.
+    */
+  def verifyUnquote(exp: SchemeExp): Boolean = verifyUnquote(List((exp, 0)))
+  private def verifyUnquote(explist: List[(SchemeExp, Int)]): Boolean = explist match {
+    case Nil => true
+    case (exp, depth) :: rest => exp match {
+      case SchemeQuasiQuotedEl(e, _) => verifyUnquote(List((e, depth + 1)) ::: rest)
+      case SchemeQuasiQuotedList(e, _) => verifyUnquote(e.map(exp => (exp, depth + 1)) ::: rest)
+      case SchemeUnquoted(e, _) =>
+        if (depth == 0) false
+        else verifyUnquote(List((e, depth - 1)) ::: rest)
+      case SchemeSpliced(e, _) =>
+        if (depth == 0) false
+        else verifyUnquote(List((e, depth - 1)) ::: rest)
+      case _ => verifyUnquote(rest)
     }
   }
 }
@@ -789,7 +817,16 @@ object Scheme {
   def undefine(exps: List[SchemeExp]): SchemeExp = SchemeUndefiner.undefine(exps)
 
   /**
+    * Verifies whether unquotes appear in legal position.
+    */
+  def verifyUnquote(exp: SchemeExp): SchemeExp = {
+    if(UnquoteVerifier.verifyUnquote(exp))
+      exp
+    else throw new Exception("Cannot compile expression: unquotation not in quasiquote.")
+  }
+
+  /**
    * Parse a string representing a Scheme program
    */
-  def parse(s: String): SchemeExp = undefine(SExpParser.parse(s).map(compile _))
+  def parse(s: String): SchemeExp = undefine(SExpParser.parse(s).map(e => verifyUnquote(compile(e))))
 }

@@ -236,13 +236,7 @@ object SExpParser extends TokenParsers {
   }
 
   def exp: Parser[SExp] = value | identifier | list | quoted | quasiquoted | spliced | unquoted
-  /* Only verify the entire expression at once since references to exp exist from within quasiquoted. */
-  def checkedexp: Parser[SExp] = exp ^^ (e => {
-    if (verifyUnquote(e))
-     e
-    else throw new Exception("Cannot parse expression: unquotation not in quasiquote.")
-  })
-  def expList: Parser[List[SExp]] = rep1(checkedexp)
+  def expList: Parser[List[SExp]] = rep1(exp)
 
   def parse(s: String): List[SExp] = expList(new lexical.Scanner(s)) match {
     case Success(res, _) => res

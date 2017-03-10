@@ -29,7 +29,7 @@ class BaseSchemeSemantics[V : IsSchemeLattice, Addr : Address, Time : Timestamp]
   case class FrameAnd(rest: List[SchemeExp], env: Env) extends SchemeFrame
   case class FrameOr(rest: List[SchemeExp], env: Env) extends SchemeFrame
   case class FrameDefine(variable: Identifier, env: Env) extends SchemeFrame
-  case class FrameQuasiQuote(toeval: List[SchemeExp], evaluated: List[V], env: Env) extends SchemeFrame
+  case class FrameQuasiQuote(toeval: List[SchemeExp], current: SchemeExp, evaluated: List[(SchemeExp, V)], env: Env) extends SchemeFrame
 
   protected def evalBody(body: List[SchemeExp], env: Env, store: Sto): Actions = body match {
     case Nil => Action.value(IsSchemeLattice[V].inject(false), store)
@@ -102,14 +102,19 @@ class BaseSchemeSemantics[V : IsSchemeLattice, Addr : Address, Time : Timestamp]
     case SExpQuoted(q, pos) => evalQuoted(SExpPair(SExpId(Identifier("quote", pos)), SExpPair(q, SExpValue(ValueNil, pos), pos), pos), store, t)
   }
 
-  protected def quasiquoteToList(explist: List[V], store: Sto, t: Time): (V, Sto) = explist match{
-    case Nil => (IsSchemeLattice[V].nil, store)
-    case first :: rest => {
-      val care: V = first
-      val (cdre, store2): (V, Sto) = quasiquoteToList(rest, store, t)
+  protected def quasiquoteToList(explist: List[(SchemeExp, V)], store: Sto, t: Time): (V, Sto) = explist match {
+    case (care, carv) :: (cdre, cdrv) :: Nil => {
       val cara = Address[Addr].cell(care, t)
-      val cdra = Address[Addr].cell(cdra, t)
-      (IsSchemeLattice[V].cons(cara, cdra), store2.extend(cara, care).extend(cdra, cdre))
+      val cdra = Address[Addr].cell(cdre, t)
+      (IsSchemeLattice[V].cons(cara, cdra), store.extend(cara, carv).extend(cdra, cdrv))
+    }
+    case (care, carv) :: rest => rest match {
+      case (cdre, cdrv) :: rest2 => {
+        val (cdrv, store2): (V, Sto) = quasiquoteToList(rest, store, t)
+        val cara = Address[Addr].cell(care, t)
+        val cdra = Address[Addr].cell(cdre, t)
+        (IsSchemeLattice[V].cons(cara, cdra), store2.extend(cara, carv).extend(cdra, cdrv))
+      }
     }
   }
 
@@ -161,8 +166,7 @@ class BaseSchemeSemantics[V : IsSchemeLattice, Addr : Address, Time : Timestamp]
     case SchemeSpliced(spliced, _) => Action.error(NotSupported("Splicing not supported."))
     case SchemeUnquoted(unquoted, _) => Action.eval(unquoted, env, store) // An unquoted expression is just evaluated like a normal expression.
     case SchemeQuasiQuotedEl(quasiquoted, _) => Action.eval(quasiquoted, env, store)
-    case SchemeQuasiQuotedList(Nil, pos) => Action.value(IsSchemeLattice[V].nil, store) // `() results in '()
-    case SchemeQuasiQuotedList(quasiquoted :: rest, _) => Action.push(FrameQuasiQuote(rest, List(), env), quasiquoted, env, store)
+    case SchemeQuasiQuotedList(quasiquoted :: rest, _) => Action.push(FrameQuasiQuote(rest, quasiquoted, List(), env), quasiquoted, env, store)
     case SchemeValue(v, _) => evalValue(v) match {
       case Some(v) => Action.value(v, store)
       case None => Action.error(NotSupported(s"Unhandled value: $v"))
@@ -229,11 +233,11 @@ class BaseSchemeSemantics[V : IsSchemeLattice, Addr : Address, Time : Timestamp]
     case FrameOr(e :: rest, env) =>
       conditional(v, Action.value(v, store), Action.push(FrameOr(rest, env), e, env, store))
     case FrameDefine(name, env) => throw new Exception("TODO: define not handled (no global environment)")
-    case FrameQuasiQuote(toeval, evaluated, env) => toeval match {
-      case Nil => quasiquoteToList((v :: evaluated).reverse, store, t) match {
+    case FrameQuasiQuote(toeval, current, evaluated, env) => toeval match {
+      case Nil => quasiquoteToList(((current, v) :: evaluated).reverse, store, t) match {
         case (value, store2) => Action.value(value, store2)
       }
-      case first :: rest => Action.push(FrameQuasiQuote(rest, v :: evaluated, env), first, env, store)
+      case first :: rest => Action.push(FrameQuasiQuote(rest, first, (current, v) :: evaluated, env), first, env, store)
     }
   }
 
