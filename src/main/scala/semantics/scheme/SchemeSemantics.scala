@@ -108,13 +108,12 @@ class BaseSchemeSemantics[V : IsSchemeLattice, Addr : Address, Time : Timestamp]
       val cdra = Address[Addr].cell(cdre, t)
       (IsSchemeLattice[V].cons(cara, cdra), store.extend(cara, carv).extend(cdra, cdrv))
     }
-    case (care, carv) :: rest => rest match {
-      case (cdre, cdrv) :: rest2 => {
-        val (cdrv, store2): (V, Sto) = quasiquoteToList(rest, store, t)
-        val cara = Address[Addr].cell(care, t)
-        val cdra = Address[Addr].cell(cdre, t)
+    case (care, carv) :: rest => {
+      val (cdrv, store2): (V, Sto) = quasiquoteToList(rest, store, t)
+      val cdre: SchemeExp = SchemeVar(Identifier(cdrv.toString, Position.none))
+      val cara = Address[Addr].cell(care, t)
+      val cdra = Address[Addr].cell(cdre, t)
         (IsSchemeLattice[V].cons(cara, cdra), store2.extend(cara, carv).extend(cdra, cdrv))
-      }
     }
   }
 
@@ -236,6 +235,12 @@ class BaseSchemeSemantics[V : IsSchemeLattice, Addr : Address, Time : Timestamp]
     case FrameQuasiQuote(toeval, current, evaluated, env) => toeval match {
       case Nil => quasiquoteToList(((current, v) :: evaluated).reverse, store, t) match {
         case (value, store2) => Action.value(value, store2)
+      }
+      case SchemeValue(ValueNil, pos) :: rest => rest match {
+        case Nil => quasiquoteToList(((SchemeValue(ValueNil, pos), IsSchemeLattice[V].nil) ::(current, v) :: evaluated).reverse, store, t) match {
+          case (value, store2) => Action.value(value, store2)
+        }
+        case second :: rest2 => Action.push(FrameQuasiQuote(rest2, second,(SchemeValue(ValueNil, pos), IsSchemeLattice[V].nil) ::(current, v) :: evaluated, env), second, env, store)
       }
       case first :: rest => Action.push(FrameQuasiQuote(rest, first, (current, v) :: evaluated, env), first, env, store)
     }

@@ -214,27 +214,6 @@ object SExpParser extends TokenParsers {
     }
   }
 
-  /**
-    * Verifies whether unquotes appear in legal positions.
-    * If an unquote appears outside a quasiquotation, an exception is thrown.
-    * Scans the entire SExp given as its argument and returns a boolean indicating the correctness of the SExp.
-    */
-  private def verifyUnquote(exp: SExp): Boolean = verifyUnquote(List((exp, 0)))
-  private def verifyUnquote(explist: List[(SExp, Int)]): Boolean = explist match {
-    case Nil => true
-    case (exp, depth) :: rest => exp match {
-      case SExpQuasiQuoted(e, _) => verifyUnquote(List((e, depth + 1)) ::: rest)
-      case SExpUnquoted(e, _) =>
-        if (depth == 0) false
-        else verifyUnquote(List((e, depth - 1)) ::: rest)
-      case SExpSpliced(e, _) =>
-        if (depth == 0) false
-        else verifyUnquote(List((e, depth - 1)) ::: rest)
-      case SExpPair(car, cdr, _) => verifyUnquote(List((car, depth), (cdr, depth)) ::: rest)
-      case _ => verifyUnquote(rest)
-    }
-  }
-
   def exp: Parser[SExp] = value | identifier | list | quoted | quasiquoted | spliced | unquoted
   def expList: Parser[List[SExp]] = rep1(exp)
 
