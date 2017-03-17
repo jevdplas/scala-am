@@ -36,6 +36,9 @@ abstract class Benchmarks[Exp : Expression, Addr : Address, Time : Timestamp](va
   check("ack.scm", abs.inject(4))
   check("collatz.scm", abs.inject(5))
   check("widen.scm", abs.inject(10))
+ // check("SICP-compiler.scm", abs.inject(true))
+ // check("Streams.scm", abs.inject(true))
+  check("quadratic.scm", abs.inject(true))
   if (scala.util.Properties.envOrElse("SLOW_BENCHMARKS", "no") == "yes") {
     check("loop2.scm", abs.inject(550))
     check("rsa.scm", abs.inject(true))
