@@ -18,7 +18,9 @@ abstract class Benchmarks[Exp : Expression, Addr : Address, Time : Timestamp](va
 
   val concrete = abs.name.contains("Concrete")
 
+  check("ack.scm", abs.inject(4))
   check("blur.scm", abs.inject(true))
+  check("collatz.scm", abs.inject(5))
   check("count.scm", abs.inject("done"))
   if (!concrete) { check("cpstak.scm", abs.inject(6)) }
   check("fib.scm", abs.inject(3))
@@ -33,12 +35,9 @@ abstract class Benchmarks[Exp : Expression, Addr : Address, Time : Timestamp](va
   check("rotate.scm", abs.inject("hallo"))
   check("sq.scm", abs.inject(9))
   check("sym.scm", abs.injectSymbol("foo"))
-  check("ack.scm", abs.inject(4))
-  check("collatz.scm", abs.inject(5))
   check("widen.scm", abs.inject(10))
- // check("SICP-compiler.scm", abs.inject(true))
- // check("Streams.scm", abs.inject(true))
   check("quadratic.scm", abs.inject(true))
+  check("quasiquoting-simple.scm", abs.inject(true))
   if (scala.util.Properties.envOrElse("SLOW_BENCHMARKS", "no") == "yes") {
     check("loop2.scm", abs.inject(550))
     check("rsa.scm", abs.inject(true))
