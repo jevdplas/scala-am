@@ -302,22 +302,6 @@ object SchemeCompiler {
     "begin", "define", "cas", "acquire", "release", "cas-vector", "quote", "quasiquote", "unquote", "unquote-splicing")
 
   def compile(exp: SExp): SchemeExp = exp match {
-    case SExpPair(SExpId(Identifier("quote", _)), SExpPair(quoted, SExpValue(ValueNil, _), _), _) =>
-      compile(SExpQuoted(quoted, exp.pos))
-    case SExpPair(SExpId(Identifier("quote", _)), _, _) =>
-      throw new Exception(s"Invalid Scheme quote: $exp (${exp.pos})")
-    case SExpPair(SExpId(Identifier("unquote", _)), SExpPair(unquoted, SExpValue(ValueNil, _), _), _) =>
-      compile(SExpUnquoted(unquoted, exp.pos))
-    case SExpPair(SExpId(Identifier("unquote", _)), _, _) =>
-      throw new Exception(s"Invalid Scheme unquote: $exp (${exp.pos})")
-    case SExpPair(SExpId(Identifier("unquote-splicing", _)), SExpPair(unquoted, SExpValue(ValueNil, _), _), _) =>
-      compile(SExpSpliced(unquoted, exp.pos))
-    case SExpPair(SExpId(Identifier("unquote-splicing", _)), _, _) =>
-      throw new Exception(s"Invalid scheme unquote-splicing: $exp (${exp.pos})")
-    case SExpPair(SExpId(Identifier("quasiquote", _)), SExpPair(quasiquoted, SExpValue(ValueNil, _), _), _) =>
-      compile(SExpQuasiQuoted(quasiquoted, exp.pos))
-    case SExpPair(SExpId(Identifier("quasiquote", _)), _, _) =>
-      throw new Exception(s"Invalid Scheme quasiquote: $exp (${exp.pos})")
     case SExpPair(SExpId(Identifier("lambda", _)),
       SExpPair(args, SExpPair(first, rest, _), _), _) =>
       SchemeLambda(compileArgs(args), compile(first) :: compileBody(rest), exp.pos)
@@ -452,7 +436,7 @@ object SchemeCompiler {
 
   def compileQQList(exp: SExp): List[SchemeExp] = exp match {
     case SExpPair(car, cdr, _) => compileQQEl(car) :: compileQQList(cdr)
-    case SExpValue(value, pos) => List(SchemeValue(value, pos))
+    case SExpValue(ValueNil, pos) => List(SchemeValue(ValueNil, pos))
     case _ => throw new Exception(s"Invalid Scheme quasiquote: $exp (${exp.pos})")
   }
 
@@ -800,6 +784,24 @@ object UnquoteVerifier {
   }
 }
 
+object Transformer {
+  /**
+    * Transforms the SExp so that the compiler sees no difference between quote and ` - quasiquote and ` - unquote and , - unquote-splicing and ,@ .
+    */
+  def transform(exp: SExp): SExp = exp match {
+    case SExpPair(SExpId(Identifier("quote", _)), SExpPair(quoted, SExpValue(ValueNil, _), _), _) => SExpQuoted(transform(quoted), exp.pos)
+    case SExpPair(SExpId(Identifier("quote", _)), _, _) => throw new Exception(s"Invalid Scheme quote: $exp (${exp.pos})")
+    case SExpPair(SExpId(Identifier("unquote", _)), SExpPair(unquoted, SExpValue(ValueNil, _), _), _) => SExpUnquoted(transform(unquoted), exp.pos)
+    case SExpPair(SExpId(Identifier("unquote", _)), _, _) => throw new Exception(s"Invalid Scheme unquote: $exp (${exp.pos})")
+    case SExpPair(SExpId(Identifier("unquote-splicing", _)), SExpPair(unquoted, SExpValue(ValueNil, _), _), _) => SExpSpliced(transform(unquoted), exp.pos)
+    case SExpPair(SExpId(Identifier("unquote-splicing", _)), _, _) => throw new Exception(s"Invalid scheme unquote-splicing: $exp (${exp.pos})")
+    case SExpPair(SExpId(Identifier("quasiquote", _)), SExpPair(quasiquoted, SExpValue(ValueNil, _), _), _) => SExpQuasiQuoted(transform(quasiquoted), exp.pos)
+    case SExpPair(SExpId(Identifier("quasiquote", _)), _, _) => throw new Exception(s"Invalid Scheme quasiquote: $exp (${exp.pos})")
+    case SExpPair(car, cdr, pos) => SExpPair(transform(car), transform(cdr), pos)
+    case other => other
+  }
+}
+
 object Scheme {
   /**
    * Compiles a s-expression into a scheme expression
@@ -826,7 +828,12 @@ object Scheme {
   }
 
   /**
+    * Transforms the SExp.
+    */
+  def transform(exp: SExp): SExp = Transformer.transform(exp)
+
+  /**
    * Parse a string representing a Scheme program
    */
-  def parse(s: String): SchemeExp = undefine(SExpParser.parse(s).map(e => verifyUnquote(compile(e))))
+  def parse(s: String): SchemeExp = undefine(SExpParser.parse(s).map(e => verifyUnquote(compile(transform(e)))))
 }
