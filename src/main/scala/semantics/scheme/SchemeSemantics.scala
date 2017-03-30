@@ -162,7 +162,7 @@ class BaseSchemeSemantics[V : IsSchemeLattice, Addr : Address, Time : Timestamp]
     case SchemeQuoted(quoted, _) => evalQuoted(quoted, store, t) match {
       case (value, store2) => Action.value(value, store2)
     }
-    case SchemeSpliced(spliced, _) => Action.error(NotSupported("Splicing not supported."))
+    case SchemeSpliced(spliced, _) => throw new Exception("Splicing not supported.")
     case SchemeUnquoted(unquoted, _) => Action.eval(unquoted, env, store) // An unquoted expression is just evaluated like a normal expression.
     case SchemeQuasiQuotedEl(quasiquoted, _) => Action.eval(quasiquoted, env, store)
     case SchemeQuasiQuotedList(quasiquoted :: rest, _) => Action.push(FrameQuasiQuote(rest, quasiquoted, List(), env), quasiquoted, env, store)
