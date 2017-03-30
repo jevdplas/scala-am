@@ -1,6 +1,6 @@
-;; Test simple quasiquotations (no splicing, no nesting).
+;; Test simple quasiquotations.
 ;; Expected result: #t
-;; Based on the R5RS specification document and POOL.
+;; Based on the R5RS specification document and POOL (http://pointcarre.vub.ac.be/index.php?application=weblcms&go=course_viewer&course=2338).
 
 (define VAR
   (lambda (name value)
