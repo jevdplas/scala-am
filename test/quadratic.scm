@@ -8,10 +8,10 @@
 	(let ((delta (- (* b b) (* 4 a c))))
 	(if (and (real? delta) (> delta 0))
 		(let ((u (+ b (* (if (>= b 0) 1 -1) (sqrt delta)))))
-			(cons (/ u -2 a) (cons (/ (* -2 c) u) '())))
-		(cons
+			(list (/ u -2 a) (/ (* -2 c) u)))
+		(list
 			(/ (- (sqrt delta) b) 2 a)
-			(cons (/ (+ (sqrt delta) b) -2 a) '()))))))
+			(/ (+ (sqrt delta) b) -2 a))))))
 
 (let ((res1 (quadratic 0 0 1))
       (exp1 'fail)

@@ -46,3 +46,11 @@
           (error "unknown request
                  -- create-priority-queue" m))))
     dispatch))
+
+(define pq (create-priority-queue))
+((pq 'enqueue) 66 'Patrick)
+((pq 'enqueue) -106 'Octo)
+((pq 'enqueue) 0 'Sandy)
+((pq 'enqueue) 89 'Spongebob)
+((pq 'dequeue))
+((pq 'dequeue))
