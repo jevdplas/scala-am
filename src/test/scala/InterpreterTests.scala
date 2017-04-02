@@ -20,7 +20,6 @@ abstract class Benchmarks[Exp : Expression, Addr : Address, Time : Timestamp](va
 
   check("ack.scm", abs.inject(4))
   check("blur.scm", abs.inject(true))
-  check("AD/bubsort.scm", abs.inject(true))
   check("collatz.scm", abs.inject(5))
   check("count.scm", abs.inject("done"))
   if (!concrete) { check("cpstak.scm", abs.inject(6)) }
@@ -35,7 +34,6 @@ abstract class Benchmarks[Exp : Expression, Addr : Address, Time : Timestamp](va
   check("mut-rec.scm", abs.inject(true))
   check("rotate.scm", abs.inject("hallo"))
   check("sq.scm", abs.inject(9))
-  check("AD/stack.scm", abs.inject(true))
   check("sym.scm", abs.injectSymbol("foo"))
   check("widen.scm", abs.inject(10))
   check("quadratic.scm", abs.inject(true))
