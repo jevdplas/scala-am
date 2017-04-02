@@ -7,14 +7,25 @@ Adapted tests in some files. Tests should normally evaluate to #t.
 * browse.scm should evaluate to 1101.
 
 Additional remarks
-* cat.scm   =>  necessary files not included in test directory yet
+* cat.scm   =>  Some necessary files are not included in the test directory yet
 
-Some similar benchmarks were already incluced and are not included again.
+Some similar benchmarks were already included in SCALA-AM's test suite and are not included again.
 * ack.scm
 * boyer.scm
 * conform.scm
 * cpstak.scm
 * dderiv.scm
+* divrec.scm
+* fib.scm
+* nqueens.scm
 
-Programs not included for other reasons.
+Some programs are not included for other reasons.
 * crash.scm
+* dynamic.scm
+* fail.scm
+* fft.scm
+* fibpf.scm
+* gcbench.scm
+* maze.scm
+* mbrot.scm
+* nucleic.scm
