@@ -1,3 +1,6 @@
+(define true #t)
+(define false #f)
+
 (define (make-item priority element)
   (cons priority element))
 

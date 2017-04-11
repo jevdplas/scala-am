@@ -38,6 +38,22 @@ abstract class Benchmarks[Exp : Expression, Addr : Address, Time : Timestamp](va
   check("widen.scm", abs.inject(10))
   check("quadratic.scm", abs.inject(true))
   check("quasiquoting-simple.scm", abs.inject(true))
+  if (concrete) {
+   // check("work.scm", abs.inject(362880))
+    check("Quadratic.scm", abs.inject(true))
+
+   // check("AD/abstrct.scm", abs.inject(true)) // Causes stackoverflow
+    check("AD/bubsort.scm", abs.inject(true))
+    check("AD/heap.scm", abs.inject(true))
+    check("AD/inssort.scm", abs.inject(true))
+   // check("AD/prioq.scm", abs.injectSymbol("Patrick")) // Running time > 100s in AAM and > 600s in AAMAACP4F(AACKAlloc).
+    check("AD/qsort.scm", abs.inject(true))
+    check("AD/qstand.scm", abs.inject(true))
+    check("AD/stack.scm", abs.inject(true))
+
+   // check("Gambit_bench/primes.scm", abs.inject(true)) // Running time > 230s in AAMTypeBenchmarks.
+   // check("Gambit_bench/tak.scm", abs.inject(true)) // Keeps running in AAMTypeBenchmarks (not proven).
+  }
   if (scala.util.Properties.envOrElse("SLOW_BENCHMARKS", "no") == "yes") {
     check("loop2.scm", abs.inject(550))
     check("rsa.scm", abs.inject(true))
