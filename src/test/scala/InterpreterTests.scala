@@ -38,7 +38,7 @@ abstract class Benchmarks[Exp : Expression, Addr : Address, Time : Timestamp](va
   check("widen.scm", abs.inject(10))
   check("quadratic.scm", abs.inject(true))
   check("quasiquoting-simple.scm", abs.inject(true))
-  if (concrete) {
+  /* if (concrete) {
    // check("work.scm", abs.inject(362880))
     check("Quadratic.scm", abs.inject(true))
 
@@ -53,7 +53,13 @@ abstract class Benchmarks[Exp : Expression, Addr : Address, Time : Timestamp](va
 
    // check("Gambit_bench/primes.scm", abs.inject(true)) // Running time > 230s in AAMTypeBenchmarks.
    // check("Gambit_bench/tak.scm", abs.inject(true)) // Keeps running in AAMTypeBenchmarks (not proven).
-  }
+
+    check("sigscheme_bench/takr.scm", abs.inject(7))
+    check("sigscheme_bench/rec.scm", abs.inject(true))
+    check("sigscheme_bench/loop.scm", abs.inject(8000))
+    check("sigscheme_bench/let-loop.scm", abs.inject(20000))
+    check("sigscheme_bench/arithint.scm", abs.inject(20001))
+  } */
   if (scala.util.Properties.envOrElse("SLOW_BENCHMARKS", "no") == "yes") {
     check("loop2.scm", abs.inject(550))
     check("rsa.scm", abs.inject(true))

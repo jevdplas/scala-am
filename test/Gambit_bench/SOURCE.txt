@@ -1,8 +1,6 @@
 All files in this and underlying folders are taken from http://github.com/gambit/gambit (2016-11-18).
 Source directory: \bench\src
 
-Removed comments from files (because the parser currently cannot handle comments within S-expressions.
-
 Adapted tests in some files. Tests should normally evaluate to #t.
 * browse.scm should evaluate to 1101.
 
