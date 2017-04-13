@@ -1,5 +1,4 @@
 ;; Taken from http://rosettacode.org/wiki/Roots_of_a_quadratic_function
-;; Removed occurrences from the list primitive.
 ;; Expected result: #t
 
 (define (quadratic a b c)
