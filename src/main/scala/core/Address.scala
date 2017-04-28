@@ -2,6 +2,7 @@ trait Address[A] {
   def name: String
   def isPrimitive(x: A): Boolean
   def primitive(name: String): A
+  def concrete(id: Int):  A
   def variable[Time : Timestamp, Abs : JoinLattice](id: Identifier, value: Abs, t: Time): A
   def cell[Exp : Expression, Time : Timestamp](exp: Exp, t: Time): A
   def botAddress: A = primitive("__bottom__")
@@ -19,6 +20,9 @@ trait AddressWrapper {
 
 object ClassicalAddress extends AddressWrapper {
   trait A
+  case class ConcreteAddress(id: Int) extends A {
+    override def toString = s"@concrete$id"
+  }
   case class VariableAddress[Time : Timestamp](id: Identifier, t: Time) extends A {
     override def toString = s"@$id"
   }
@@ -35,6 +39,7 @@ object ClassicalAddress extends AddressWrapper {
       case PrimitiveAddress(_) => true
       case _ => false
     }
+    def concrete(id: Int) = ConcreteAddress(id)
     def primitive(name: String) = PrimitiveAddress(name)
     def variable[Time : Timestamp, Abs : JoinLattice](id: Identifier, value: Abs, t: Time) = VariableAddress(id, t)
     def cell[Exp : Expression, Time : Timestamp](exp: Exp, t: Time) = CellAddress(exp, t)
@@ -48,6 +53,9 @@ object ClassicalAddress extends AddressWrapper {
 
 object ValueSensitiveAddress extends AddressWrapper {
   trait A
+  case class ConcreteAddress(id: Int) extends A {
+    override def toString = s"@concrete$id"
+  }
   case class VariableAddress[Time : Timestamp, Abs : JoinLattice](id: Identifier, value: Abs, t: Time) extends A {
     override def toString = s"@($id,$value)"
   }
@@ -64,6 +72,7 @@ object ValueSensitiveAddress extends AddressWrapper {
       case PrimitiveAddress(_) => true
       case _ => false
     }
+    def concrete(id: Int) = ConcreteAddress(id)
     def primitive(name: String) = PrimitiveAddress(name)
     def variable[Time : Timestamp, Abs : JoinLattice](id: Identifier, value: Abs, t: Time) = {
       /* To ensure finiteness, value should be a primitive value that doesn't contain addresses (i.e., no cons cell etc.) */
