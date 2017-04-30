@@ -21,7 +21,7 @@ trait AddressWrapper {
 object ClassicalAddress extends AddressWrapper {
   trait A
   case class ConcreteAddress(id: Int) extends A {
-    override def toString = s"@concrete$id"
+    override def toString = s"@concrete_$id"
   }
   case class VariableAddress[Time : Timestamp](id: Identifier, t: Time) extends A {
     override def toString = s"@$id"
@@ -54,7 +54,7 @@ object ClassicalAddress extends AddressWrapper {
 object ValueSensitiveAddress extends AddressWrapper {
   trait A
   case class ConcreteAddress(id: Int) extends A {
-    override def toString = s"@concrete$id"
+    override def toString = s"@concrete_$id"
   }
   case class VariableAddress[Time : Timestamp, Abs : JoinLattice](id: Identifier, value: Abs, t: Time) extends A {
     override def toString = s"@($id,$value)"

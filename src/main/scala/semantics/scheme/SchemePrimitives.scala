@@ -480,7 +480,7 @@ class SchemePrimitives[Addr : Address, Abs : IsSchemeLattice] extends Primitives
                 } else { MayFailSuccess((abs.bottom, Set[Effect[Addr]]())) }
 
                 val ff: MayFail[(Abs, Set[Effect[Addr]])] = if (abs.isFalse(constest)) {
-                  MayFailError(List(TypeError("append", "operand", "list", list1.toString))) // TODO: figure out operand position.
+                  MayFailError(List(TypeError("append", " first operand", "list", list1.toString)))
                 } else { MayFailSuccess((abs.bottom, Set[Effect[Addr]]())) }
                 MayFail.monoid[(Abs, Set[Effect[Addr]])].append(ft, ff)
               })
@@ -489,7 +489,7 @@ class SchemePrimitives[Addr : Address, Abs : IsSchemeLattice] extends Primitives
           })
         }
       }
-      append(lists(0)._2 , lists(1)._2 , Set[Abs](), t).map({
+      append(lists.head._2 , lists(1)._2 , Set[Abs](), t).map({
         case (abs, eff) => (abs, extendedStore, eff)
       })
     }
