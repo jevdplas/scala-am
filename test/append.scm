@@ -1,0 +1,16 @@
+(define result '())
+(define display (lambda (i) (set! result (cons i result))))
+(define newline (lambda () (set! result (cons 'newline result))))
+
+(let* ((l1 '(1 2 3))
+       (l2 '(4 5))
+       (r (append l1 l2)))
+  (define (print l)
+    (if (null? l)
+        (begin (display " *done* ")(newline))
+        (begin (display (car l))(display " ")(print (cdr l)))))
+  (print r)
+  (set-cdr! l2 '(5 6 7))
+  (print r))
+
+(equal? result '(newline " *done* " " " 7 " " 6 " " 5 " " 4 " " 3 " " 2 " " 1 newline " *done* " " " 5 " " 4 " " 3 " " 2 " " 1))
