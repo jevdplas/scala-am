@@ -451,47 +451,40 @@ class SchemePrimitives[Addr : Address, Abs : IsSchemeLattice] extends Primitives
   */
   object Append extends StoreOperation("append", Some(2)) {
     override def call[Exp : Expression, Time : Timestamp](fexp : Exp, lists: List[(Exp, Abs)], store: Store[Addr, Abs], t: Time): MayFail[(Abs, Store[Addr, Abs], Set[Effect[Addr]])] = {
-      var extendedStore = store
-      def append(list1: Abs, list2: Abs, visited: Set[Abs], time: Time): MayFail[(Abs, Set[Effect[Addr]])] = {
+      def append(list1: Abs, list2: Abs, visited: Set[Abs], store: Store[Addr, Abs], time: Time): MayFail[(Abs, Store[Addr, Abs], Set[Effect[Addr]])] = {
         if (visited.contains(list1)) {
-          MayFailSuccess((abs.bottom, Set[Effect[Addr]]()))
+          MayFailSuccess((abs.bottom, store, Set[Effect[Addr]]()))
         } else {
           isNull(list1) >>= (nulltest => {
             // If the list is null, return the Abs of the second list.
-            val t = if (abs.isTrue(nulltest)) { MayFailSuccess((list2,  Set[Effect[Addr]]())) } else { MayFailSuccess((abs.bottom, Set[Effect[Addr]]())) }
+            val t = if (abs.isTrue(nulltest)) { MayFailSuccess((list2, store, Set[Effect[Addr]]())) } else { MayFailSuccess((abs.bottom, store, Set[Effect[Addr]]())) }
             val f = if (abs.isFalse(nulltest)) {
               isCons(list1) >>= (constest => {
-
                 val ft = if (abs.isTrue(constest)) {
-                  cdr(list1, extendedStore) >>= {
+                  cdr(list1, store) >>= {
                     case (cdr, effcdr) =>
-                      car(list1, extendedStore) >>= {
+                      car(list1, store) >>= {
                         case (car, effcar) =>
-                          append(cdr, list2, visited + list1, time) >>= {
-                            case (newcdr, neweffcdr) =>
+                          append(cdr, list2, visited + list1, store, time) >>= {
+                            case (newcdr, newstore, neweffcdr) =>
                               val cara = Address[Addr].concrete(getAddressId())
                               val cdra = Address[Addr].concrete(getAddressId())
-                              extendedStore = extendedStore.extend(cara, car).extend(cdra, newcdr)
-                              val cons = abs.cons(cara, cdra)
-                              MayFailSuccess((cons, effcar ++ effcdr ++ neweffcdr)) // What should happen with the effects?? Is effcdr == neweffcdr?
+                              MayFailSuccess((abs.cons(cara, cdra), newstore.extend(cara, car).extend(cdra, newcdr), effcar ++ effcdr ++ neweffcdr))
                           }
                       }
                   }
-                } else { MayFailSuccess((abs.bottom, Set[Effect[Addr]]())) }
-
-                val ff: MayFail[(Abs, Set[Effect[Addr]])] = if (abs.isFalse(constest)) {
-                  MayFailError(List(TypeError("append", " first operand", "list", list1.toString)))
-                } else { MayFailSuccess((abs.bottom, Set[Effect[Addr]]())) }
-                MayFail.monoid[(Abs, Set[Effect[Addr]])].append(ft, ff)
+                } else { MayFailSuccess((abs.bottom, store, Set[Effect[Addr]]())) }
+                val ff: MayFail[(Abs, Store[Addr, Abs], Set[Effect[Addr]])] = if (abs.isFalse(constest)) {
+                  MayFailError(List(TypeError("append", "operand", "list", list1.toString))) // TODO: figure out operand position.
+                } else { MayFailSuccess((abs.bottom, store, Set[Effect[Addr]]())) }
+                MayFail.monoid[(Abs, Store[Addr, Abs], Set[Effect[Addr]])].append(ft, ff)
               })
-            } else { MayFailSuccess((abs.bottom,  Set[Effect[Addr]]())) }
-            MayFail.monoid[(Abs, Set[Effect[Addr]])].append(t, f)
+            } else { MayFailSuccess((abs.bottom, store, Set[Effect[Addr]]())) }
+            MayFail.monoid[(Abs, Store[Addr, Abs], Set[Effect[Addr]])].append(t, f)
           })
         }
       }
-      append(lists.head._2 , lists(1)._2 , Set[Abs](), t).map({
-        case (abs, eff) => (abs, extendedStore, eff)
-      })
+      append(lists.head._2 , lists(1)._2 , Set[Abs](), store, t)
     }
   }
 
