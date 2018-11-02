@@ -7,9 +7,9 @@ import scalaam.language.sexp._
 /* TODO[easy]: free vars function (Noah?), and other helpers? */
 
 /**
-  * Object that provides a method to compile an s-expression into a Scheme expression
+  * Trait that provides a method to compile an s-expression into a Scheme expression
   */
-object SchemeCompiler {
+trait SchemeCompiler {
 
   /**
     * Reserved keywords
@@ -190,12 +190,12 @@ object SchemeCompiler {
 }
 
 /**
-  * Object that provides a method to rename variables in a Scheme program in
+  * Trait that provides a method to rename variables in a Scheme program in
   * order to have only unique names. For example, (let ((x 1)) (let ((x 2)) x))
   * will be converted to (let ((_x0 1)) (let ((_x1 2)) _x1)). This is useful to
   * perform ANF conversion.
   */
-object SchemeRenamer {
+trait SchemeRenamer {
 
   /** Maps each variables to their alpha-renamed version (eg. x -> _x0) */
   type NameMap = Map[String, String]
@@ -427,7 +427,7 @@ object SchemeRenamer {
   *     (f foo))
   * Which is semantically equivalent with respect to the end result
   */
-object SchemeUndefiner {
+trait SchemeUndefiner {
   import scala.util.control.TailCalls._
 
   def undefine(exps: List[SchemeExp]): SchemeExp =
@@ -471,120 +471,126 @@ object SchemeUndefiner {
     case SchemeDefineFunction(_, _, _, _) :: _ => tailcall(undefine(exps, List())).map(v => List(v))
     case SchemeDefineVariable(_, _, _) :: _    => tailcall(undefine(exps, List())).map(v => List(v))
     case exp :: rest => {
-      val exp2 = exp match {
-        case SchemeLambda(args, body, pos) =>
-          tailcall(undefineBody(body)).map(b => SchemeLambda(args, b, pos))
-        case SchemeFuncall(f, args, pos) =>
-          tailcall(undefine1(f)).flatMap(fun =>
-            trampolineM(undefine1, args).map(argsv => SchemeFuncall(fun, argsv, pos)))
-        case SchemeIf(cond, cons, alt, pos) =>
-          tailcall(undefine1(cond)).flatMap(condv =>
-            tailcall(undefine1(cons)).flatMap(consv =>
-              tailcall(undefine1(alt)).map(altv => SchemeIf(condv, consv, altv, pos))))
-        case SchemeLet(bindings, body, pos) =>
-          trampolineM((x: (Identifier, SchemeExp)) =>
-                        x match {
-                          case (b, v) => tailcall(undefine1(v)).map(vv => (b, vv))
-                      },
-                      bindings).flatMap(bindingsv =>
-            tailcall(undefineBody(body)).map(bodyv => SchemeLet(bindingsv, bodyv, pos)))
-        case SchemeLetStar(bindings, body, pos) =>
-          trampolineM((x: (Identifier, SchemeExp)) =>
-                        x match {
-                          case (b, v) => tailcall(undefine1(v)).map(vv => (b, vv))
-                      },
-                      bindings).flatMap(bindingsv =>
-            tailcall(undefineBody(body)).map(bodyv => SchemeLetStar(bindingsv, bodyv, pos)))
-        case SchemeLetrec(bindings, body, pos) =>
-          trampolineM((x: (Identifier, SchemeExp)) =>
-                        x match {
-                          case (b, v) => tailcall(undefine1(v)).map(vv => (b, vv))
-                      },
-                      bindings).flatMap(bindingsv =>
-            tailcall(undefineBody(body)).map(bodyv => SchemeLetrec(bindingsv, bodyv, pos)))
-        case SchemeNamedLet(name, bindings, body, pos) =>
-          trampolineM((x: (Identifier, SchemeExp)) =>
-                        x match {
-                          case (b, v) => tailcall(undefine1(v)).map(vv => (b, vv))
-                      },
-                      bindings).flatMap(bindingsv =>
-            tailcall(undefineBody(body)).map(bodyv => SchemeNamedLet(name, bindingsv, bodyv, pos)))
-        case SchemeSet(variable, value, pos) =>
-          tailcall(undefine1(value)).map(v => SchemeSet(variable, v, pos))
-        case SchemeBegin(exps, pos) =>
-          tailcall(undefineBody(exps)).map(expsv => SchemeBegin(expsv, pos))
-        case SchemeCond(clauses, pos) =>
-          trampolineM(
-            (e: (SchemeExp, List[SchemeExp])) =>
-              e match {
-                case (cond, body) =>
-                  tailcall(undefine1(cond)).flatMap(condv =>
-                    tailcall(undefineBody(body)).map(bodyv => (condv, bodyv)))
-            },
-            clauses
-          ).map(clausesv => SchemeCond(clausesv, pos))
-        case SchemeCase(key, clauses, default, pos) =>
-          tailcall(undefine1(key)).flatMap(
-            keyv =>
-              trampolineM((c: (List[SchemeValue], List[SchemeExp])) =>
-                            c match {
-                              case (vs, body) =>
-                                tailcall(undefineBody(body)).map(bodyv => (vs, bodyv))
-                          },
-                          clauses).flatMap(clausesv =>
-                tailcall(undefineBody(default)).map(defaultv =>
-                  SchemeCase(keyv, clausesv, defaultv, pos))))
-        case SchemeAnd(args, pos) =>
-          trampolineM(undefine1, args).map(argsv => SchemeAnd(argsv, pos))
-        case SchemeOr(args, pos) => trampolineM(undefine1, args).map(argsv => SchemeOr(argsv, pos))
-        case SchemeDo(vars, test, finals, commands, pos) =>
-          trampolineM(
-            (x: (Identifier, SchemeExp, Option[SchemeExp])) =>
-              x match {
-                case (id, init, step) =>
-                  tailcall(undefine1(init)).flatMap(initv =>
-                    step match {
-                      case Some(s) =>
-                        undefine1(s).map(stepv => {
-                          val x: Option[SchemeExp] = Some(stepv)
-                          (id, initv, x)
-                        })
-                      case None =>
-                        val x: Option[SchemeExp] = None
-                        done((id, initv, x))
-                  })
-            },
-            vars
-          ).flatMap(varsv =>
-            tailcall(undefine1(test)).flatMap(testv =>
-              tailcall(undefineBody(finals)).flatMap(finalsv =>
-                tailcall(undefineBody(commands).map(commandsv =>
-                  SchemeDo(varsv, testv, finalsv, commandsv, pos))))))
-        case SchemeVar(id)             => done(SchemeVar(id))
-        case SchemeQuoted(quoted, pos) => done(SchemeQuoted(quoted, pos))
-        case SchemeValue(value, pos)   => done(SchemeValue(value, pos))
-      }
+      val exp2 = this.undefineExpr(exp)
       exp2.flatMap(e2 => tailcall(undefineBody(rest)).flatMap(e3 => done(e2 :: e3)))
     }
   }
+  
+  def undefineExpr(exp: SchemeExp): TailRec[SchemeExp] = exp match {
+    case SchemeLambda(args, body, pos) =>
+      tailcall(undefineBody(body)).map(b => SchemeLambda(args, b, pos))
+    case SchemeFuncall(f, args, pos) =>
+      tailcall(undefine1(f)).flatMap(fun =>
+        trampolineM(undefine1, args).map(argsv => SchemeFuncall(fun, argsv, pos)))
+    case SchemeIf(cond, cons, alt, pos) =>
+      tailcall(undefine1(cond)).flatMap(condv =>
+        tailcall(undefine1(cons)).flatMap(consv =>
+          tailcall(undefine1(alt)).map(altv => SchemeIf(condv, consv, altv, pos))))
+    case SchemeLet(bindings, body, pos) =>
+      trampolineM((x: (Identifier, SchemeExp)) =>
+        x match {
+          case (b, v) => tailcall(undefine1(v)).map(vv => (b, vv))
+        },
+        bindings).flatMap(bindingsv =>
+        tailcall(undefineBody(body)).map(bodyv => SchemeLet(bindingsv, bodyv, pos)))
+    case SchemeLetStar(bindings, body, pos) =>
+      trampolineM((x: (Identifier, SchemeExp)) =>
+        x match {
+          case (b, v) => tailcall(undefine1(v)).map(vv => (b, vv))
+        },
+        bindings).flatMap(bindingsv =>
+        tailcall(undefineBody(body)).map(bodyv => SchemeLetStar(bindingsv, bodyv, pos)))
+    case SchemeLetrec(bindings, body, pos) =>
+      trampolineM((x: (Identifier, SchemeExp)) =>
+        x match {
+          case (b, v) => tailcall(undefine1(v)).map(vv => (b, vv))
+        },
+        bindings).flatMap(bindingsv =>
+        tailcall(undefineBody(body)).map(bodyv => SchemeLetrec(bindingsv, bodyv, pos)))
+    case SchemeNamedLet(name, bindings, body, pos) =>
+      trampolineM((x: (Identifier, SchemeExp)) =>
+        x match {
+          case (b, v) => tailcall(undefine1(v)).map(vv => (b, vv))
+        },
+        bindings).flatMap(bindingsv =>
+        tailcall(undefineBody(body)).map(bodyv => SchemeNamedLet(name, bindingsv, bodyv, pos)))
+    case SchemeSet(variable, value, pos) =>
+      tailcall(undefine1(value)).map(v => SchemeSet(variable, v, pos))
+    case SchemeBegin(exps, pos) =>
+      tailcall(undefineBody(exps)).map(expsv => SchemeBegin(expsv, pos))
+    case SchemeCond(clauses, pos) =>
+      trampolineM(
+        (e: (SchemeExp, List[SchemeExp])) =>
+          e match {
+            case (cond, body) =>
+              tailcall(undefine1(cond)).flatMap(condv =>
+                tailcall(undefineBody(body)).map(bodyv => (condv, bodyv)))
+          },
+        clauses
+      ).map(clausesv => SchemeCond(clausesv, pos))
+    case SchemeCase(key, clauses, default, pos) =>
+      tailcall(undefine1(key)).flatMap(
+        keyv =>
+          trampolineM((c: (List[SchemeValue], List[SchemeExp])) =>
+            c match {
+              case (vs, body) =>
+                tailcall(undefineBody(body)).map(bodyv => (vs, bodyv))
+            },
+            clauses).flatMap(clausesv =>
+            tailcall(undefineBody(default)).map(defaultv =>
+              SchemeCase(keyv, clausesv, defaultv, pos))))
+    case SchemeAnd(args, pos) =>
+      trampolineM(undefine1, args).map(argsv => SchemeAnd(argsv, pos))
+    case SchemeOr(args, pos) => trampolineM(undefine1, args).map(argsv => SchemeOr(argsv, pos))
+    case SchemeDo(vars, test, finals, commands, pos) =>
+      trampolineM(
+        (x: (Identifier, SchemeExp, Option[SchemeExp])) =>
+          x match {
+            case (id, init, step) =>
+              tailcall(undefine1(init)).flatMap(initv =>
+                step match {
+                  case Some(s) =>
+                    undefine1(s).map(stepv => {
+                      val x: Option[SchemeExp] = Some(stepv)
+                      (id, initv, x)
+                    })
+                  case None =>
+                    val x: Option[SchemeExp] = None
+                    done((id, initv, x))
+                })
+          },
+        vars
+      ).flatMap(varsv =>
+        tailcall(undefine1(test)).flatMap(testv =>
+          tailcall(undefineBody(finals)).flatMap(finalsv =>
+            tailcall(undefineBody(commands).map(commandsv =>
+              SchemeDo(varsv, testv, finalsv, commandsv, pos))))))
+    case SchemeVar(id)             => done(SchemeVar(id))
+    case SchemeQuoted(quoted, pos) => done(SchemeQuoted(quoted, pos))
+    case SchemeValue(value, pos)   => done(SchemeValue(value, pos))
+  }
 }
+
+object BaseSchemeCompiler  extends SchemeCompiler
+object BaseSchemeRenamer   extends SchemeRenamer
+object BaseSchemeUndefiner extends SchemeUndefiner
 
 object SchemeParser {
 
   /**
     * Compiles a s-expression into a scheme expression
     */
-  def compile(exp: SExp): SchemeExp = SchemeCompiler.compile(exp)
+  def compile(exp: SExp): SchemeExp = BaseSchemeCompiler.compile(exp)
 
   /**
     * Performs alpha-renaming to ensure that every variable has a unique name
     */
-  def rename(exp: SchemeExp): SchemeExp = SchemeRenamer.rename(exp)
+  def rename(exp: SchemeExp): SchemeExp = BaseSchemeRenamer.rename(exp)
 
   /**
     * Replace defines in a program (a list of expressions) by a big letrec as a single expression
     */
-  def undefine(exps: List[SchemeExp]): SchemeExp = SchemeUndefiner.undefine(exps)
+  def undefine(exps: List[SchemeExp]): SchemeExp = BaseSchemeUndefiner.undefine(exps)
 
   /**
     * Parse a string representing a Scheme program
