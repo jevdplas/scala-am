@@ -1,0 +1,2 @@
+All files in this directory are taken from https://github.com/acieroid/scala-am/tree/modularthreads on 3/11/2018.
+The files are altered to use constructs from Atomlang and tests are added.
