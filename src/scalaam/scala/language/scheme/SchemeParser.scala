@@ -19,52 +19,52 @@ trait SchemeCompiler {
 
   def compile(exp: SExp): SchemeExp = exp match {
     case SExpPair(SExpId(Identifier("quote", _)), SExpPair(quoted, SExpValue(ValueNil, _), _), _) =>
-      compile(SExpQuoted(quoted, exp.pos))
+      this.compile(SExpQuoted(quoted, exp.pos))
     case SExpPair(SExpId(Identifier("quote", _)), _, _) =>
       throw new Exception(s"Invalid Scheme quote: $exp (${exp.pos})")
     case SExpPair(SExpId(Identifier("lambda", _)),
                   SExpPair(args, SExpPair(first, rest, _), _),
                   _) =>
-      SchemeLambda(compileArgs(args), compile(first) :: compileBody(rest), exp.pos)
+      SchemeLambda(compileArgs(args), this.compile(first) :: compileBody(rest), exp.pos)
     case SExpPair(SExpId(Identifier("lambda", _)), _, _) =>
       throw new Exception(s"Invalid Scheme lambda: $exp (${exp.pos})")
     case SExpPair(SExpId(Identifier("if", _)),
                   SExpPair(cond, SExpPair(cons, SExpPair(alt, SExpValue(ValueNil, _), _), _), _),
                   _) =>
-      SchemeIf(compile(cond), compile(cons), compile(alt), exp.pos)
+      SchemeIf(this.compile(cond), this.compile(cons), this.compile(alt), exp.pos)
     case SExpPair(SExpId(Identifier("if", _)),
                   SExpPair(cond, SExpPair(cons, SExpValue(ValueNil, _), _), _),
                   _) =>
       /* Empty else branch is replaced by #f (R5RS states it's unspecified) */
-      SchemeIf(compile(cond), compile(cons), SchemeValue(ValueBoolean(false), exp.pos), exp.pos)
+      SchemeIf(this.compile(cond), this.compile(cons), SchemeValue(ValueBoolean(false), exp.pos), exp.pos)
     case SExpPair(SExpId(Identifier("if", _)), _, _) =>
       throw new Exception(s"Invalid Scheme if: $exp (${exp.pos})")
     case SExpPair(SExpId(Identifier("let", _)),
                   SExpPair(SExpId(name), SExpPair(bindings, SExpPair(first, rest, _), _), _),
                   _) =>
-      SchemeNamedLet(name, compileBindings(bindings), compile(first) :: compileBody(rest), exp.pos)
+      SchemeNamedLet(name, compileBindings(bindings), this.compile(first) :: compileBody(rest), exp.pos)
     case SExpPair(SExpId(Identifier("let", _)),
                   SExpPair(bindings, SExpPair(first, rest, _), _),
                   _) =>
-      SchemeLet(compileBindings(bindings), compile(first) :: compileBody(rest), exp.pos)
+      SchemeLet(compileBindings(bindings), this.compile(first) :: compileBody(rest), exp.pos)
     case SExpPair(SExpId(Identifier("let", _)), _, _) =>
       throw new Exception(s"Invalid Scheme let: $exp")
     case SExpPair(SExpId(Identifier("let*", _)),
                   SExpPair(bindings, SExpPair(first, rest, _), _),
                   _) =>
-      SchemeLetStar(compileBindings(bindings), compile(first) :: compileBody(rest), exp.pos)
+      SchemeLetStar(compileBindings(bindings), this.compile(first) :: compileBody(rest), exp.pos)
     case SExpPair(SExpId(Identifier("let*", _)), _, _) =>
       throw new Exception(s"Invalid Scheme let*: $exp")
     case SExpPair(SExpId(Identifier("letrec", _)),
                   SExpPair(bindings, SExpPair(first, rest, _), _),
                   _) =>
-      SchemeLetrec(compileBindings(bindings), compile(first) :: compileBody(rest), exp.pos)
+      SchemeLetrec(compileBindings(bindings), this.compile(first) :: compileBody(rest), exp.pos)
     case SExpPair(SExpId(Identifier("letrec", _)), _, _) =>
       throw new Exception(s"Invalid Scheme letrec: $exp")
     case SExpPair(SExpId(Identifier("set!", _)),
                   SExpPair(SExpId(v), SExpPair(value, SExpValue(ValueNil, _), _), _),
                   _) =>
-      SchemeSet(v, compile(value), exp.pos)
+      SchemeSet(v, this.compile(value), exp.pos)
     case SExpPair(SExpId(Identifier("set!", _)), _, _) =>
       throw new Exception(s"Invalid Scheme set!: $exp")
     case SExpPair(SExpId(Identifier("begin", _)), body, _) =>
@@ -73,7 +73,7 @@ trait SchemeCompiler {
       SchemeCond(compileCondClauses(clauses), exp.pos)
     case SExpPair(SExpId(Identifier("case", _)), SExpPair(exp, clauses, _), _) =>
       val (c, d) = compileCaseClauses(clauses)
-      SchemeCase(compile(exp), c, d, exp.pos)
+      SchemeCase(this.compile(exp), c, d, exp.pos)
     case SExpPair(SExpId(Identifier("and", _)), args, _) =>
       SchemeAnd(compileBody(args), exp.pos)
     case SExpPair(SExpId(Identifier("or", _)), args, _) =>
@@ -81,22 +81,22 @@ trait SchemeCompiler {
     case SExpPair(SExpId(Identifier("define", _)),
                   SExpPair(SExpId(name), SExpPair(value, SExpValue(ValueNil, _), _), _),
                   _) =>
-      SchemeDefineVariable(name, compile(value), exp.pos)
+      SchemeDefineVariable(name, this.compile(value), exp.pos)
     case SExpPair(SExpId(Identifier("define", _)),
                   SExpPair(SExpPair(SExpId(name), args, _), SExpPair(first, rest, _), _),
                   _) =>
-      SchemeDefineFunction(name, compileArgs(args), compile(first) :: compileBody(rest), exp.pos)
+      SchemeDefineFunction(name, compileArgs(args), this.compile(first) :: compileBody(rest), exp.pos)
     case SExpPair(SExpId(Identifier("do", _)),
                   SExpPair(bindings, SExpPair(SExpPair(test, finals, _), commands, _), _),
                   _) =>
       SchemeDo(compileDoBindings(bindings),
-               compile(test),
+               this.compile(test),
                compileBody(finals),
                compileBody(commands),
                exp.pos)
 
     case SExpPair(f, args, _) =>
-      SchemeFuncall(compile(f), compileBody(args), exp.pos)
+      SchemeFuncall(this.compile(f), compileBody(args), exp.pos)
     case SExpId(v) =>
       if (reserved.contains(v.name)) {
         throw new Exception(s"Invalid Scheme identifier (reserved): $exp")
@@ -114,7 +114,7 @@ trait SchemeCompiler {
   }
 
   def compileBody(body: SExp): List[SchemeExp] = body match {
-    case SExpPair(exp, rest, _) => compile(exp) :: compileBody(rest)
+    case SExpPair(exp, rest, _) => this.compile(exp) :: compileBody(rest)
     case SExpValue(ValueNil, _) => Nil
     case _                      => throw new Exception(s"Invalid Scheme body: $body (${body.pos})")
   }
@@ -124,7 +124,7 @@ trait SchemeCompiler {
       if (reserved.contains(v.name)) {
         throw new Exception(s"Invalid Scheme identifier (reserved): $v (${bindings.pos})")
       } else {
-        (v, compile(value)) :: compileBindings(rest)
+        (v, this.compile(value)) :: compileBindings(rest)
       }
     case SExpValue(ValueNil, _) => Nil
     case _                      => throw new Exception(s"Invalid Scheme bindings: $bindings (${bindings.pos})")
@@ -136,7 +136,7 @@ trait SchemeCompiler {
         if (reserved.contains(v.name)) {
           throw new Exception(s"Invalid Scheme identifier (reserved): $v (${bindings.pos})")
         } else {
-          (v, compile(value), None) :: compileDoBindings(rest)
+          (v, this.compile(value), None) :: compileDoBindings(rest)
         }
       case SExpPair(
           SExpPair(SExpId(v), SExpPair(value, SExpPair(step, SExpValue(ValueNil, _), _), _), _),
@@ -145,7 +145,7 @@ trait SchemeCompiler {
         if (reserved.contains(v.name)) {
           throw new Exception(s"Invalid Scheme identifier (reserved): $v (${bindings.pos})")
         } else {
-          (v, compile(value), Some(compile(step))) :: compileDoBindings(rest)
+          (v, this.compile(value), Some(this.compile(step))) :: compileDoBindings(rest)
         }
       case SExpValue(ValueNil, _) => Nil
       case _                      => throw new Exception(s"Invalid Scheme do-bindings: $bindings (${bindings.pos})")
@@ -155,11 +155,11 @@ trait SchemeCompiler {
     case SExpPair(SExpPair(SExpId(Identifier("else", _)), SExpPair(first, rest, _), _),
                   SExpValue(ValueNil, _),
                   _) =>
-      List((SchemeValue(ValueBoolean(true), clauses.pos), compile(first) :: compileBody(rest)))
+      List((SchemeValue(ValueBoolean(true), clauses.pos), this.compile(first) :: compileBody(rest)))
     case SExpPair(SExpPair(cond, SExpPair(first, rest, _), _), restClauses, _) =>
-      (compile(cond), compile(first) :: compileBody(rest)) :: compileCondClauses(restClauses)
+      (this.compile(cond), this.compile(first) :: compileBody(rest)) :: compileCondClauses(restClauses)
     case SExpPair(SExpPair(cond, SExpValue(ValueNil, _), _), restClauses, _) =>
-      (compile(cond), Nil) :: compileCondClauses(restClauses)
+      (this.compile(cond), Nil) :: compileCondClauses(restClauses)
     case SExpValue(ValueNil, _) => Nil
     case _                      => throw new Exception(s"Invalid Scheme cond clauses: $clauses ${clauses.pos})")
   }
@@ -170,7 +170,7 @@ trait SchemeCompiler {
       case SExpPair(SExpPair(SExpId(Identifier("else", _)), SExpPair(first, rest, _), _),
                     SExpValue(ValueNil, _),
                     _) =>
-        (List(), compile(first) :: compileBody(rest))
+        (List(), this.compile(first) :: compileBody(rest))
       case SExpPair(SExpPair(objects, body, _), restClauses, _) =>
         val (compiled, default) = compileCaseClauses(restClauses)
         ((compileCaseObjects(objects), compileBody(body)) :: compiled, default)
@@ -204,7 +204,7 @@ trait SchemeRenamer {
   type CountMap = Map[String, Int]
 
   def rename(exp: SchemeExp): SchemeExp =
-    rename(exp, Map[String, String](), Map[String, Int]()) match {
+    this.rename(exp, Map[String, String](), Map[String, Int]()) match {
       case (e, _) => e
     }
 
@@ -217,18 +217,18 @@ trait SchemeRenamer {
           }
       }
     case SchemeFuncall(f, args, pos) =>
-      rename(f, names, count) match {
+      this.rename(f, names, count) match {
         case (f1, count1) =>
           renameList(args, names, count1) match {
             case (args1, count2) => (SchemeFuncall(f1, args1, pos), count2)
           }
       }
     case SchemeIf(cond, cons, alt, pos) =>
-      rename(cond, names, count) match {
+      this.rename(cond, names, count) match {
         case (cond1, count1) =>
-          rename(cons, names, count1) match {
+          this.rename(cons, names, count1) match {
             case (cons1, count2) =>
-              rename(alt, names, count2) match {
+              this.rename(alt, names, count2) match {
                 case (alt1, count3) => (SchemeIf(cond1, cons1, alt1, pos), count3)
               }
           }
@@ -278,7 +278,7 @@ trait SchemeRenamer {
           }
       }
     case SchemeSet(variable, value, pos) =>
-      rename(value, names, count) match {
+      this.rename(value, names, count) match {
         case (value1, count1) =>
           (SchemeSet(names.get(variable.name) match {
             case Some(n) => Identifier(n, variable.pos)
@@ -294,7 +294,7 @@ trait SchemeRenamer {
         (st: (List[(SchemeExp, List[SchemeExp])], CountMap), cl: (SchemeExp, List[SchemeExp])) =>
           (st, cl) match {
             case ((l, cs), (e, body)) =>
-              rename(e, names, cs) match {
+              this.rename(e, names, cs) match {
                 case (e1, count1) =>
                   renameList(body, names, count1) match {
                     case (body1, count2) =>
@@ -305,7 +305,7 @@ trait SchemeRenamer {
         case (l, count1) => (SchemeCond(l.reverse, pos), count1)
       }
     case SchemeCase(exp, clauses, default, pos) =>
-      rename(exp, names, count) match {
+      this.rename(exp, names, count) match {
         case (exp1, count1) =>
           clauses.foldLeft((List[(List[SchemeValue], List[SchemeExp])](), count1))(
             (st: (List[(List[SchemeValue], List[SchemeExp])], CountMap),
@@ -332,7 +332,7 @@ trait SchemeRenamer {
       }
     case SchemeDefineVariable(name, value, pos) =>
       /* Keeps name untouched (maybe not correct?) */
-      rename(value, names, count) match {
+      this.rename(value, names, count) match {
         case (value1, count1) => (SchemeDefineVariable(name, value1, pos), count1)
       }
     case SchemeDefineFunction(name, args, body, pos) =>
@@ -360,7 +360,7 @@ trait SchemeRenamer {
                  names: NameMap,
                  count: CountMap): (List[SchemeExp], CountMap) = exps match {
     case exp :: rest =>
-      val (exp1, count1)  = rename(exp, names, count)
+      val (exp1, count1)  = this.rename(exp, names, count)
       val (rest1, count2) = renameList(rest, names, count1)
       (exp1 :: rest1, count2)
     case Nil => (Nil, count)
@@ -375,7 +375,7 @@ trait SchemeRenamer {
           /* use old names, as with a let* the variable is not yet bound in its
            * definition */
           case (v1, names1, count1) =>
-            rename(e, names, count1) match {
+            this.rename(e, names, count1) match {
               case (e1, count2) =>
                 renameLetStarBindings(rest, names1, count2) match {
                   case (rest1, names2, count3) =>
