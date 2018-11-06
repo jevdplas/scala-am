@@ -25,7 +25,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
   }
 
   /** Bundles all the primitives together, annotated with R5RS support (v: supported, vv: supported and tested in PrimitiveTests, vx: not fully supported, x: not supported), and section in Guile manual */
-  def allPrimitives: List[Primitive] = {
+  def primList: List[Primitive] = {
     import PrimitiveDefs._
     List(
       Times, /* [vv] *: Arithmetic */
@@ -231,6 +231,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       Error,
     )
   }
+  def allPrimitives: List[Primitive] = primList
 
   object PrimitiveDefs {
 

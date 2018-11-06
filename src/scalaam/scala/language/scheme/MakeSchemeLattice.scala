@@ -63,6 +63,10 @@ class MakeSchemeLattice[
   case object Nil extends Value {
     override def toString = "()"
   }
+  
+  case class Atom(data: L) extends Value {
+    override def toString = s"atom($data)"
+  }
 
   case class Pointer(a: A) extends Value {
     override def toString = "#pointer"
@@ -186,6 +190,11 @@ class MakeSchemeLattice[
           case IsBoolean =>
             MayFail.success(x match {
               case Bool(_) => True
+              case _       => False
+            })
+          case IsAtom =>
+            MayFail.success(x match {
+              case Atom(_) => True
               case _       => False
             })
           case IsVector =>
@@ -402,6 +411,7 @@ class MakeSchemeLattice[
               case (Prim(_), Prim(_))       => Bool(BoolLattice[B].inject(x == y))
               case (Clo(_, _), Clo(_, _))   => Bool(BoolLattice[B].inject(x == y))
               case (Cons(_, _), Cons(_, _)) => Bool(BoolLattice[B].inject(x == y))
+              case (Atom(_), Atom(_))       => Bool(BoolLattice[B].inject(x == y))
               //          case (VectorAddress(_), VectorAddress(_)) => Bool(BoolLattice[B].inject(x == y))
               case _ => False
             })
@@ -428,6 +438,7 @@ class MakeSchemeLattice[
     def symbol(x: String): Value                  = Symbol(SymbolLattice[Sym].inject(x))
     def nil: Value                                = Nil
     def cons(car: L, cdr: L): Value               = Cons(car, cdr)
+    def atom(data: L): Value                      = Atom(data)
     def pointer(a: A): Value                      = Pointer(a)
 
     def getClosures(x: Value): Set[schemeLattice.Closure] = x match {
@@ -451,6 +462,11 @@ class MakeSchemeLattice[
     def cdr(x: Value): MayFail[L, Error] = x match {
       case Cons(_, cdr) => MayFail.success(cdr)
       case _            => MayFail.failure(TypeError("expecting cons to access cdr", x))
+    }
+    
+    def deref(x: Value): MayFail[L, Error] = x match {
+      case Atom(data) => MayFail.success(data)
+      case _          => MayFail.failure(TypeError("Expecting atom or future to dereference.", x))
     }
     /*
     def vectorRef[Addr : Address](vector: Value, index: Value): MayFail[Set[Addr]] = (vector, index) match {
@@ -568,6 +584,7 @@ class MakeSchemeLattice[
           x.foldMapL(x => Value.subsumes(x, y))(boolOrMonoid))(boolAndMonoid)
     def car(x: L) = x.foldMapL(Value.car(_))
     def cdr(x: L) = x.foldMapL(Value.cdr(_))
+    def deref(x: L) = x.foldMapL(Value.deref(_))
     def top: L    = throw LatticeTopUndefined
 
     /*
@@ -593,6 +610,7 @@ class MakeSchemeLattice[
     def closure(x: Closure): L                = Element(Value.closure(x))
     def symbol(x: String): L                  = Element(Value.symbol(x))
     def cons(car: L, cdr: L): L               = Element(Value.cons(car, cdr))
+    def atom(data: L): L                      = Element(Value.atom(data))
     def pointer(a: A): L                      = Element(Value.pointer(a))
     /*
     def vector[Addr : Address](addr: Addr, size: L, init: Addr): MayFail[(L, L)] = foldMapL(size, size =>

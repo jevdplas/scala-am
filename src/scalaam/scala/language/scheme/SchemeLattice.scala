@@ -71,6 +71,9 @@ trait SchemeLattice[L, Exp, A <: Address] extends Lattice[L] {
 
   /** Injection of a cons cell */
   def cons(car: L, cdr: L): L
+  
+  /** Injection of an atom */
+  def atom(data: L): L
 
   /** Injection of the nil value */
   def nil: L
@@ -83,6 +86,9 @@ trait SchemeLattice[L, Exp, A <: Address] extends Lattice[L] {
 
   /** Takes the cdr of a cons cell */
   def cdr(x: L): MayFail[L, Error]
+  
+  /** Dereference an atom/a future */
+  def deref(x: L): MayFail[L, Error]
 
   /* TODO: reimplement vectors
   /** Get a value from a vector. Returns the addresses where to look for the values */
