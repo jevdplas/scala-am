@@ -26,7 +26,7 @@ object BenchmarkTestKind extends Enumeration {
   * @param result    The expected result for this benchmark as a primitive value.
   * @param supported Supported tests. */
 case class Benchmark(file: String, result: scalaam.language.sexp.Value, supported: Set[BenchmarkTestKind.BenchmarkTestKind]) {
-    override def toString = file
+    override def toString: String = file
 }
 
 object BenchmarksUtil {
@@ -49,11 +49,11 @@ trait Benchmarks {
 }
 
 trait SchemeBenchmarks extends Benchmarks {
-    override val allBenchmarks: List[Benchmark] = super.allBenchmarks ++ Benchmarks.schemeBenchmarks
+    override def allBenchmarks: List[Benchmark] = super.allBenchmarks ++ Benchmarks.schemeBenchmarks
 }
 
 trait AtomlangBenchmarks extends Benchmarks {
-    override val allBenchmarks: List[Benchmark] = super.allBenchmarks ++ Benchmarks.atomlangBenchmarks
+    override def allBenchmarks: List[Benchmark] = super.allBenchmarks ++ Benchmarks.atomlangBenchmarks
 }
 
 trait AllBenchmarks extends SchemeBenchmarks with AtomlangBenchmarks
