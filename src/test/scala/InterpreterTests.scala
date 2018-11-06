@@ -21,7 +21,7 @@ abstract class InterpreterTests[A <: Address, V, T, C](
         case ValueCharacter(c) => char(c)
         case ValueNil => nil
     }
-    
+
     benchmarksFor(kind).foreach(b =>
         BenchmarksUtil.fileContent(b).foreach(program =>
             property(s"$b should result in ${fromValue(b.result)}") {
@@ -41,7 +41,7 @@ abstract class AtomlangInterpreterTests[A <: Address, V, T, C](kind: BenchmarkTe
     override implicit val lat: SchemeLattice[V, SchemeExp, A]) extends InterpreterTests[A, V, T, C](kind)
     with AtomlangBenchmarks
 
-abstract class SchemeInterpreterAAMTests[A <: Address, T, V](
+class SchemeInterpreterAAMTests[A <: Address, T, V](
     allocator: Allocator[A, T, SchemeExp],
     kind: BenchmarkTestKind.BenchmarkTestKind)(
     implicit val time: Timestamp[T, SchemeExp],
@@ -51,7 +51,7 @@ abstract class SchemeInterpreterAAMTests[A <: Address, T, V](
     val machine = new AAM[SchemeExp, A, V, T](sem)
 }
 
-abstract class AtomlangInterpreterAAMTests[A <: Address, T, V](
+class AtomlangInterpreterAAMTests[A <: Address, T, V](
     allocator: Allocator[A, T, SchemeExp],
     kind: BenchmarkTestKind.BenchmarkTestKind)(
     implicit val time: Timestamp[T, SchemeExp],

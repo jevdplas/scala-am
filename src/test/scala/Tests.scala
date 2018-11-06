@@ -6,8 +6,8 @@ import scalaam.graph.{GraphMetadataBool, GraphMetadataString, GraphMetadataValue
 import scalaam.language.scheme.{SchemeExp, SchemeLattice, SchemeParser}
 
 abstract class Tests[A <: Address, V, T, C](
-                                               implicit val timestamp: Timestamp[T, C],
-                                               implicit val lat: SchemeLattice[V, SchemeExp, A])
+    implicit val timestamp: Timestamp[T, C],
+    implicit val lat: SchemeLattice[V, SchemeExp, A])
     extends PropSpec with TableDrivenPropertyChecks with Matchers {
     val sem: Semantics[SchemeExp, A, V, T, C]
     val machine: MachineAbstraction[SchemeExp, A, V, T, C]
