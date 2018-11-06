@@ -1,4 +1,4 @@
-import BenchmarkTestKind.none
+import BenchmarkTestKind.BenchmarkTestKind
 import org.scalatest._
 import scalaam.language.sexp.{ValueBoolean, ValueInteger, ValueString, ValueSymbol}
 
@@ -20,17 +20,12 @@ object BenchmarkTestKind extends Enumeration {
         all -- kinds
 }
 
-
-/** A benchmark */
-case class Benchmark(
-                        /** The path to the file */
-                        file: String,
-    
-                        /** The expected result for this benchmark as a primitive value */
-                        result: scalaam.language.sexp.Value,
-    
-                        /** Supported tests */
-                        supported: Set[BenchmarkTestKind.BenchmarkTestKind]) {
+/** A benchmark
+  *
+  * @param file      The path to the file.
+  * @param result    The expected result for this benchmark as a primitive value.
+  * @param supported Supported tests. */
+case class Benchmark(file: String, result: scalaam.language.sexp.Value, supported: Set[BenchmarkTestKind.BenchmarkTestKind]) {
     override def toString = file
 }
 
@@ -43,27 +38,37 @@ object BenchmarksUtil {
     }
 }
 
-object Benchmarks {
-    
-    import BenchmarkTestKind._
+/** Trait to ease selecting benchmarks for a specific language. */
+trait Benchmarks {
+    def allBenchmarks: List[Benchmark] = List()
     
     def benchmarksFor(kind: BenchmarkTestKind): List[Benchmark] =
         allBenchmarks.filter(b => b.supported.contains(kind))
     
-    val allBenchmarks = SchemeBenchmarks.allBenchmarks ++ Atomlangbenchmarks.allBenchmarks
-    
     val unused: List[Benchmark] = allBenchmarks.filter(b => b.supported.isEmpty)
 }
 
-class UnusedBenchmarksTests extends FlatSpec with Matchers {
-    Benchmarks.unused.foreach(bench => bench.file should "be used" in {
+trait SchemeBenchmarks extends Benchmarks {
+    override val allBenchmarks: List[Benchmark] = super.allBenchmarks ++ Benchmarks.schemeBenchmarks
+}
+
+trait AtomlangBenchmarks extends Benchmarks {
+    override val allBenchmarks: List[Benchmark] = super.allBenchmarks ++ Benchmarks.atomlangBenchmarks
+}
+
+trait AllBenchmarks extends SchemeBenchmarks with AtomlangBenchmarks
+
+class UnusedBenchmarksTests extends FlatSpec with Matchers with AllBenchmarks {
+    unused.foreach(bench => bench.file should "be used" in {
         cancel("unused")
     })
 }
 
-object SchemeBenchmarks {
+object Benchmarks {
+    
     import BenchmarkTestKind._
-    val allBenchmarks = List(
+    
+    val schemeBenchmarks = List(
         Benchmark("test/Scheme/ad/abstrct.scm", ValueBoolean(true), except(run /* vectors */)),
         Benchmark("test/Scheme/ad/bfirst.scm", ValueBoolean(true), none), // dot notation
         Benchmark("test/Scheme/ad/bst.scm", ValueBoolean(true), none), // dot notation
@@ -237,11 +242,8 @@ object SchemeBenchmarks {
         Benchmark("test/Scheme/widen.scm", ValueInteger(10), all),
         Benchmark("test/Scheme/work.scm", ValueInteger(362880), all)
     )
-}
-
-object Atomlangbenchmarks {
     
-    val allBenchmarks = List(
+    val atomlangBenchmarks = List(
         Benchmark("test/Atomlang/Concurrent/count2.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/count3.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/count4.scm", ValueBoolean(true), none),
@@ -256,10 +258,10 @@ object Atomlangbenchmarks {
         Benchmark("test/Atomlang/Concurrent/count13.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/count14.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/count15.scm", ValueBoolean(true), none),
-    
+        
         Benchmark("test/Atomlang/Concurrent/fact2.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/fact-indep.scm", ValueBoolean(true), none),
-    
+        
         Benchmark("test/Atomlang/Concurrent/indexer2.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/indexer3.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/indexer4.scm", ValueBoolean(true), none),
@@ -274,15 +276,15 @@ object Atomlangbenchmarks {
         Benchmark("test/Atomlang/Concurrent/indexer13.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/indexer14.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/indexer15.scm", ValueBoolean(true), none),
-    
+        
         Benchmark("test/Atomlang/Concurrent/lastzero2.scm", ValueBoolean(true), none),
-    
+        
         Benchmark("test/Atomlang/Concurrent/mutex2.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/mutex3.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/mutex4.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/mutex5.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/mutex6.scm", ValueBoolean(true), none),
-    
+        
         Benchmark("test/Atomlang/Concurrent/pcounter2.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/pcounter3.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/pcounter4.scm", ValueBoolean(true), none),
@@ -297,16 +299,16 @@ object Atomlangbenchmarks {
         Benchmark("test/Atomlang/Concurrent/pcounter13.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/pcounter14.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/pcounter15.scm", ValueBoolean(true), none),
-    
+        
         Benchmark("test/Atomlang/Concurrent/race2.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/race3.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/race4.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/race5.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/race6.scm", ValueBoolean(true), none),
-    
+        
         Benchmark("test/Atomlang/Concurrent/readers2.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/Concurrent/simple.scm", ValueBoolean(true), none),
-    
+        
         Benchmark("test/Atomlang/atomicInt.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/cas.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/collector.scm", ValueBoolean(true), none),

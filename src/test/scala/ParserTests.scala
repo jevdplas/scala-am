@@ -4,8 +4,8 @@ import org.scalatest.prop._
 import scalaam.language.sexp._
 import scalaam.language.scheme.SchemeParser
 
-class SExpParserTests extends FlatSpec with Matchers {
-  Benchmarks.benchmarksFor(BenchmarkTestKind.SExpParse).foreach(bench =>
+class SExpParserTests extends FlatSpec with Matchers with AllBenchmarks {
+  benchmarksFor(BenchmarkTestKind.SExpParse).foreach(bench =>
     BenchmarksUtil.fileContent(bench).foreach(content =>
       bench.file should "be parsed" in {
         val parsed = SExpParser.parse(content)
@@ -15,8 +15,8 @@ class SExpParserTests extends FlatSpec with Matchers {
       }))
 }
 
-class SchemeParserTests extends FlatSpec with Matchers {
-  Benchmarks.benchmarksFor(BenchmarkTestKind.SchemeParse).foreach(bench =>
+trait ParserTests extends FlatSpec with Matchers with Benchmarks {
+  allBenchmarks.foreach(bench =>
     BenchmarksUtil.fileContent(bench).foreach(content =>
       bench.file should "be parsed" in {
         val parsed = SchemeParser.parse(content)
@@ -25,6 +25,10 @@ class SchemeParserTests extends FlatSpec with Matchers {
         //assert(SchemeParser.parse(parsed.toString).toString == parsed.toString)
       }))
 }
+
+class ParserTestsComplete extends ParserTests with SchemeBenchmarks with AtomlangBenchmarks
+class SchemeParserTests extends ParserTests with SchemeBenchmarks
+class AtomlangParserTests extends ParserTests with AtomlangBenchmarks
 
 class LexerSpec extends PropSpec with TableDrivenPropertyChecks with Matchers {
   val lexical = new SExpLexer

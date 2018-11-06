@@ -1,38 +1,9 @@
-import org.scalatest._
 import org.scalatest.prop._
 
 import scalaam.core._
 import scalaam.language.scheme._
-import scalaam.graph._
-import Graph._
 import scalaam.machine._
 import scalaam.lattice._
-
-abstract class SchemeTests[A <: Address, V, T, C](
-  implicit val timestamp: Timestamp[T, C],
-  implicit val lat: SchemeLattice[V, SchemeExp, A])
-    extends PropSpec with TableDrivenPropertyChecks with Matchers {
-  val sem: Semantics[SchemeExp, A, V, T, C]
-  val machine: MachineAbstraction[SchemeExp, A, V, T, C]
-  val graph = ReachableStatesConditionGraph[machine.State, machine.Transition](n => n.metadata.find("halted") == Some(GraphMetadataBool(true)))
-
-  def checkResult(program: String, answer: V, timeout: Timeout.T = Timeout.Infinity) = {
-    val result = machine.run[graph.G](SchemeParser.parse(program), timeout)
-    if (timeout.reached) {
-      cancel(s"time out")
-    } else {
-      val resultVals = result.findNodes(n => n.metadata.find("type") == Some(GraphMetadataString("kont"))).flatMap[V, Set[V]]({ n => n.metadata.find("value") match {
-        case Some(GraphMetadataValue(v : V @unchecked)) => Set(v)
-        case _ => Set()
-      }})
-      assert(!resultVals.find(v => lat.subsumes(v, answer)).isEmpty)
-    }
-  }
-  def check(table: TableFor2[String, V]) =
-    forAll (table) { (program: String, answer: V) =>
-      checkResult(program, answer)
-    }
-}
 
 /** Tests that encodes Chapter 6 of R5RS (only for specified behaviour,
  * unspecified behaviour is not tested because it's... unspecified). This is
@@ -43,7 +14,7 @@ abstract class SchemeTests[A <: Address, V, T, C](
 abstract class SchemePrimitiveTests[A <: Address, V, T, C](
   override implicit val timestamp: Timestamp[T, C],
   override implicit val lat: SchemeLattice[V, SchemeExp, A])
-    extends SchemeTests[A, V, T, C] {
+    extends Tests[A, V, T, C] {
   import lat._
 
   def r5rs(name: String, table: TableFor2[String, V]) =
