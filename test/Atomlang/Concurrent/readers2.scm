@@ -9,4 +9,4 @@
   (deref t1)
 (let ((res (deref t2)))
     (or (= res 1)
-        (= res 0)))
+        (= res 0))))
