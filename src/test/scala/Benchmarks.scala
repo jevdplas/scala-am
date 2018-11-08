@@ -6,15 +6,15 @@ import scalaam.language.sexp.{ValueBoolean, ValueInteger, ValueString, ValueSymb
 object BenchmarkTestKind extends Enumeration {
     type BenchmarkTestKind = Value
     val SExpParse, SchemeParse = Value
-    val SchemeRunConcrete, SchemeRunAbstract = Value
+    val ConcreteRun, AbstractRun = Value
     
     def none: Set[BenchmarkTestKind] = Set.empty
     
-    def all: Set[BenchmarkTestKind] = Set(SExpParse, SchemeParse, SchemeRunConcrete, SchemeRunAbstract)
+    def all: Set[BenchmarkTestKind] = Set(SExpParse, SchemeParse, ConcreteRun, AbstractRun)
     
     def parse: Set[BenchmarkTestKind] = Set(SExpParse, SchemeParse)
     
-    def run: Set[BenchmarkTestKind] = Set(SchemeRunConcrete, SchemeRunAbstract)
+    def run: Set[BenchmarkTestKind] = Set(ConcreteRun, AbstractRun)
     
     def except(kinds: Set[BenchmarkTestKind]): Set[BenchmarkTestKind] =
         all -- kinds
@@ -315,7 +315,7 @@ object Benchmarks {
         Benchmark("test/Atomlang/future-swap.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/list-with-length.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/reset.scm", ValueBoolean(true), none),
-        Benchmark("test/Atomlang/simpleatom.scm", ValueBoolean(true), none),
+        Benchmark("test/Atomlang/simpleatom.scm", ValueBoolean(true), all),
         Benchmark("test/Atomlang/swap.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/validator.scm", ValueBoolean(true), none),
         Benchmark("test/Atomlang/validator-swap-multiarg.scm", ValueBoolean(true), none)

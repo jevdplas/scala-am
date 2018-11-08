@@ -18,9 +18,9 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
     this: SchemePrimitives[A, V, T, C] =>
     
     /** List of all primitives supported by Atomlang. */
-    def allPrimitives: List[Primitive] = {
+    override def allPrimitives: List[Primitive] = {
         import PrimitiveDefinitions._
-        primList ++ List(Atom, Atomp)
+        primList ++ List(Atom, Atomp, Deref)
     }
     
     /** Container for the definitions/implementations of Atomlang primitives. */
@@ -48,7 +48,15 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         
         /** Implementation of the "atom?" primitive. */
         object Atomp extends NoStoreOperation("atom?", Some(1)) {
-            override def call(x: V) = isAtom(x)
+            override def call(v: V) = isAtom(v)
+        }
+        
+        /** Implementation of the "deref" primitive. */
+        // TODO: extend this to futures.
+        object Deref extends StoreOperation("deref", Some(1)) {
+            override def call(v: V, store: Store[A, V]) = {
+                for {res <- dereferencePointer(v, store)(deref)} yield (res, store)
+            }
         }
         
     }

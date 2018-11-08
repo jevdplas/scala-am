@@ -62,7 +62,7 @@ case class DotGraph[N <: GraphElement, E <: GraphElement]() {
       def removeEdge(g: G, node1: N, edge: E, node2: N) = ??? /* TODO[easy] implement */
       def nodes(g: G)                                   = g._nodes.size
       def edges(g: G)                                   = g._edges.size
-      def findNodes(g: G, p: N => Boolean)              = ??? /* TODO[easy]: implement */
+      def findNodes(g: G, p: N => Boolean)             = g._nodes.filter(p)
     }
   }
 }

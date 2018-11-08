@@ -17,7 +17,8 @@ import scalaam.language.scheme._
 class AtomlangSemantics[A <: Address, V, T, C](allocator: Allocator[A, T, C])(
     implicit val t: Timestamp[T, C],
     implicit val latt: SchemeLattice[V, SchemeExp, A])
-    extends BaseSchemeSemantics[A, V, T, C](allocator)(t, latt) {
+    extends BaseSchemeSemantics[A, V, T, C](allocator)(t, latt)
+    with AtomlangPrimitives[A, V, T, C] {
     
     /**
       * Performs an evaluation step of a given expression.
