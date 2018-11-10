@@ -133,12 +133,12 @@ object AtomlangRunConcrete {
     val timestamp = ConcreteTimestamp[SchemeExp]()
     val lattice = new MakeSchemeLattice[SchemeExp,
         address.A,
-        Type.S,
-        Type.B,
-        Type.I,
-        Type.R,
-        Type.C,
-        Type.Sym]
+        Concrete.S,
+        Concrete.B,
+        Concrete.I,
+        Concrete.R,
+        Concrete.C,
+        Concrete.Sym]
     val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp](address.Alloc[timestamp.T, SchemeExp])
     val machine = new ConcreteMachine[SchemeExp, address.A, lattice.L, timestamp.T](sem)
     

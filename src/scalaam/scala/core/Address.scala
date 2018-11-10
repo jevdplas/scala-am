@@ -81,7 +81,7 @@ object ConcreteAddress {
         def printable = false
     }
     
-    /** Class provitind allocation methods for concrete addresses. */
+    /** Class providing allocation methods for concrete addresses. */
     case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C]) extends Allocator[A, T, C] {
         def variable(name: Identifier, t: T): A = Variable(name, t)
         
