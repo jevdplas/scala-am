@@ -29,6 +29,17 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         import PrimitiveDefs._
         import schemeLattice._
         
+        /*
+         * Implementation notes
+         *
+         * Atoms are implemented analogously to cons-cells, i.e. they are represented by means of a pointer
+         * pointing into the heap. Upon dereferencing, the pointer is dereferenced. As such, some basic
+         * primitives have analogous implementations as follows:         *
+         *      atom     ~ cons
+         *      deref    ~ car
+         *      reset!   ~ set-car!
+         */
+        
         /** Lattice operation indicating whether the lattice value represents an atom. */
         def isAtom: V => MayFail[V, Error] = schemeLattice.unaryOp(SchemeOps.UnaryOperator.IsAtom)
         
@@ -54,11 +65,24 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         /** Implementation of the "deref" primitive. */
         // TODO: extend this to futures.
         object Deref extends StoreOperation("deref", Some(1)) {
-            override def call(v: V, store: Store[A, V]) = {
+            override def call(v: V, store: Store[A, V]): MayFail[(V, Store[A, V]), Error] = {
                 for {res <- dereferencePointer(v, store)(deref)} yield (res, store)
             }
         }
-        
+        /*
+        /** Implementation of the "reset!" primitive. */
+        object Reset extends StoreOperation("reset!", Some(2)) {
+            override def call(v: V, value: V, store: Store[A, V]): MayFail[(V, Store[A, V]), Error] = {
+                // foldLeft: the accumulator is an updated store.
+                getPointerAddresses(v).foldLeft(MayFail.success[Store[A, V], Error](store))((acc, addr) =>
+                    for {
+                        atom <- store.lookupMF(addr)
+                        store_ <- acc
+                        _ <- deref(atom) // TODO: how is it checked that we have an atom and not a cons?
+                    } yield store_.update(addr, atom(value))).map(store => (value, store)) // Return value = new value of the atom.
+            }
+        }
+        */
     }
     
 }

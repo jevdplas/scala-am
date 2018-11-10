@@ -1,5 +1,7 @@
 package scalaam
 
+import scala.machine.ConcreteMachine
+
 object Main {
     def main(args: Array[String]) = {
         ()
@@ -71,8 +73,8 @@ object SchemeRun {
     }
 }
 
-/* To be used with the console: `sbt console`, then scalaam.AtomlangRun.run(file) */
-object AtomlangRun {
+/* To be used with the console: `sbt console`, then scalaam.AtomlangRunAAM.run(file) */
+object AtomlangRunAAM {
     
     import scalaam.core._
     import scalaam.graph._
@@ -96,7 +98,7 @@ object AtomlangRun {
     val machine = new AAM[SchemeExp, address.A, lattice.L, timestamp.T](sem)
     val graph = DotGraph[machine.State, machine.Transition]
     
-    def run(file: String, out: String = "foo.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRun.graph.G = {
+    def run(file: String, out: String = "foo.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunAAM.graph.G = {
         val f = scala.io.Source.fromFile(file)
         val content = f.getLines.mkString("\n")
         val t0 = System.nanoTime
@@ -117,16 +119,17 @@ object AtomlangRun {
     }
 }
 
-object RunConcrete {
+/* To be used with the console: `sbt console`, then scalaam.AtomlangRunConcrete.run(file) */
+object AtomlangRunConcrete {
+    
+    import java.nio.file.{Files, Paths}
     
     import scalaam.core._
-    import scalaam.graph._
     import scalaam.language.atomlang._
     import scalaam.language.scheme._
     import scalaam.lattice._
-    import scalaam.machine._
     
-    val address = NameAddress
+    val address = ConcreteAddress
     val timestamp = ConcreteTimestamp[SchemeExp]()
     val lattice = new MakeSchemeLattice[SchemeExp,
         address.A,
@@ -136,28 +139,22 @@ object RunConcrete {
         Type.R,
         Type.C,
         Type.Sym]
-    val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp](
-        address.Alloc[timestamp.T, SchemeExp])
-    val machine = new AAM[SchemeExp, address.A, lattice.L, timestamp.T](sem)
-    val graph = DotGraph[machine.State, machine.Transition]
+    val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp](address.Alloc[timestamp.T, SchemeExp])
+    val machine = new ConcreteMachine[SchemeExp, address.A, lattice.L, timestamp.T](sem)
     
-    def run(file: String, out: String = "foo.dot", timeout: Timeout.T = Timeout.seconds(10)): RunConcrete.graph.G = {
-        val f = scala.io.Source.fromFile(file)
-        val content = f.getLines.mkString("\n")
-        val t0 = System.nanoTime
-        val result = machine.run[graph.G](
-            SchemeParser.parse(content),
-            timeout)
-        val t1 = System.nanoTime
-        if (timeout.reached) {
-            println("Time out!")
-        } else {
-            println(s"Time: ${(t1 - t0) / 1000000}ms")
-        }
-        f.close()
-        result.toFile(out)
-        import Graph.GraphOps
-        println(s"Results: ${result.findNodes(state => state.halted).collect({ case machine.State(c, _, _, _, _) => c })}")
-        result
+    /**
+      * Evaluate an Atomlang expression. Prints the result to out.
+      *
+      * @param input   A path to a file or a string representing code.
+      * @param timeout A timeout value. Evaluation will stop after the timeout has been reached.
+      */
+    def run(input: String, timeout: Timeout.T = Timeout.seconds(10)): Unit = input match {
+        case "" => System.err.print("No input to be run.")
+        case _ if Files.exists(Paths.get(input)) =>
+            val f = scala.io.Source.fromFile(input)
+            val content = f.getLines.mkString("\n")
+            f.close()
+            machine.eval(SchemeParser.parse(content), timeout).print()
+        case _ => machine.eval(SchemeParser.parse(input), timeout).print()
     }
 }
