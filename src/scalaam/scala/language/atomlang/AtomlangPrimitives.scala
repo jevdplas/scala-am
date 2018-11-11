@@ -78,10 +78,11 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
                     for {
                         atomv <- store.lookupMF(addr)
                         store_ <- acc
-                    //    _ <- deref(atomv) // TODO: how is it checked that we have an atom and not a cons?
+                        _ <- deref(atomv) // Used for typechecking. TODO: Is this the best way?
                     } yield store_.update(addr, atom(value))).map(store => (value, store)) // Return value = new value of the atom.
             }
         }
+        
         /*
         /** Implementation of the "compare-and-set!" primitive. */
         object CompareAndSet extends StoreOperation("compare-and-set!", Some(3)) {
