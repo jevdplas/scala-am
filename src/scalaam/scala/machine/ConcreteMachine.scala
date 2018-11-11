@@ -1,9 +1,10 @@
 package scala.machine
 
+import scalaam.core.StoreType.StoreType
 import scalaam.core._
 
 // Based on https://github.com/acieroid/scala-am/blob/e5d16e78418e71cedbc76048013480ac16f5c407/src/main/scala/machine/ConcreteMachine.scala
-class ConcreteMachine[Exp, A <: Address, V, T](val sem: Semantics[Exp, A, V, T, Exp])(
+class ConcreteMachine[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp])(
     implicit val timestamp: Timestamp[T, Exp],
     implicit val lattice: Lattice[V]) {
     
@@ -83,6 +84,6 @@ class ConcreteMachine[Exp, A <: Address, V, T](val sem: Semantics[Exp, A, V, T, 
             }
         }
         
-        loop(ControlEval(exp, Environment.initial[A](sem.initialEnv)), Store.initial[A, V](sem.initialStore), List(), Timestamp[T, Exp].initial(""))
+        loop(ControlEval(exp, Environment.initial[A](sem.initialEnv)), Store.initial[A, V](t, sem.initialStore), List(), Timestamp[T, Exp].initial(""))
     }
 }

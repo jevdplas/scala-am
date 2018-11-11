@@ -20,7 +20,7 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
     /** List of all primitives supported by Atomlang. */
     override def allPrimitives: List[Primitive] = {
         import PrimitiveDefinitions._
-        primList ++ List(Atom, Atomp, Deref)
+        primList ++ List(Atom, Atomp, Deref, Reset)
     }
     
     /** Container for the definitions/implementations of Atomlang primitives. */
@@ -69,20 +69,27 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
                 for {res <- dereferencePointer(v, store)(deref)} yield (res, store)
             }
         }
-        /*
+        
         /** Implementation of the "reset!" primitive. */
         object Reset extends StoreOperation("reset!", Some(2)) {
             override def call(v: V, value: V, store: Store[A, V]): MayFail[(V, Store[A, V]), Error] = {
                 // foldLeft: the accumulator is an updated store.
                 getPointerAddresses(v).foldLeft(MayFail.success[Store[A, V], Error](store))((acc, addr) =>
                     for {
-                        atom <- store.lookupMF(addr)
+                        atomv <- store.lookupMF(addr)
                         store_ <- acc
-                        _ <- deref(atom) // TODO: how is it checked that we have an atom and not a cons?
+                    //    _ <- deref(atomv) // TODO: how is it checked that we have an atom and not a cons?
                     } yield store_.update(addr, atom(value))).map(store => (value, store)) // Return value = new value of the atom.
             }
         }
-        */
+        /*
+        /** Implementation of the "compare-and-set!" primitive. */
+        object CompareAndSet extends StoreOperation("compare-and-set!", Some(3)) {
+            override def call(atom: V, old: V, nw: V, store: Store[A, V]): MayFail[(V, Store[A, V]), Error] = {
+                // TODO
+                ???
+            }
+        }*/
     }
     
 }

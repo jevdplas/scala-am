@@ -2,6 +2,7 @@ package scalaam.machine
 
 import scalaam.graph._
 import Graph.GraphOps
+import scalaam.core.StoreType.StoreType
 import scalaam.core._
 import scalaam.util.Show
 
@@ -25,7 +26,7 @@ import scalaam.util.Show
 
   * Exp are used as context for the timestamp
   */
-class AAM[Exp, A <: Address, V, T](val sem: Semantics[Exp, A, V, T, Exp])(
+class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp])(
     implicit val timestamp: Timestamp[T, Exp],
     implicit val lattice: Lattice[V])
     extends MachineAbstraction[Exp, A, V, T, Exp] {
@@ -156,8 +157,8 @@ class AAM[Exp, A <: Address, V, T](val sem: Semantics[Exp, A, V, T, Exp])(
   object State {
     def inject(exp: Exp, env: Iterable[(String, A)], store: Iterable[(A, V)]) =
       State(ControlEval(exp, Environment.initial[A](env)),
-            Store.initial[A, V](store),
-            Store.empty[KA, Set[Kont]],
+            Store.initial[A, V](t, store),
+            Store.empty[KA, Set[Kont]](t),
             HaltKontAddr,
             Timestamp[T, Exp].initial(""))
 

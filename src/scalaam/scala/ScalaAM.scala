@@ -18,7 +18,7 @@ object Main {
         val lattice = LambdaSetLattice[address.A]()
         val sem = LambdaSemantics[lattice.L, address.A, timestamp.T, LambdaExp](
             address.Alloc[timestamp.T, LambdaExp])
-        val machine = new AAM[LambdaExp, address.A, lattice.L, timestamp.T](sem)
+        val machine = new AAM[LambdaExp, address.A, lattice.L, timestamp.T](StoreType.BasicStore, sem)
         val graph = DotGraph[machine.State, machine.Transition]
         val result = machine.run[graph.G](
             LambdaParser.parse("((lambda (x) (lambda (y) y)) (lambda (z) z))"),
@@ -49,7 +49,7 @@ object SchemeRun {
         Type.Sym]
     val sem = new BaseSchemeSemantics[address.A, lattice.L, timestamp.T, SchemeExp](
         address.Alloc[timestamp.T, SchemeExp])
-    val machine = new AAM[SchemeExp, address.A, lattice.L, timestamp.T](sem)
+    val machine = new AAM[SchemeExp, address.A, lattice.L, timestamp.T](StoreType.BasicStore, sem)
     val graph = DotGraph[machine.State, machine.Transition]
     
     def run(file: String, timeout: Timeout.T = Timeout.seconds(10)) = {
@@ -95,7 +95,7 @@ object AtomlangRunAAM {
         Type.Sym]
     val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp](
         address.Alloc[timestamp.T, SchemeExp])
-    val machine = new AAM[SchemeExp, address.A, lattice.L, timestamp.T](sem)
+    val machine = new AAM[SchemeExp, address.A, lattice.L, timestamp.T](StoreType.BasicStore, sem)
     val graph = DotGraph[machine.State, machine.Transition]
     
     def run(file: String, out: String = "foo.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunAAM.graph.G = {
@@ -122,8 +122,6 @@ object AtomlangRunAAM {
 /* To be used with the console: `sbt console`, then scalaam.AtomlangRunConcrete.run(file) */
 object AtomlangRunConcrete {
     
-    import java.nio.file.{Files, Paths}
-    
     import scalaam.core._
     import scalaam.language.atomlang._
     import scalaam.language.scheme._
@@ -140,7 +138,7 @@ object AtomlangRunConcrete {
         Concrete.C,
         Concrete.Sym]
     val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp](address.Alloc[timestamp.T, SchemeExp])
-    val machine = new ConcreteMachine[SchemeExp, address.A, lattice.L, timestamp.T](sem)
+    val machine = new ConcreteMachine[SchemeExp, address.A, lattice.L, timestamp.T](StoreType.CountingStore, sem)
     
     /**
       * Evaluate an Atomlang expression. Prints the result to out.
@@ -150,7 +148,7 @@ object AtomlangRunConcrete {
       */
     def run(input: String, timeout: Timeout.T = Timeout.seconds(10)): Unit = input match {
         case "" => System.err.print("No input to be run.")
-        case _ if Files.exists(Paths.get(input)) =>
+        case _ if input.startsWith("test/Atomlang/") => // Files.exists(Paths.get(input))
             val f = scala.io.Source.fromFile(input)
             val content = f.getLines.mkString("\n")
             f.close()

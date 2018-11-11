@@ -13,6 +13,6 @@
 (define myatom (atom 1))
 (define val1 (deref myatom))
 (reset! myatom 2)
-(define val2 (deref myattom))
+(define val2 (deref myatom))
 (and (eq? val1 1)
      (eq? val2 2))

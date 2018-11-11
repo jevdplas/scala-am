@@ -571,7 +571,7 @@ abstract class SchemePrimitiveAAMTests[A <: Address, T, V](
     implicit val l: SchemeLattice[V, SchemeExp, A])
     extends SchemePrimitiveTests[A, V, T, SchemeExp] {
   val sem = new BaseSchemeSemantics[A, V, T, SchemeExp](allocator)
-  val machine = new AAM[SchemeExp, A, V, T](sem)
+  val machine = new AAM[SchemeExp, A, V, T](StoreType.BasicStore, sem)
 }
 
 object ConcreteSchemeLattice extends MakeSchemeLattice[SchemeExp, NameAddress.A, Concrete.S, Concrete.B, Concrete.I, Concrete.R, Concrete.C, Concrete.Sym]
