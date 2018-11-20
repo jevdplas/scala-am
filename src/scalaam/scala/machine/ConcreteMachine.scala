@@ -71,7 +71,7 @@ class ConcreteMachine[Exp, A <: Address, V, T](val t: StoreType, val sem: Semant
                 control match {
                     case ControlEval(exp, env) =>
                         val actions = sem.stepEval(exp, env, store, t)
-                        next(actions, store, stack, Timestamp[T, Exp].tick(t))
+                        next(actions, store, stack, t)
                     case ControlKont(v) =>
                         stack match {
                             case Nil => ResultSuccess(v)

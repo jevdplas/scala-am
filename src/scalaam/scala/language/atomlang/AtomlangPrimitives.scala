@@ -20,7 +20,7 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
     /** List of all primitives supported by Atomlang. */
     override def allPrimitives: List[Primitive] = {
         import PrimitiveDefinitions._
-        primList ++ List(Atom, Atomp, Deref, Reset)
+        primList ++ List(Atom, Atomp, CompareAndSet, Deref, Reset)
     }
     
     /** Container for the definitions/implementations of Atomlang primitives. */
@@ -69,6 +69,24 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
                 for {res <- dereferencePointer(v, store)(deref)} yield (res, store)
             }
         }
+    
+        /** Implementation of the "compare-and-set!" primitive. */
+        object CompareAndSet extends Primitive{
+            val name = "compare-and-set!"
+            override def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T): MayFail[(V, Store[A, V]), Error] = args match {
+                case (_, v) :: (_, old) :: (_, nw) :: Nil => {
+                    getPointerAddresses(v).foldLeft(MayFail.success[(V, Store[A, V]), Error]((bottom, store)))((acc, addr) =>
+                        for {
+                            atomv <- store.lookupMF(addr)
+                            vatm <- deref(atomv) // TODO
+                            (v, store_) <- acc
+                            eqv <- Eq.call(old, vatm)
+                            res <- ifThenElse(eqv){nw}{vatm}
+                        } yield (join(v, res), store_.update(addr, atom(res))))
+                }
+                case _ => MayFail.failure(PrimitiveArityError(name, 3, args.length))
+            }
+        }
         
         /** Implementation of the "reset!" primitive. */
         object Reset extends StoreOperation("reset!", Some(2)) {
@@ -82,15 +100,6 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
                     } yield store_.update(addr, atom(value))).map(store => (value, store)) // Return value = new value of the atom.
             }
         }
-        
-        /*
-        /** Implementation of the "compare-and-set!" primitive. */
-        object CompareAndSet extends StoreOperation("compare-and-set!", Some(3)) {
-            override def call(atom: V, old: V, nw: V, store: Store[A, V]): MayFail[(V, Store[A, V]), Error] = {
-                // TODO
-                ???
-            }
-        }*/
     }
     
 }
