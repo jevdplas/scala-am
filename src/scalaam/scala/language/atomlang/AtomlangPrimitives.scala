@@ -71,6 +71,7 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         }
     
         /** Implementation of the "compare-and-set!" primitive. */
+        // Fixme: should only the comparison & setting be atomic, or also the evaluation of the arguments? => Special form.
         object CompareAndSet extends Primitive{
             val name = "compare-and-set!"
             override def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T): MayFail[(V, Store[A, V]), Error] = args match {
@@ -82,7 +83,8 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
                             (v, store_) <- acc
                             eqv <- Eq.call(old, vatm)
                             res <- ifThenElse(eqv){nw}{vatm}
-                        } yield (join(v, res), store_.update(addr, atom(res))))
+                            bool <- ifThenElse(eqv){schemeLattice.bool(true)}{schemeLattice.bool(false)}
+                        } yield (join(v, bool), store_.update(addr, atom(res))))
                 }
                 case _ => MayFail.failure(PrimitiveArityError(name, 3, args.length))
             }

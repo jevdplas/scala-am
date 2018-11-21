@@ -27,6 +27,24 @@ object Main {
     }
 }
 
+object Dot {
+    
+    /**
+      * Uses graphviz to create a .png image of a given .dot file.<br>
+      * Requires graphviz to be installed. On windows, requires WSL to be available.
+      */
+    def toImage(dot: String): Int = {
+        if (!dot.endsWith(".dot")) {
+            System.err.println("Cannot visualise: input was not a .dot file.")
+            return -1
+        }
+        import sys.process._
+        val img = dot.substring(0, dot.length - 3) + "png"
+        val base = "dot -Tpng " + dot + " -o " + img
+        val cmd = if (System.getProperty("os.name").toLowerCase.contains("windows")) "bash -c \"" + base + "\"" else base
+        cmd.!
+    }
+}
 
 /* To be used with the console: `sbt console`, then scalaam.SchemeRun.run(file) */
 object SchemeRun {
@@ -115,6 +133,7 @@ object AtomlangRunAAM {
         result.toFile(out)
         import Graph.GraphOps
         println(s"States: ${result.nodes}")
+        Dot.toImage(out)
         result
     }
 }
