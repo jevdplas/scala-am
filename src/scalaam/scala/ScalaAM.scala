@@ -1,5 +1,7 @@
 package scalaam
 
+import scalaam.graph.{DotGraph, Graph}
+
 import scala.machine.ConcreteMachine
 
 object Main {
@@ -84,7 +86,7 @@ object SchemeRun {
             println(s"Time: ${(t1 - t0) / 1000000}ms")
         }
         f.close()
-        result.toFile("foo.dot")
+        result.toFile("SchemeRunResult.dot")
         import Graph.GraphOps
         println(s"States: ${result.nodes}")
         result
@@ -116,7 +118,7 @@ object AtomlangRunAAM {
     val machine = new AAM[SchemeExp, address.A, lattice.L, timestamp.T](StoreType.BasicStore, sem)
     val graph = DotGraph[machine.State, machine.Transition]
     
-    def run(file: String, out: String = "foo.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunAAM.graph.G = {
+    def run(file: String, out: String = "AtomlangRunAAMResult.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunAAM.graph.G = {
         val f = scala.io.Source.fromFile(file)
         val content = f.getLines.mkString("\n")
         val t0 = System.nanoTime
@@ -158,6 +160,7 @@ object AtomlangRunConcrete {
         Concrete.Sym]
     val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp](address.Alloc[timestamp.T, SchemeExp])
     val machine = new ConcreteMachine[SchemeExp, address.A, lattice.L, timestamp.T](StoreType.CountingStore, sem)
+    val graph = DotGraph[machine.State, machine.Transition]
     
     /**
       * Evaluate an Atomlang expression. Prints the result to out.
@@ -165,13 +168,57 @@ object AtomlangRunConcrete {
       * @param input   A path to a file or a string representing code.
       * @param timeout A timeout value. Evaluation will stop after the timeout has been reached.
       */
-    def run(input: String, timeout: Timeout.T = Timeout.seconds(10)): Unit = input match {
-        case "" => System.err.print("No input to be run.")
-        case _ if input.startsWith("test/Atomlang/") => // Files.exists(Paths.get(input))
-            val f = scala.io.Source.fromFile(input)
-            val content = f.getLines.mkString("\n")
-            f.close()
-            machine.eval(SchemeParser.parse(content), timeout).print()
-        case _ => machine.eval(SchemeParser.parse(input), timeout).print()
+    def eval(input: String, timeout: Timeout.T = Timeout.seconds(10)): Unit = {
+        var t0 = 0L
+        var t1 = 0L
+        input match {
+            case "" =>
+                System.err.print("No input to be run.")
+                return
+            case _ if input.startsWith("test/Atomlang/") =>
+                val f = scala.io.Source.fromFile(input)
+                val content = f.getLines.mkString("\n")
+                f.close()
+                t0 = System.nanoTime
+                machine.eval(SchemeParser.parse(content), timeout).print()
+                t1 = System.nanoTime
+            case _ =>
+                t0 = System.nanoTime
+                machine.eval(SchemeParser.parse(input), timeout).print()
+                t1 = System.nanoTime
+        }
+        if (timeout.reached) {
+            println("Time out!")
+        } else {
+            println(s"Time: ${(t1 - t0) / 1000000}ms")
+        }
+    }
+    
+    /**
+      * Evaluate an Atomlang expression. Returns the resulting graph.
+      *
+      * @param input   A path to a file or a string representing code.
+      * @param out     A path to which the dotgraph will be written.
+      * @param timeout A timeout value. Evaluation will stop after the timeout has been reached.
+      */
+    def run(file: String, out: String = "AtomlangRunConcreteResult.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunConcrete.graph.G = {
+        val f = scala.io.Source.fromFile(file)
+        val content = f.getLines.mkString("\n")
+        val t0 = System.nanoTime
+        val result = machine.run[graph.G](
+            SchemeParser.parse(content),
+            timeout)
+        val t1 = System.nanoTime
+        if (timeout.reached) {
+            println("Time out!")
+        } else {
+            println(s"Time: ${(t1 - t0) / 1000000}ms")
+        }
+        f.close()
+        result.toFile(out)
+        import Graph.GraphOps
+        println(s"States: ${result.nodes}")
+        Dot.toImage(out)
+        result
     }
 }

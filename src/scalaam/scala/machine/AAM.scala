@@ -6,6 +6,8 @@ import scalaam.core.StoreType.StoreType
 import scalaam.core._
 import scalaam.util.Show
 
+import scala.core.MachineUtil
+
 /**
   * Implementation of a CESK machine following the AAM approach (Van Horn, David,
   * and Matthew Might. "Abstracting abstract machines." ACM Sigplan
@@ -29,21 +31,11 @@ import scalaam.util.Show
 class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp])(
     implicit val timestamp: Timestamp[T, Exp],
     implicit val lattice: Lattice[V])
-    extends MachineAbstraction[Exp, A, V, T, Exp] {
+    extends MachineAbstraction[Exp, A, V, T, Exp]
+    with MachineUtil[Exp, A, V]
+{
 
   val Action = sem.Action
-
-  /** Control component */
-  trait Control extends SmartHash
-  case class ControlEval(exp: Exp, env: Environment[A]) extends Control {
-    override def toString = s"ev(${exp})"
-  }
-  case class ControlKont(v: V) extends Control {
-    override def toString = s"ko(${v})"
-  }
-  case class ControlError(err: Error) extends Control {
-    override def toString = s"err($err)"
-  }
 
   /** Kontinuation addresses */
   trait KA extends Address with SmartHash {
@@ -68,30 +60,7 @@ class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, 
     * continuation lives.
     */
   case class State(control: Control, store: Store[A, V], kstore: Store[KA, Set[Kont]], a: KA, t: T)
-      extends GraphElement with SmartHash {
-    override def toString = control.toString
-
-    override def label = toString
-    override def color = if (halted) { Colors.Yellow } else {
-      control match {
-        case _: ControlEval  => Colors.Green
-        case _: ControlKont  => Colors.Pink
-        case _: ControlError => Colors.Red
-      }
-    }
-    override def metadata =
-      GraphMetadataMap(
-        Map(
-          "halted" -> GraphMetadataBool(halted),
-          "type" -> (control match {
-            case ControlEval(_, _) => GraphMetadataString("eval")
-            case ControlKont(_)    => GraphMetadataString("kont")
-            case ControlError(_)   => GraphMetadataString("error")
-          })
-        ) ++ (control match {
-          case ControlKont(v) => Map("value" -> GraphMetadataValue[V](v))
-          case _              => Map()
-        }))
+      extends BaseMachineState {
 
     /**
       * Checks if the current state is a final state. It is the case if it
