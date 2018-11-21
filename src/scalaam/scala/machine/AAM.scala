@@ -138,9 +138,6 @@ class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, 
     }
   }
 
-  type Transition = NoTransition
-  val empty = new NoTransition
-
   /**
     * Performs the evaluation of an expression @param exp (more generally, a
     * program) under the given semantics @param sem. If @param graph is true, it

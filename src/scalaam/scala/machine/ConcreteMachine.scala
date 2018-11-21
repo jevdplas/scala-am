@@ -2,10 +2,11 @@ package scala.machine
 
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
-import scalaam.graph.{Graph, NoTransition}
-import Graph.GraphOps
+import scalaam.graph.Graph
+import scalaam.graph.Graph.GraphOps
 
 import scala.core.MachineUtil
+import scala.util.control.TailCalls._
 
 // Based on https://github.com/acieroid/scala-am/blob/e5d16e78418e71cedbc76048013480ac16f5c407/src/main/scala/machine/ConcreteMachine.scala
 class ConcreteMachine[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp])(
@@ -14,50 +15,46 @@ class ConcreteMachine[Exp, A <: Address, V, T](val t: StoreType, val sem: Semant
     extends MachineAbstraction[Exp, A, V, T, Exp]
         with MachineUtil[Exp, A, V] {
     
-    val Action = sem.Action
+    import sem.Action.{A => Act, Err, Eval, Push, StepIn, Value}
     
     /** Evaluate an expression using the given semantics and with a given timeout. */
     def eval(exp: Exp, timeout: Timeout.T): ConcreteMachine.this.Result = {
         
-        @scala.annotation.tailrec
-        def loop(control: Control, store: Store[A, V], stack: List[Frame], t: T): Result = {
-            if (timeout.reached) ResultTimeOut()
+        def next(action: Act, store: Store[A, V], stack: List[Frame], t: T): TailRec[Result] = {
+            action match {
+                case Value(v, store) => tailcall(loop(ControlKont(v), store, stack, Timestamp[T, Exp].tick(t)))
+                case Push(f, e, env, store) => tailcall(loop(ControlEval(e, env), store, f :: stack, Timestamp[T, Exp].tick(t)))
+                case Eval(e, env, store) => tailcall(loop(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t)))
+                case StepIn(f, _, e, env, store) => tailcall(loop(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t, f)))
+                case Err(e) => done(ResultError(e))
+            }
+        }
+        
+        def loop(control: Control, store: Store[A, V], stack: List[Frame], t: T): TailRec[Result] = {
+            if (timeout.reached) done(ResultTimeOut())
             else {
                 control match {
                     case ControlEval(exp, env) =>
                         val actions = sem.stepEval(exp, env, store, t)
-                        if (actions.size == 1) {
-                            actions.head match {
-                                case Action.Value(v, store) => loop(ControlKont(v), store, stack, Timestamp[T, Exp].tick(t))
-                                case Action.Push(f, e, env, store) => loop(ControlEval(e, env), store, f :: stack, Timestamp[T, Exp].tick(t))
-                                case Action.Eval(e, env, store) => loop(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t))
-                                case Action.StepIn(f, _, e, env, store) => loop(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t, f))
-                                case Action.Err(e) => ResultError(e)
-                            }
-                        }
-                        else ResultInvalidState(actions, stack)
+                        if (actions.size == 1)
+                            tailcall(next(actions.head, store, stack, t))
+                        else done(ResultInvalidState(actions, stack))
                     case ControlKont(v) =>
                         stack match {
-                            case Nil => ResultSuccess(v)
+                            case Nil => done(ResultSuccess(v))
                             case f :: cc =>
                                 val actions = sem.stepKont(v, f, store, t)
                                 if (actions.size == 1) {
-                                    actions.head match {
-                                        case Action.Value(v, store) => loop(ControlKont(v), store, cc, Timestamp[T, Exp].tick(t))
-                                        case Action.Push(f, e, env, store) => loop(ControlEval(e, env), store, f :: cc, Timestamp[T, Exp].tick(t))
-                                        case Action.Eval(e, env, store) => loop(ControlEval(e, env), store, cc, Timestamp[T, Exp].tick(t))
-                                        case Action.StepIn(f, _, e, env, store) => loop(ControlEval(e, env), store, cc, Timestamp[T, Exp].tick(t, f))
-                                        case Action.Err(e) => ResultError(e)
-                                    }
+                                    tailcall(next(actions.head, store, cc, t))
                                 }
-                                else ResultInvalidState(actions, stack)
+                                else done(ResultInvalidState(actions, stack))
                         }
-                    case ControlError(e) => ResultError(e)
+                    case ControlError(e) => done(ResultError(e))
                 }
             }
         }
         
-        loop(ControlEval(exp, Environment.initial[A](sem.initialEnv)), Store.initial[A, V](t, sem.initialStore), List(), Timestamp[T, Exp].initial(""))
+        loop(ControlEval(exp, Environment.initial[A](sem.initialEnv)), Store.initial[A, V](t, sem.initialStore), List(), Timestamp[T, Exp].initial("")).result
     }
     
     case class State(control: Control, store: Store[A, V], stack: List[Frame], t: T) extends BaseMachineState {
@@ -69,11 +66,11 @@ class ConcreteMachine[Exp, A <: Address, V, T](val t: StoreType, val sem: Semant
         def next(actions: Set[sem.Action.A], store: Store[A, V], stack: List[Frame], t: T): Option[State] = {
             if (actions.size == 1) {
                 actions.head match {
-                    case Action.Value(v, store) => Some(State(ControlKont(v), store, stack, Timestamp[T, Exp].tick(t)))
-                    case Action.Push(f, e, env, store) => Some(State(ControlEval(e, env), store, f :: stack, Timestamp[T, Exp].tick(t)))
-                    case Action.Eval(e, env, store) => Some(State(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t)))
-                    case Action.StepIn(f, _, e, env, store) => Some(State(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t, f)))
-                    case Action.Err(e) => Some(State(ControlError(e), store, stack, Timestamp[T, Exp].tick(t)))
+                    case Value(v, store) => Some(State(ControlKont(v), store, stack, Timestamp[T, Exp].tick(t)))
+                    case Push(f, e, env, store) => Some(State(ControlEval(e, env), store, f :: stack, Timestamp[T, Exp].tick(t)))
+                    case Eval(e, env, store) => Some(State(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t)))
+                    case StepIn(f, _, e, env, store) => Some(State(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t, f)))
+                    case Err(e) => Some(State(ControlError(e), store, stack, Timestamp[T, Exp].tick(t)))
                 }
             }
             else Some(State(MachineError(s"Expected 1 state, got: ${actions.size}", actions, stack), store, stack, Timestamp[T, Exp].tick(t)))
@@ -93,9 +90,6 @@ class ConcreteMachine[Exp, A <: Address, V, T](val t: StoreType, val sem: Semant
             case ControlError(_) => None
         }
     }
-    
-    type Transition = NoTransition
-    val empty = new NoTransition
     
     /** Evaluate an expression using the given semantics and with a given timeout. */
     def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {

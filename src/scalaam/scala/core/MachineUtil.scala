@@ -5,6 +5,9 @@ import scalaam.graph._
 
 trait MachineUtil[Exp, A <: Address, V] {
     
+    type Transition = NoTransition
+    val empty = new NoTransition
+    
     /** Control component */
     trait Control extends SmartHash
     
@@ -20,6 +23,7 @@ trait MachineUtil[Exp, A <: Address, V] {
         override def toString = s"err($err)"
     }
     
+    /** Used in the concrete machine to indicate that a wrong number of actions has been received. */
     case class MachineError(err: String, actions: Set[_], stack: List[Frame]) extends Control {
         override def toString = s"err($err)"
     }
@@ -90,5 +94,4 @@ trait MachineUtil[Exp, A <: Address, V] {
                     case _ => Map()
                 }))
     }
-    
 }
