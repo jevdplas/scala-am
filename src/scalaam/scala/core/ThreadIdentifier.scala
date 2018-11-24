@@ -35,8 +35,8 @@ object ConcreteTID {
   * @tparam TID     A type of thread identifiers.
   * @tparam Context A type of contexts.
   * @tparam V       A type of values.
-  * @param busy     A map of thread identifiers to contexts.
-  * @param finished A map of thred identifiers to values.
+  * @param busy     A map of thread identifiers to sets of contexts.
+  * @param finished A map of thread identifiers to values.
   * @param lat      An implicit lattice parameter.
   */
 case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID, V])(implicit val lat: Lattice[V]) {
@@ -59,7 +59,7 @@ case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID
 //        TMap(busy - tid, finished)
     
     def finish(tid: TID, v: V): TMap[TID, Context, V] = {
-        TMap(busy - tid, finished + (tid -> lat.join(finished(tid), v)))
+        TMap(busy - tid, finished + (tid -> lat.join(finished.getOrElse(tid, lat.bottom), v)))
     }
     
     def finished(tid: TID): Boolean = finished.contains(tid)

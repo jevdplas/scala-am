@@ -44,27 +44,29 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
       */
     case class Context(tid: TID, control: Control, cc: KAddr, time: T, kstore: KStore) {
         override def toString: String = control.toString
-        
+    
         def halted: Boolean = (cc, control) match {
             case (seqAAM.HaltKontAddr, ControlKont(_)) => true
+            case (_, ControlError(_)) => true
             case _ => false
         }
         
         /** Executes one action on a state corresponding to a given tid and returns the result. */
-        def act(threads: Threads, action: Act, cc: KAddr, time: T, old: VStore, kstore: KStore): (Threads, VStore) = action match {
-            case Value(v, store) => (threads.set(tid, Context(tid, ControlKont(v), cc, timestamp.tick(time), kstore)), store)
-            case Push(frame, e, env, store) =>
-                val cc_ = KontAddr(e, time)
-                (threads.set(tid, Context(tid, ControlEval(e, env), cc_, timestamp.tick(time), kstore.extend(cc_, Set(Kont(frame, cc))))), store)
-            case Eval(e, env, store) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time), kstore)), store)
-            case StepIn(f, _, e, env, store) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time, f), kstore)), store)
-            case Err(e) => (threads.set(tid, Context(tid, ControlError(e), cc, timestamp.tick(time), kstore)), old)
-            // case NewFuture(e, env, store) =>
-            //                val tid_ = allocator.allocate(e, time) // TID allocation
-            //                val newPState = Context(ControlEval(e, env), HaltKontAddr, timestamp.initial(tid_.toString), Store.empty[KA, Set[Kont]](t))
-            //                val curPState = Context(ControlKont(), cc, timestamp.tick(time), kstore) // The result of a join is the new TID. TODO
-            //                (threads.set(tid, curPState).add(tid_, newPState), store)
-        }
+        def act(threads: Threads, action: Act, cc: KAddr, time: T, old: VStore, kstore: KStore): (Threads, VStore) =
+            action match {
+                case Value(v, store) => (threads.set(tid, Context(tid, ControlKont(v), cc, timestamp.tick(time), kstore)), store)
+                case Push(frame, e, env, store) =>
+                    val cc_ = KontAddr(e, time)
+                    (threads.set(tid, Context(tid, ControlEval(e, env), cc_, timestamp.tick(time), kstore.extend(cc_, Set(Kont(frame, cc))))), store)
+                case Eval(e, env, store) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time), kstore)), store)
+                case StepIn(f, _, e, env, store) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time, f), kstore)), store)
+                case Err(e) => (threads.set(tid, Context(tid, ControlError(e), cc, timestamp.tick(time), kstore)), old)
+                // case NewFuture(e, env, store) =>
+                //                val tid_ = allocator.allocate(e, time) // TID allocation
+                //                val newPState = Context(ControlEval(e, env), HaltKontAddr, timestamp.initial(tid_.toString), Store.empty[KA, Set[Kont]](t))
+                //                val curPState = Context(ControlKont(), cc, timestamp.tick(time), kstore) // The result of a join is the new TID. TODO
+                //                (threads.set(tid, curPState).add(tid_, newPState), store)
+            }
         
         /** Produces the states following this state by appying the given actions. */
         def next(actions: Set[Act], threads: Threads, store: VStore, cc: KAddr): Set[State] = {
@@ -77,7 +79,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         def step(threads: Threads, store: Store[A, V]): Set[State] =
             control match {
                 case ControlEval(exp, env) => next(sem.stepEval(exp, env, store, time), threads, store, cc)
-                case ControlKont(v) if halted => Set(State(threads.finish(tid, v), store))
+                case ControlKont(v) if cc == seqAAM.HaltKontAddr => Set(State(threads.finish(tid, v), store))
                 case ControlKont(v) => kstore.lookup(cc) match {
                     case Some(konts) => konts.flatMap({
                         case Kont(frame, cc_) => next(sem.stepKont(v, frame, store, time), threads, store, cc_)
@@ -107,14 +109,12 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         
         /** Step the context(s) corresponding to a TID. Returns a set of tuples consisting out of the tid that was stepped and a resulting state. */
         def stepOne(tid: TID): Set[(TID, State)] = { // TODO: Just return a set of states?
-            threads.get(tid).flatMap(_.step(threads, globalStore)).map(state_ => (tid, state_))
+            print(threads.get(tid))
+            threads.get(tid).flatMap(state => (state.step(threads, globalStore).map({ case state_ => (tid, state_) })))
         }
         
         /** Step the context(s) corresponding to multiple TIDs. Returns a set of tuples containing the tid that was stepped and a resulting state. */
-        def stepMultiple(tids: Set[TID]): Set[(TID, State)] = {
-            tids.flatMap(tid => stepOne(tid))
-            // tids.foldLeft(Set[(TID, State)]())((acc, tid) => stepOne(tid).foldLeft(acc)((acc, res) => acc + res))
-        }
+        def stepMultiple(tids: Set[TID]): Set[(TID, State)] = tids.flatMap(tid => stepOne(tid))
         
         /**
           * Steps the machine from one state to the next. Different strategies may be used. <br><br>
@@ -132,20 +132,20 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         @scala.annotation.tailrec
         def loop(work: List[State], visited: Set[State], graph: G): G = {
             if (timeout.reached) graph
-            else work match {
-                case Nil => graph
-                case state :: work => {
-                    if (visited contains state)
-                        loop(work, visited, graph)
-                    else if (state.halted)
-                        loop(work, visited + state, graph)
-                    else {
-                        val next   = state.step(strategy).map(_._2)
-                        val graph_ = next.foldLeft(graph)((g, state_) => g.addEdge(state, empty, state_))
-                        loop(work ++ next, visited + state, graph_)
-                    }
+            else
+                work match {
+                    case Nil => graph
+                    case state :: work =>
+                        if (visited contains state)
+                            loop(work, visited, graph)
+                        else if (state.halted)
+                            loop(work, visited + state, graph)
+                        else {
+                            val next = state.step(strategy).map(_._2)
+                            val graph_ = next.foldLeft(graph)((g, state_) => g.addEdge(state, empty, state_))
+                            loop(work ++ next, visited + state, graph_)
+                        }
                 }
-            }
         }
         
         val cc: KAddr = HaltKontAddr
