@@ -29,7 +29,6 @@ class AtomlangSemantics[A <: Address, V, T, C](allocator: Allocator[A, T, C])(
       * @param t     The current timestamp.
       */
     override def stepEval(e: SchemeExp, env: Env, store: Sto, t: T) = e match {
-        // case AtomlangAtom(_, _) => Action.Err(NotSupported("AT")) => Implemented as a regular primitive.
         case AtomlangDeref(_, _) => Action.Err(NotSupported("AT"))
         case AtomlangFuture(_, _) => Action.NewFuture(e, env, store) // Let the machine handle the actual thread creation.
         case _ => super.stepEval(e, env, store, t)

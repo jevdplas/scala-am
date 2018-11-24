@@ -87,7 +87,7 @@ class ConcreteMachine[Exp, A <: Address, V, T](val t: StoreType, val sem: Semant
                         val actions = sem.stepKont(v, f, store, t)
                         next(actions, store, cc, t)
                 }
-            case ControlError(_) => None
+            case _ => None
         }
     }
     
@@ -99,12 +99,15 @@ class ConcreteMachine[Exp, A <: Address, V, T](val t: StoreType, val sem: Semant
             if (timeout.reached) graph
             else if (state.halted) graph
             else state.step() match {
-                case Some(State(MachineError(_, _, _), _, _, _)) => graph
                 case Some(state_) => loop(state_, graph.addEdge(state, empty, state_))
                 case None => graph
             }
         }
         
-        loop(State(ControlEval(program, Environment.initial[A](sem.initialEnv)), Store.initial[A, V](t, sem.initialStore), List(), Timestamp[T, Exp].initial("")), Graph[G, State, Transition].empty)
+        loop(State(ControlEval(program, Environment.initial[A](sem.initialEnv)),
+            Store.initial[A, V](t, sem.initialStore),
+            List(),
+            Timestamp[T, Exp].initial("")),
+            Graph[G, State, Transition].empty)
     }
 }

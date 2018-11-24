@@ -1,12 +1,18 @@
 package scala.core
 
-import scalaam.core.{Address, Environment, Error, Frame, SmartHash}
+import scalaam.core.{Address, Environment, Error, Frame, MachineAbstraction, SmartHash}
 import scalaam.graph._
 
 trait MachineUtil[Exp, A <: Address, V] {
+    // This self type allows using sem.Action.A to type actions in this trait. However, it can be removed if necessary, replacing sem.Action.A by _ .
+    this : MachineAbstraction[Exp, A, V, _, _] =>
+    
+    // Graph utilities.
     
     type Transition = NoTransition
     val empty = new NoTransition
+    
+    // Control components of a machine.
     
     /** Control component */
     trait Control extends SmartHash
@@ -24,10 +30,11 @@ trait MachineUtil[Exp, A <: Address, V] {
     }
     
     /** Used in the concrete machine to indicate that a wrong number of actions has been received. */
-    case class MachineError(err: String, actions: Set[_], stack: List[Frame]) extends Control {
+    case class MachineError(err: String, actions: Set[sem.Action.A], stack: List[Frame]) extends Control {
         override def toString = s"err($err)"
     }
     
+    // Alternative machine output.
     
     /** Result state of the machine. */
     trait Result extends SmartHash {
@@ -47,7 +54,7 @@ trait MachineUtil[Exp, A <: Address, V] {
         override def toString: String = "Evaluation reached error: " + e.toString
     }
     
-    case class ResultInvalidState(actions: Set[_], stack: List[Frame]) extends Result {
+    case class ResultInvalidState(actions: Set[sem.Action.A], stack: List[Frame]) extends Result {
         override def toString: String =
             s"Evaluation was not concrete. Got ${actions.size} actions instead of 1.\n" +
                 "Actions:\n" +
@@ -60,7 +67,13 @@ trait MachineUtil[Exp, A <: Address, V] {
         override def toString: String = "Evaluation timed out"
     }
     
+    // Machine state.
     
+    /**
+      * This trait provides functionalities to generate a state graph from states.<br>
+      * <br>
+      * Provided functionalities include colouring, labelling and metadata.
+      */
     trait BaseMachineState extends GraphElement with SmartHash {
         val control: Control
         
@@ -94,4 +107,5 @@ trait MachineUtil[Exp, A <: Address, V] {
                     case _ => Map()
                 }))
     }
+    
 }

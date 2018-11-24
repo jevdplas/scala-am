@@ -2,7 +2,7 @@ package scalaam
 
 import scalaam.graph.{DotGraph, Graph}
 
-import scala.machine.ConcreteMachine
+import scala.machine.{ConcreteMachine, ConcurrentAAM}
 
 object Main {
     def main(args: Array[String]) = {
@@ -101,9 +101,9 @@ object AtomlangRunAAM {
     import scalaam.language.atomlang._
     import scalaam.language.scheme._
     import scalaam.lattice._
-    import scalaam.machine._
     
     val address = NameAddress
+    val tid = ConcreteTID
     val timestamp = ZeroCFA[SchemeExp]()
     val lattice = new MakeSchemeLattice[SchemeExp,
         address.A,
@@ -115,7 +115,7 @@ object AtomlangRunAAM {
         Type.Sym]
     val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp](
         address.Alloc[timestamp.T, SchemeExp])
-    val machine = new AAM[SchemeExp, address.A, lattice.L, timestamp.T](StoreType.BasicStore, sem)
+    val machine = new ConcurrentAAM[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]
     
     def run(file: String, out: String = "AtomlangRunAAMResult.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunAAM.graph.G = {

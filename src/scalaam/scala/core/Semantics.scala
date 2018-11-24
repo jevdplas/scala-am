@@ -21,7 +21,7 @@ trait Semantics[Exp, Addr <: Address, V, T, C] {
         case class Err(err: Error) extends A
         
         // Action used when a new future needs to be created.
-        case class NewFuture(e: Exp, env: Environment[Addr], store: Store[Addr, V])             extends A
+        case class NewFuture(e: Exp, env: Environment[Addr], store: Store[Addr, V])            extends A
         //case class JoinFuture()
         
         

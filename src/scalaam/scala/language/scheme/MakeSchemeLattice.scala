@@ -67,6 +67,10 @@ class MakeSchemeLattice[
   case class Atom(data: L) extends Value {
     override def toString = s"atom($data)"
   }
+  
+  case class Future(tid : ThreadIdentifier) extends Value {
+    override def toString: String = s"future#$tid"
+  }
 
   case class Pointer(a: A) extends Value {
     override def toString = "#pointer"
@@ -196,6 +200,11 @@ class MakeSchemeLattice[
             MayFail.success(x match {
               case Atom(_) => True
               case _       => False
+            })
+          case IsFuture =>
+            MayFailSuccess(x match {
+              case Future(_) => True
+              case _         => False
             })
           case IsVector =>
             MayFail.success(x match {
@@ -412,6 +421,7 @@ class MakeSchemeLattice[
               case (Clo(_, _), Clo(_, _))   => Bool(BoolLattice[B].inject(x == y))
               case (Cons(_, _), Cons(_, _)) => Bool(BoolLattice[B].inject(x == y))
               case (Atom(_), Atom(_))       => Bool(BoolLattice[B].inject(x == y))
+              case (Future(_), Future(_))   => Bool(BoolLattice[B].inject(x == y))
               //          case (VectorAddress(_), VectorAddress(_)) => Bool(BoolLattice[B].inject(x == y))
               case _ => False
             })
@@ -439,6 +449,7 @@ class MakeSchemeLattice[
     def nil: Value                                = Nil
     def cons(car: L, cdr: L): Value               = Cons(car, cdr)
     def atom(data: L): Value                      = Atom(data)
+    def future(tid: ThreadIdentifier): Value      = Future(tid)
     def pointer(a: A): Value                      = Pointer(a)
 
     def getClosures(x: Value): Set[schemeLattice.Closure] = x match {
@@ -611,6 +622,7 @@ class MakeSchemeLattice[
     def symbol(x: String): L                  = Element(Value.symbol(x))
     def cons(car: L, cdr: L): L               = Element(Value.cons(car, cdr))
     def atom(data: L): L                      = Element(Value.atom(data))
+    def future(tid: ThreadIdentifier): L      = Element(Value.future(tid))
     def pointer(a: A): L                      = Element(Value.pointer(a))
     /*
     def vector[Addr : Address](addr: Addr, size: L, init: Addr): MayFail[(L, L)] = foldMapL(size, size =>

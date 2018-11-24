@@ -74,6 +74,9 @@ trait SchemeLattice[L, Exp, A <: Address] extends Lattice[L] {
   
   /** Injection of an atom */
   def atom(data: L): L
+  
+  /** Injection of a future */
+  def future(tid: ThreadIdentifier): L
 
   /** Injection of the nil value */
   def nil: L

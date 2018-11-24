@@ -20,7 +20,7 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
     /** List of all primitives supported by Atomlang. */
     override def allPrimitives: List[Primitive] = {
         import PrimitiveDefinitions._
-        primList ++ List(Atom, Atomp, CompareAndSet, Deref, Reset)
+        primList ++ List(Atom, Atomp, CompareAndSet, Deref, Reset, Futurep)
     }
     
     /** Container for the definitions/implementations of Atomlang primitives. */
@@ -42,6 +42,7 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         
         /** Lattice operation indicating whether the lattice value represents an atom. */
         def isAtom: V => MayFail[V, Error] = schemeLattice.unaryOp(SchemeOps.UnaryOperator.IsAtom)
+        def isFuture: V => MayFail[V, Error] = schemeLattice.unaryOp(SchemeOps.UnaryOperator.IsFuture)
         
         /** Implementation of the "atom" primitive. */
         object Atom extends Primitive {
@@ -101,6 +102,11 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
                         _ <- deref(atomv) // Used for typechecking. TODO: Is this the best way?
                     } yield store_.update(addr, atom(value))).map(store => (value, store)) // Return value = new value of the atom.
             }
+        }
+    
+        /** Implementation of the "future?" primitive. */
+        object Futurep extends NoStoreOperation("future?", Some(1)) {
+            override def call(v: V) = isFuture(v)
         }
     }
     
