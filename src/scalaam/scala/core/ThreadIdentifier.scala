@@ -18,8 +18,9 @@ object ConcreteTID {
     
     trait threadID extends ThreadIdentifier
     
+    /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but unique name. */
     case class TID[T, C](exp: C, t: T) extends threadID {
-        override def toString(): String = s"[$exp~$t]"
+        override def toString(): String = s"[${exp.toString.hashCode}~$t]"
     }
     
     case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C]) extends TIDAllocator[threadID, T, C] {
@@ -37,38 +38,47 @@ object ConcreteTID {
   * @tparam V       A type of values.
   * @param busy     A map of thread identifiers to sets of contexts.
   * @param finished A map of thread identifiers to values.
+  * @param errored  A map of thread identifiers to errors.
   * @param lat      An implicit lattice parameter.
   */
-case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID, V])(implicit val lat: Lattice[V]) {
+case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID, V], errored: Map[TID, Set[Error]])(implicit val lat: Lattice[V]) {
     def get(tid: TID): Set[Context] = busy(tid)
     
     def getResult(tid: TID): V = finished.getOrElse(tid, lat.bottom)
     
+    def getError(tid: TID): Set[Error] = errored(tid)
+    
     def set(tid: TID, newContext: Context): TMap[TID, Context, V] = {
         val associatedContexts = get(tid)
         if (associatedContexts.size == 1)
-            TMap(busy + (tid -> Set(newContext)), finished)
+            TMap(busy + (tid -> Set(newContext)), finished, errored)
         else
-            TMap(busy + (tid -> (associatedContexts + newContext)), finished)
+            TMap(busy + (tid -> (associatedContexts + newContext)), finished, errored)
     }
     
     def add(tid: TID, newContext: Context): TMap[TID, Context, V] =
-        TMap(busy + (tid -> (get(tid) + newContext)), finished)
+        TMap(busy + (tid -> (get(tid) + newContext)), finished, errored)
     
-//    def remove(tid: TID): TMap[TID, Context, V] =
-//        TMap(busy - tid, finished)
+    //    def remove(tid: TID): TMap[TID, Context, V] =
+    //        TMap(busy - tid, finished)
     
     def finish(tid: TID, v: V): TMap[TID, Context, V] = {
-        TMap(busy - tid, finished + (tid -> lat.join(finished.getOrElse(tid, lat.bottom), v)))
+        TMap(busy - tid, finished + (tid -> lat.join(finished.getOrElse(tid, lat.bottom), v)), errored)
+    }
+    
+    def fail(tid: TID, e: Error): TMap[TID, Context, V] = {
+        TMap(busy - tid, finished, errored + (tid -> Set(e)))
     }
     
     def finished(tid: TID): Boolean = finished.contains(tid)
     
     def threadsBusy(): Set[TID] = busy.keys.toSet
+    
     def allDone(): Boolean = busy.isEmpty
     
     override def toString: String = {
-       "Threads: (" +     busy.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + get(key).toString       + "]") + ")\n" +
-       "Results: (" + finished.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + getResult(key).toString + "]") + ")"
+        "Threads: (" + busy.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + get(key).toString + "]") + ")\n" +
+            "Results: (" + finished.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + getResult(key).toString + "]") + ")\n" +
+            "Errors:  (" + errored.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + getError(key).toString + "]") + ")"
     }
 }

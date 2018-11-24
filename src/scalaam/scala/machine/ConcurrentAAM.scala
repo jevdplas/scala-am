@@ -44,7 +44,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
       */
     case class Context(tid: TID, control: Control, cc: KAddr, time: T, kstore: KStore) {
         override def toString: String = control.toString
-    
+        
         def halted: Boolean = (cc, control) match {
             case (seqAAM.HaltKontAddr, ControlKont(_)) => true
             case (_, ControlError(_)) => true
@@ -86,7 +86,8 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
                     })
                     case None => Set()
                 }
-                case _ => Set()
+                case ControlError(e) => Set(State(threads.fail(tid, e), store))
+                case e => throw new Exception(s"Unsupported control sequence: $e.\n")
             }
     }
     
@@ -109,8 +110,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         
         /** Step the context(s) corresponding to a TID. Returns a set of tuples consisting out of the tid that was stepped and a resulting state. */
         def stepOne(tid: TID): Set[(TID, State)] = { // TODO: Just return a set of states?
-            print(threads.get(tid))
-            threads.get(tid).flatMap(state => (state.step(threads, globalStore).map({ case state_ => (tid, state_) })))
+            threads.get(tid).flatMap(state => state.step(threads, globalStore).map({ case state_ => (tid, state_) }))
         }
         
         /** Step the context(s) corresponding to multiple TIDs. Returns a set of tuples containing the tid that was stepped and a resulting state. */
@@ -156,7 +156,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         val time: T = timestamp.initial("")
         val tid: TID = allocator.allocate(program, time)
         val context: Context = Context(tid, control, cc, time, kstore)
-        val threads: Threads = TMap(Map(tid -> Set(context)), Map[TID, V]())(lattice)
+        val threads: Threads = TMap(Map(tid -> Set(context)), Map[TID, V](), Map[TID, Set[Error]]())(lattice)
         val vstore: VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
         val state: State = State(threads, vstore)
         
