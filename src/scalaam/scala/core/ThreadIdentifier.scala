@@ -11,7 +11,7 @@ trait TIDAllocator[TID <: ThreadIdentifier, T, C] {
     implicit val timestamp: Timestamp[T, C]
     
     /** Allocate a TID. */
-    def allocate(exp: C, t: T): TID
+    def allocate[E](exp: E, t: T): TID
 }
 
 object ConcreteTID {
@@ -20,11 +20,11 @@ object ConcreteTID {
     
     /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but unique name. */
     case class TID[T, C](exp: C, t: T) extends threadID {
-        override def toString(): String = s"[${exp.toString.hashCode}~$t]"
+        override def toString: String = s"[${exp.toString.hashCode}~$t]"
     }
     
     case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C]) extends TIDAllocator[threadID, T, C] {
-        def allocate(exp: C, t: T): threadID = TID(exp, t)
+        def allocate[E](exp: E, t: T): threadID = TID(exp, t)
     }
     
 }
@@ -70,7 +70,7 @@ case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID
         TMap(busy - tid, finished, errored + (tid -> Set(e)))
     }
     
-    def finished(tid: TID): Boolean = finished.contains(tid)
+    def hasFinished(tid: TID): Boolean = finished.contains(tid)
     
     def threadsBusy(): Set[TID] = busy.keys.toSet
     

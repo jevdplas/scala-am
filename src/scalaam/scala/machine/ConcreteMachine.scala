@@ -27,6 +27,7 @@ class ConcreteMachine[Exp, A <: Address, V, T](val t: StoreType, val sem: Semant
                 case Eval(e, env, store) => tailcall(loop(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t)))
                 case StepIn(f, _, e, env, store) => tailcall(loop(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t, f)))
                 case Err(e) => done(ResultError(e))
+                case a => throw new Exception(s"Unsupported action: $a.")
             }
         }
         

@@ -20,7 +20,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         with MachineUtil[Exp, A, V] {
     
     import scalaam.machine.AAM
-    import sem.Action.{Err, Eval, Push, StepIn, Value, A => Act}
+    import sem.Action.{Err, Eval, DerefFuture, NewFuture, Push, StepIn, Value, A => Act}
     
     /** This sequential AAM machine will be used to step a single thread. */
     val seqAAM = new AAM[Exp, A, V, T](t, sem)
@@ -61,11 +61,16 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
                 case Eval(e, env, store) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time), kstore)), store)
                 case StepIn(f, _, e, env, store) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time, f), kstore)), store)
                 case Err(e) => (threads.set(tid, Context(tid, ControlError(e), cc, timestamp.tick(time), kstore)), old)
-                // case NewFuture(e, env, store) =>
-                //                val tid_ = allocator.allocate(e, time) // TID allocation
-                //                val newPState = Context(ControlEval(e, env), HaltKontAddr, timestamp.initial(tid_.toString), Store.empty[KA, Set[Kont]](t))
-                //                val curPState = Context(ControlKont(), cc, timestamp.tick(time), kstore) // The result of a join is the new TID. TODO
-                //                (threads.set(tid, curPState).add(tid_, newPState), store)
+                case NewFuture(tid_ : TID @unchecked, tidv, e, env, store) =>
+                    val newPState = Context(tid_, ControlEval(e, env), HaltKontAddr, timestamp.initial(tid_.toString), Store.empty[KA, Set[Kont]](t))
+                    val curPState = Context(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
+                    (threads.set(tid, curPState).add(tid_, newPState), store)
+                case DerefFuture(tid_ : TID @unchecked, store) =>
+                    if (threads.hasFinished(tid_)) {
+                        (threads.set(tid, Context(tid, ControlKont(threads.getResult(tid_)), cc, timestamp.tick(time), kstore)), store)
+                    } else {
+                        (threads, store)
+                    }
             }
         
         /** Produces the states following this state by appying the given actions. */

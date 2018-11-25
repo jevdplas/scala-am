@@ -113,8 +113,7 @@ object AtomlangRunAAM {
         Type.R,
         Type.C,
         Type.Sym]
-    val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp](
-        address.Alloc[timestamp.T, SchemeExp])
+    val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
     val machine = new ConcurrentAAM[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]
     
@@ -149,6 +148,7 @@ object AtomlangRunConcrete {
     import scalaam.lattice._
     
     val address = ConcreteAddress
+    val tid = ConcreteTID
     val timestamp = ConcreteTimestamp[SchemeExp]()
     val lattice = new MakeSchemeLattice[SchemeExp,
         address.A,
@@ -158,7 +158,7 @@ object AtomlangRunConcrete {
         Concrete.R,
         Concrete.C,
         Concrete.Sym]
-    val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp](address.Alloc[timestamp.T, SchemeExp])
+    val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
     val machine = new ConcreteMachine[SchemeExp, address.A, lattice.L, timestamp.T](StoreType.CountingStore, sem)
     val graph = DotGraph[machine.State, machine.Transition]
     

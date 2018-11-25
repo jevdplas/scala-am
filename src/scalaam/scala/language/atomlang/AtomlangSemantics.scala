@@ -1,6 +1,6 @@
 package scalaam.language.atomlang
 
-import scalaam.core.{Address, Allocator, Frame, Timestamp}
+import scalaam.core._
 import scalaam.language.scheme._
 
 /**
@@ -14,11 +14,13 @@ import scalaam.language.scheme._
   * @tparam T The type of timestamps.
   * @tparam C The type of expressions.
   */
-class AtomlangSemantics[A <: Address, V, T, C](allocator: Allocator[A, T, C])(
+class AtomlangSemantics[A <: Address, V, T, C, TID <: ThreadIdentifier](addressAllocator: Allocator[A, T, C], tidAllocator: TIDAllocator[TID, T, C]) (
     implicit val t: Timestamp[T, C],
-    implicit val latt: SchemeLattice[V, SchemeExp, A])
-    extends BaseSchemeSemantics[A, V, T, C](allocator)(t, latt)
+    implicit val lat: SchemeLattice[V, SchemeExp, A])
+    extends BaseSchemeSemantics[A, V, T, C](addressAllocator)(t, lat)
     with AtomlangPrimitives[A, V, T, C] {
+    
+    import schemeLattice._
     
     /**
       * Performs an evaluation step of a given expression.
@@ -30,7 +32,10 @@ class AtomlangSemantics[A <: Address, V, T, C](allocator: Allocator[A, T, C])(
       */
     override def stepEval(e: SchemeExp, env: Env, store: Sto, t: T) = e match {
         case AtomlangDeref(_, _) => Action.Err(NotSupported("AT"))
-        case AtomlangFuture(_, _) => Action.NewFuture(e, env, store) // Let the machine handle the actual thread creation.
+        case AtomlangFuture(_, _) =>
+            val tid = tidAllocator.allocate(e, t)
+            val tidv = future(tid)
+            Action.NewFuture(tid, tidv, e, env, store) // Let the machine handle the actual thread creation.
         case _ => super.stepEval(e, env, store, t)
     }
     
