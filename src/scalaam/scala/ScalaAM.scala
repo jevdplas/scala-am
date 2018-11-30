@@ -122,7 +122,7 @@ object AtomlangRunAAM {
         val content = f.getLines.mkString("\n")
         val t0 = System.nanoTime
         val result = machine.run[graph.G](
-            SchemeParser.parse(content),
+            AtomlangParser.parse(content),
             timeout)
         val t1 = System.nanoTime
         if (timeout.reached) {
@@ -175,22 +175,22 @@ object AtomlangRunConcrete {
             case "" =>
                 System.err.print("No input to be run.")
                 return
-            case _ if input.startsWith("test/Atomlang/") =>
+            case _ if input.startsWith("test/Atomlang/") || input.startsWith("./test/Atomlang/") =>
                 val f = scala.io.Source.fromFile(input)
                 val content = f.getLines.mkString("\n")
                 f.close()
                 t0 = System.nanoTime
-                machine.eval(SchemeParser.parse(content), timeout).print()
+                machine.eval(AtomlangParser.parse(content), timeout).print()
                 t1 = System.nanoTime
             case _ =>
                 t0 = System.nanoTime
-                machine.eval(SchemeParser.parse(input), timeout).print()
+                machine.eval(AtomlangParser.parse(input), timeout).print()
                 t1 = System.nanoTime
         }
         if (timeout.reached) {
-            println("Time out!")
+            println("\nTimed out!")
         } else {
-            println(s"Time: ${(t1 - t0) / 1000000}ms")
+            println(s"\nTime: ${(t1 - t0) / 1000000}ms")
         }
     }
     
@@ -206,7 +206,7 @@ object AtomlangRunConcrete {
         val content = f.getLines.mkString("\n")
         val t0 = System.nanoTime
         val result = machine.run[graph.G](
-            SchemeParser.parse(content),
+            AtomlangParser.parse(content),
             timeout)
         val t1 = System.nanoTime
         if (timeout.reached) {

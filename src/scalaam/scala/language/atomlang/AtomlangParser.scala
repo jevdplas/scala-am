@@ -12,11 +12,9 @@ object AtomlangCompiler extends SchemeCompiler {
     
     /** Compiles an s-expression into an Atomlang (Scheme) expression. */
     override def compile(exp: SExp): SchemeExp = exp match {
-        // case SExpPair(SExpId(Identifier("atom", _)), SExpPair(expr, SExpValue(ValueNil, _), _), _) => AtomlangAtom(compile(expr), exp.pos)
-        // case SExpPair(SExpId(Identifier("atom", _)), _, _) => throw new Exception(s"Invalid Atomlang atom: $exp (${exp.pos}).")
-        case SExpPair(SExpId(Identifier("deref", _)), SExpPair(expr, SExpValue(ValueNil, _), _), _) => AtomlangDeref(compile(expr), exp.pos)
+        case SExpPair(SExpId(Identifier("deref", _)), SExpPair(expr, SExpValue(ValueNil, _), _), _) => AtomlangDeref(this.compile(expr), exp.pos)
         case SExpPair(SExpId(Identifier("deref", _)), _, _) => throw new Exception(s"Invalid Atomlang deref: $exp (${exp.pos}).")
-        case SExpPair(SExpId(Identifier("future", _)), body, _) => AtomlangFuture(compileBody(body), exp.pos)
+        case SExpPair(SExpId(Identifier("future", _)), body, _) => AtomlangFuture(this.compileBody(body), exp.pos)
         case _ => super.compile(exp)
     }
 }
@@ -26,19 +24,13 @@ object AtomlangRenamer extends SchemeRenamer {
     
     /** Renames all variables in a program so that each variable has a unique name. */
     override def rename(exp: SchemeExp, names: AtomlangRenamer.NameMap, count: AtomlangRenamer.CountMap): (SchemeExp, AtomlangRenamer.CountMap) = exp match {
-        
-        /*
-        case AtomlangAtom(exp, pos) =>
-            rename(exp, names, count) match {
-                case (exp1, count1) => (AtomlangAtom(exp1, pos), count1)
-            }
-        */
+
         case AtomlangDeref(exp, pos) =>
-            rename(exp, names, count) match {
+            this.rename(exp, names, count) match {
                 case (exp1, count1) => (AtomlangDeref(exp1, pos), count1)
             }
         case AtomlangFuture(body, pos) =>
-            renameList(body, names, count) match {
+            this.renameList(body, names, count) match {
                 case (body1, count1) => (AtomlangFuture(body1, pos), count1)
             }
         case _ => super.rename(exp, names, count)
@@ -52,9 +44,8 @@ object AtomlangUndefiner extends SchemeUndefiner {
     
     /** Replaces defines in a program by letrec expressions. */
     override def undefineExpr(exp: SchemeExp): TailRec[SchemeExp] = exp match {
-        // case AtomlangAtom(exp, pos) => tailcall(undefine1(exp)).map(e => AtomlangAtom(e, pos))
-        case AtomlangDeref(exp, pos) => tailcall(undefine1(exp)).map(e => AtomlangDeref(e, pos))
-        case AtomlangFuture(body, pos) => tailcall(undefineBody(body)).map(b => AtomlangFuture(b, pos))
+        case AtomlangDeref(exp, pos) => tailcall(this.undefine1(exp)).map(e => AtomlangDeref(e, pos))
+        case AtomlangFuture(body, pos) => tailcall(this.undefineBody(body)).map(b => AtomlangFuture(b, pos))
         case _ => super.undefineExpr(exp)
     }
 }
@@ -72,5 +63,5 @@ object AtomlangParser {
     def undefine(exps: List[SchemeExp]): SchemeExp = AtomlangUndefiner.undefine(exps)
     
     /** Fully parses a string representing an Atomlang program. */
-    def parse(s: String): SchemeExp = undefine(SExpParser.parse(s).map(compile _))
+    def parse(s: String): SchemeExp = undefine(SExpParser.parse(s).map(compile))
 }
