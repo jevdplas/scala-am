@@ -14,12 +14,13 @@ import scalaam.language.scheme._
   * @tparam T The type of timestamps.
   * @tparam C The type of expressions.
   */
-class AtomlangSemantics[A <: Address, V, T, C, TID <: ThreadIdentifier](addressAllocator: Allocator[A, T, C], tidAllocator: TIDAllocator[TID, T, C]) (
+class AtomlangSemantics[A <: Address, V, T, C, TID <: ThreadIdentifier](addressAllocator: Allocator[A, T, C], tidAllocator: TIDAllocator[TID, T, C])(
     implicit val t: Timestamp[T, C],
     implicit val lat: SchemeLattice[V, SchemeExp, A])
     extends BaseSchemeSemantics[A, V, T, C](addressAllocator)(t, lat)
-    with AtomlangPrimitives[A, V, T, C] {
+        with AtomlangPrimitives[A, V, T, C] {
     
+    import Action.{Err, NewFuture, Push}
     import schemeLattice._
     
     /**
@@ -31,11 +32,11 @@ class AtomlangSemantics[A <: Address, V, T, C, TID <: ThreadIdentifier](addressA
       * @param t     The current timestamp.
       */
     override def stepEval(e: SchemeExp, env: Env, store: Sto, t: T) = e match {
-        case AtomlangDeref(_, _) => Action.Err(NotSupported("AT"))
+        case AtomlangDeref(exp, _) => Push(FrameDeref(), exp, env, store)
         case AtomlangFuture(_, _) =>
             val tid = tidAllocator.allocate(e, t)
             val tidv = future(tid)
-            Action.NewFuture(tid, tidv, e, env, store) // Let the machine handle the actual thread creation.
+            NewFuture(tid, tidv, e, env, store) // Let the machine handle the actual thread creation.
         case _ => super.stepEval(e, env, store, t)
     }
     
@@ -48,6 +49,16 @@ class AtomlangSemantics[A <: Address, V, T, C, TID <: ThreadIdentifier](addressA
       * @param t     The current timestamp.
       */
     override def stepKont(v: V, frame: Frame, store: Sto, t: T) = frame match {
+        case FrameDeref() => // Todo: extend to atoms.
+            val futures = getFutures(v)
+            if (futures.isEmpty) {
+                Set(Err(TypeError("Cannot dereference non-future values.", v)))
+            } else {
+                futures.map(tid => Action.DerefFuture(tid, store))
+            }
         case _ => super.stepKont(v, frame, store, t)
     }
+    
+    case class FrameDeref() extends SchemeFrame
+    
 }

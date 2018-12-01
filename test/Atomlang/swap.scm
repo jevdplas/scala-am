@@ -11,7 +11,7 @@
 ; (example)
 
 (define myatom (atom 1))
-(define val1 (deref myatom))
+(define val1 (read myatom))
 (define (inc v)(+ v 1))
 (swap! myatom inc)
-(= (deref myatom) 2)
+(= (read myatom) 2)

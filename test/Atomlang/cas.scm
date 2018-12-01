@@ -16,4 +16,4 @@
 (define myatom (atom 1))
 (compare-and-set! myatom 0 3)
 (compare-and-set! myatom 1 2)
-(eq? (deref myatom) 2)
+(eq? (read myatom) 2)

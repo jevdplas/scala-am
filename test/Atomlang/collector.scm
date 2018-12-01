@@ -16,7 +16,7 @@
     (lambda (item)
       (if (valid? item)
           (swap! validated (lambda (old)(cons item old))))
-      (deref validated))))
+      (read validated))))
 
 (define c (make-collector string?))
 (c "Humans")

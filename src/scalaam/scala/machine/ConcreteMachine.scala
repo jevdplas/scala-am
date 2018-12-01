@@ -1,4 +1,4 @@
-package scala.machine
+package scalaam.machine
 
 import scalaam.core.StoreType.StoreType
 import scalaam.core._

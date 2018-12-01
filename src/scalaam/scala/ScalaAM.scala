@@ -2,7 +2,8 @@ package scalaam
 
 import scalaam.graph.{DotGraph, Graph}
 
-import scala.machine.{ConcreteMachine, ConcurrentAAM}
+import scala.machine.Strategy.Strategy
+import scala.machine.{ConcreteMachine, ConcurrentAAM, Strategy}
 
 object Main {
     def main(args: Array[String]) = {
@@ -117,13 +118,14 @@ object AtomlangRunAAM {
     val machine = new ConcurrentAAM[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]
     
-    def run(file: String, out: String = "AtomlangRunAAMResult.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunAAM.graph.G = {
+    def run(file: String, out: String = "AtomlangRunAAMResult.dot", timeout: Timeout.T = Timeout.seconds(10), strategy: Strategy = Strategy.AllInterleavings): AtomlangRunAAM.graph.G = {
         val f = scala.io.Source.fromFile(file)
         val content = f.getLines.mkString("\n")
         val t0 = System.nanoTime
         val result = machine.run[graph.G](
             AtomlangParser.parse(content),
-            timeout)
+            timeout,
+            strategy)
         val t1 = System.nanoTime
         if (timeout.reached) {
             println("Time out!")

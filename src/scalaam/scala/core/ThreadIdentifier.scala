@@ -18,7 +18,7 @@ object ConcreteTID {
     
     trait threadID extends ThreadIdentifier
     
-    /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but unique name. */
+    /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
     case class TID[T, C](exp: C, t: T) extends threadID {
         override def toString: String = s"[${exp.toString.hashCode}~$t]"
     }
@@ -42,15 +42,15 @@ object ConcreteTID {
   * @param lat      An implicit lattice parameter.
   */
 case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID, V], errored: Map[TID, Set[Error]])(implicit val lat: Lattice[V]) {
-    def get(tid: TID): Set[Context] = busy(tid)
+    def get(tid: TID): Set[Context] = busy.getOrElse(tid, Set())
     
     def getResult(tid: TID): V = finished.getOrElse(tid, lat.bottom)
     
-    def getError(tid: TID): Set[Error] = errored(tid)
+    def getError(tid: TID): Set[Error] = errored.getOrElse(tid, Set())
     
     def set(tid: TID, newContext: Context): TMap[TID, Context, V] = {
         val associatedContexts = get(tid)
-        if (associatedContexts.size == 1)
+        if (associatedContexts.nonEmpty)
             TMap(busy + (tid -> Set(newContext)), finished, errored)
         else
             TMap(busy + (tid -> (associatedContexts + newContext)), finished, errored)
@@ -59,18 +59,27 @@ case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID
     def add(tid: TID, newContext: Context): TMap[TID, Context, V] =
         TMap(busy + (tid -> (get(tid) + newContext)), finished, errored)
     
-    //    def remove(tid: TID): TMap[TID, Context, V] =
-    //        TMap(busy - tid, finished)
-    
     def finish(tid: TID, v: V): TMap[TID, Context, V] = {
-        TMap(busy - tid, finished + (tid -> lat.join(finished.getOrElse(tid, lat.bottom), v)), errored)
+        if (get(tid).isEmpty) {
+            throw new Exception(s"Invalid state: trying to terminate non-existing process $tid with value $v.")
+        }
+        TMap(busy - tid, finished + (tid -> lat.join(getResult(tid), v)), errored)
     }
     
     def fail(tid: TID, e: Error): TMap[TID, Context, V] = {
-        TMap(busy - tid, finished, errored + (tid -> Set(e)))
+        if (get(tid).isEmpty) {
+            throw new Exception(s"Invalid state: trying to terminate non-existing process $tid with error $e.")
+        }
+        TMap(busy - tid, finished, errored + (tid -> (getError(tid) + e)))
     }
     
-    def hasFinished(tid: TID): Boolean = finished.contains(tid)
+    def hasFinished(tid: TID): Boolean = {
+        if(finished.contains(tid) || errored.contains(tid))
+            return true
+        if(get(tid).isEmpty)
+            throw new Exception(s"Invalid state: trying to get information about non-existing process: $tid.")
+        false
+    }
     
     def threadsBusy(): Set[TID] = busy.keys.toSet
     

@@ -19,4 +19,4 @@
 (define f2 (future (f 70)))
 (deref f1)
 (deref f2)
-(= (deref myatom) 150)
+(= (read myatom) 150)

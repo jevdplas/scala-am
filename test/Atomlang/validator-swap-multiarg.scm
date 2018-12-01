@@ -16,7 +16,7 @@
 
 (define (make-cash-register)
   (let ((register (atom 0)))
-    (set-validator! register (lambda (total)(>= total 0)))
+    (set-validator! register (lambda (total) (>= total 0)))
     register))
 
 (define (add-cash register amount)

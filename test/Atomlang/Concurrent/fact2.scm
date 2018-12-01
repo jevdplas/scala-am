@@ -8,4 +8,4 @@
          (t2 (future (fact 5))))
  (deref t1)
  (deref t2)
- (= result 2880))
+ (= (read result) 2880))

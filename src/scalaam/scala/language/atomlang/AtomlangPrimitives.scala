@@ -64,8 +64,7 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         }
         
         /** Implementation of the "deref" primitive. */
-        // TODO: extend this to futures.
-        object Deref extends StoreOperation("deref", Some(1)) {
+        object Deref extends StoreOperation("read", Some(1)) { // Fixme: Change name to deref, but make distinction from futures in semantics. => Need store there.
             override def call(v: V, store: Store[A, V]): MayFail[(V, Store[A, V]), Error] = {
                 for {res <- dereferencePointer(v, store)(deref)} yield (res, store)
             }

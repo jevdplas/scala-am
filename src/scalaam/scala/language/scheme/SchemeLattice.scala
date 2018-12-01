@@ -90,8 +90,14 @@ trait SchemeLattice[L, Exp, A <: Address] extends Lattice[L] {
   /** Takes the cdr of a cons cell */
   def cdr(x: L): MayFail[L, Error]
   
-  /** Dereference an atom/a future */
+  /** Dereference an atom */
   def deref(x: L): MayFail[L, Error]
+  
+  /** Extract the futures contained in this value. */
+  def getFutures(x: L): Set[ThreadIdentifier]
+  
+//  /** Extract the values of the atoms contained in this value. */
+//  def getAtomValues(x: L): Set[L]
 
   /* TODO: reimplement vectors
   /** Get a value from a vector. Returns the addresses where to look for the values */

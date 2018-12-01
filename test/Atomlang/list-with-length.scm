@@ -26,6 +26,6 @@
 (define f2 (future (add-lst a l2)))
 (deref f1) (deref f2)
 (and
- (= 20 (length (car (deref a))))
- (= 20 (cdr (deref a)))
- (not (member # f (map (lambda (e) (= (count e (car (deref a))) 1)) (append l1 l2)))))
+ (= 20 (length (car (read a))))
+ (= 20 (cdr (read a)))
+ (not (member # f (map (lambda (e) (= (count e (car (read a))) 1)) (append l1 l2)))))

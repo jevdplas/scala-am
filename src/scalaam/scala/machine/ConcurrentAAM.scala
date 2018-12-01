@@ -1,12 +1,12 @@
-package scala.machine
+package scalaam.machine
 
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
 import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
+import scalaam.machine.Strategy.Strategy
 
 import scala.core.MachineUtil
-import scala.machine.Strategy.Strategy
 
 /**
   * Implementation of an abstract PCESK machine. This machine uses an underlying AAM for stepping single threads.<br><br>
@@ -19,8 +19,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
     extends MachineAbstraction[Exp, A, V, T, Exp]
         with MachineUtil[Exp, A, V] {
     
-    import scalaam.machine.AAM
-    import sem.Action.{Err, Eval, DerefFuture, NewFuture, Push, StepIn, Value, A => Act}
+    import sem.Action.{DerefFuture, Err, Eval, NewFuture, Push, StepIn, Value, A => Act}
     
     /** This sequential AAM machine will be used to step a single thread. */
     val seqAAM = new AAM[Exp, A, V, T](t, sem)
@@ -61,11 +60,11 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
                 case Eval(e, env, store) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time), kstore)), store)
                 case StepIn(f, _, e, env, store) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time, f), kstore)), store)
                 case Err(e) => (threads.set(tid, Context(tid, ControlError(e), cc, timestamp.tick(time), kstore)), old)
-                case NewFuture(tid_ : TID @unchecked, tidv, e, env, store) =>
+                case NewFuture(tid_ : TID@unchecked, tidv, e, env, store) =>
                     val newPState = Context(tid_, ControlEval(e, env), HaltKontAddr, timestamp.initial(tid_.toString), Store.empty[KA, Set[Kont]](t))
                     val curPState = Context(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
                     (threads.set(tid, curPState).add(tid_, newPState), store)
-                case DerefFuture(tid_ : TID @unchecked, store) =>
+                case DerefFuture(tid_ : TID@unchecked, store) =>
                     if (threads.hasFinished(tid_)) {
                         (threads.set(tid, Context(tid, ControlKont(threads.getResult(tid_)), cc, timestamp.tick(time), kstore)), store)
                     } else {
@@ -80,7 +79,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
             })
         }
         
-        /** Steps from this state to the next. Returns a set of successorstates. */
+        /** Steps from this state to the next. Returns a set of successorStates. */
         def step(threads: Threads, store: Store[A, V]): Set[State] =
             control match {
                 case ControlEval(exp, env) => next(sem.stepEval(exp, env, store, time), threads, store, cc)
@@ -99,10 +98,10 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
     /**
       * State of the machine.
       *
-      * @param threads     Threadmap mapping thread identifiers to contexts or to values.
-      * @param globalStore A global store.
+      * @param threads Threadmap mapping thread identifiers to contexts or to values.
+      * @param store   A store shared by all threads in a state.
       */
-    case class State(threads: TMap[TID, Context, V], globalStore: VStore) extends GraphElement with SmartHash {
+    case class State(threads: TMap[TID, Context, V], store: VStore) extends GraphElement with SmartHash {
         override def toString: String = threads.toString
         
         override def label: String = toString
@@ -115,20 +114,35 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         
         /** Step the context(s) corresponding to a TID. Returns a set of tuples consisting out of the tid that was stepped and a resulting state. */
         def stepOne(tid: TID): Set[(TID, State)] = { // TODO: Just return a set of states?
-            threads.get(tid).flatMap(state => state.step(threads, globalStore).map({ case state_ => (tid, state_) }))
+            threads.get(tid).flatMap(state => state.step(threads, store).map({ case state_ => (tid, state_) }))
         }
         
         /** Step the context(s) corresponding to multiple TIDs. Returns a set of tuples containing the tid that was stepped and a resulting state. */
-        def stepMultiple(tids: Set[TID]): Set[(TID, State)] = tids.flatMap(tid => stepOne(tid))
+        def stepMultiple(): Set[(TID, State)] = threads.threadsBusy().flatMap(tid => stepOne(tid))
+        
+        /** Step the context(s) corresponding to a single TID. Returns a set of tuples containing the tid that was stepped and a resulting state. */
+        def stepAny(): Set[(TID, State)] = {
+            val zero: Option[Set[(TID, State)]] = None
+            threads.threadsBusy().foldLeft(zero)((acc, tid) => acc match {
+                case Some(_) => acc
+                case None =>
+                    val next = stepOne(tid)
+                    if (next.isEmpty)
+                        None
+                    else Some(next)
+            }).getOrElse(Set())
+        }
         
         /**
           * Steps the machine from one state to the next. Different strategies may be used. <br><br>
           *
           * Strategies:<br>
-          * <i>AllInterleavings</i>:  All threads that are not halted make a step.
+          * <i>AllInterleavings</i>:  All threads that are not halted make a step.<br>
+          * <i>OneInterleaving</i>: One thread that is not halted makes a step.
           */
         def step(strategy: Strategy): Set[(TID, State)] = strategy match {
-            case Strategy.AllInterleavings => stepMultiple(threads.threadsBusy())
+            case Strategy.AllInterleavings => stepMultiple()
+            case Strategy.OneInterleaving  => stepAny()
         }
     }
     
@@ -153,17 +167,17 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
                 }
         }
         
-        val cc: KAddr = HaltKontAddr
-        val env: Environment[A] = Environment.initial[A](sem.initialEnv)
-        val control: Control = ControlEval(program, env)
-        val graph: G = Graph[G, State, Transition].empty
-        val kstore: KStore = Store.empty[KA, Set[Kont]](t)
-        val time: T = timestamp.initial("")
-        val tid: TID = allocator.allocate(program, time)
-        val context: Context = Context(tid, control, cc, time, kstore)
-        val threads: Threads = TMap(Map(tid -> Set(context)), Map[TID, V](), Map[TID, Set[Error]]())(lattice)
-        val vstore: VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
-        val state: State = State(threads, vstore)
+        val cc      :          KAddr = HaltKontAddr
+        val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
+        val control :       Control  = ControlEval(program, env)
+        val graph   :              G = Graph[G, State, Transition].empty
+        val kstore  :         KStore = Store.empty[KA, Set[Kont]](t)
+        val time    :              T = timestamp.initial("")
+        val tid     :            TID = allocator.allocate(program, time)
+        val context :        Context = Context(tid, control, cc, time, kstore)
+        val threads :        Threads = TMap(Map(tid -> Set(context)), Map[TID, V](), Map[TID, Set[Error]]())(lattice)
+        val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
+        val state   :          State = State(threads, vstore)
         
         loop(List(state), Set(), graph)
     }
@@ -176,5 +190,5 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
 /** Enumeration listing strategies for the exploration of the concurrent state space. */
 object Strategy extends Enumeration {
     type Strategy = Value
-    val AllInterleavings = Value
+    val AllInterleavings, OneInterleaving = Value
 }

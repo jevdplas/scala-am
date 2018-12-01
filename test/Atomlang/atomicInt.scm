@@ -7,4 +7,4 @@ Example modified from: https://winterbe.com/posts/2015/05/22/java8-concurrency-t
               (iter (+ i 1)))))
 (define futures (iter 0))
 (for-each (lambda (future) (deref future) #t) futures)
-(= (deref atomicInc) 1000)
+(= (read atomicInc) 1000)

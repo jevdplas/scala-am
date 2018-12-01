@@ -11,8 +11,8 @@
 ; (example)
 
 (define myatom (atom 1))
-(define val1 (deref myatom))
+(define val1 (read myatom))
 (reset! myatom 2)
-(define val2 (deref myatom))
+(define val2 (read myatom))
 (and (eq? val1 1)
      (eq? val2 2))
