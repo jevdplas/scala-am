@@ -20,7 +20,7 @@ object ConcreteTID {
     
     /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
     case class TID[T, C](exp: C, t: T) extends threadID {
-        override def toString: String = s"[${exp.toString.hashCode}~$t]"
+        override def toString: String = s"*${exp.toString.hashCode}@$t*"
     }
     
     case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C]) extends TIDAllocator[threadID, T, C] {

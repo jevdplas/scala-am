@@ -21,7 +21,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
     
     import sem.Action.{DerefFuture, Err, Eval, NewFuture, Push, StepIn, Value, A => Act}
     
-    /** This sequential AAM machine will be used to step a single thread. */
+    /** Certain parts of this AAM will be reused. */
     val seqAAM = new AAM[Exp, A, V, T](t, sem)
     
     import seqAAM._

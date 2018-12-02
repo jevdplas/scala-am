@@ -1,9 +1,8 @@
 package scalaam
 
 import scalaam.graph.{DotGraph, Graph}
-
-import scala.machine.Strategy.Strategy
-import scala.machine.{ConcreteMachine, ConcurrentAAM, Strategy}
+import scalaam.machine.Strategy.Strategy
+import scalaam.machine.{ConcreteMachine, ConcurrentAAM, Strategy}
 
 object Main {
     def main(args: Array[String]) = {
@@ -141,7 +140,7 @@ object AtomlangRunAAM {
     }
 }
 
-/* To be used with the console: `sbt console`, then scalaam.AtomlangRunConcrete.run(file) */
+/* To be used with the console: `sbt console`, then scalaam.AtomlangRunConcrete.run(file) or scalaam.AtomlangRunConcrete.eval(input) */
 object AtomlangRunConcrete {
     
     import scalaam.core._

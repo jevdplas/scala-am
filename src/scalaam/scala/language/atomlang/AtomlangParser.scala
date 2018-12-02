@@ -15,6 +15,8 @@ object AtomlangCompiler extends SchemeCompiler {
         case SExpPair(SExpId(Identifier("deref", _)), SExpPair(expr, SExpValue(ValueNil, _), _), _) => AtomlangDeref(this.compile(expr), exp.pos)
         case SExpPair(SExpId(Identifier("deref", _)), _, _) => throw new Exception(s"Invalid Atomlang deref: $exp (${exp.pos}).")
         case SExpPair(SExpId(Identifier("future", _)), body, _) => AtomlangFuture(this.compileBody(body), exp.pos)
+        case SExpPair(SExpId(Identifier("swap", _)), SExpPair(atom, SExpPair(fun, args, _), _), _) => AtomlangSwap(this.compile(atom), this.compile(fun), this.compileBody(args), exp.pos)
+        case SExpPair(SExpId(Identifier("swap", _)), _, _) => throw new Exception(s"Invalid Atomlang swap!: $exp (${exp.pos})")
         case _ => super.compile(exp)
     }
 }
@@ -33,6 +35,10 @@ object AtomlangRenamer extends SchemeRenamer {
             this.renameList(body, names, count) match {
                 case (body1, count1) => (AtomlangFuture(body1, pos), count1)
             }
+        case AtomlangSwap(atom, fun, args, pos) =>
+            this.renameList(atom :: fun :: args, names, count) match {
+                case (atom1 :: fun1 :: args1, count1) => (AtomlangSwap(atom1, fun1, args1, pos), count1)
+            }
         case _ => super.rename(exp, names, count)
     }
 }
@@ -46,6 +52,10 @@ object AtomlangUndefiner extends SchemeUndefiner {
     override def undefineExpr(exp: SchemeExp): TailRec[SchemeExp] = exp match {
         case AtomlangDeref(exp, pos) => tailcall(this.undefine1(exp)).map(e => AtomlangDeref(e, pos))
         case AtomlangFuture(body, pos) => tailcall(this.undefineBody(body)).map(b => AtomlangFuture(b, pos))
+        case AtomlangSwap(atom, fun, args, pos) =>
+            tailcall(this.undefine1(atom)).flatMap(atomv =>
+                tailcall(this.undefine1(fun)).flatMap(funv =>
+                    this.trampolineM(this.undefine1, args).map(argsv => AtomlangSwap(atomv, funv, argsv, pos))))
         case _ => super.undefineExpr(exp)
     }
 }

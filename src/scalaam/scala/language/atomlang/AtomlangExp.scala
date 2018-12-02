@@ -17,3 +17,11 @@ case class AtomlangFuture(exps: List[SchemeExp], pos: Position) extends SchemeEx
         s"(future $body)"
     }
 }
+
+/** Swapping an atom value: (swap! atom fun args*) */
+case class AtomlangSwap(atom: SchemeExp, fun: SchemeExp, args: List[SchemeExp], pos: Position) extends SchemeExp {
+    override def toString: String = {
+        val ags = args.mkString(" ")
+        s"(swap! $atom $fun $ags)"
+    }
+}
