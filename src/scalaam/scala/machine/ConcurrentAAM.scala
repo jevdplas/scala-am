@@ -60,8 +60,9 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
                 case Eval(e, env, store) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time), kstore)), store)
                 case StepIn(f, _, e, env, store) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time, f), kstore)), store)
                 case Err(e) => (threads.set(tid, Context(tid, ControlError(e), cc, timestamp.tick(time), kstore)), old)
-                case NewFuture(tid_ : TID@unchecked, tidv, e, env, store) =>
-                    val newPState = Context(tid_, ControlEval(e, env), HaltKontAddr, timestamp.initial(tid_.toString), Store.empty[KA, Set[Kont]](t))
+                case NewFuture(tid_ : TID@unchecked, tidv, fst, frame: Frame@unchecked, env, store) =>
+                    val cc_ = KontAddr(fst, time)
+                    val newPState = Context(tid_, ControlEval(fst, env), cc_, timestamp.initial(tid_.toString), Store.empty[KA, Set[Kont]](t).extend(cc_, Set(Kont(frame, HaltKontAddr))))
                     val curPState = Context(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
                     (threads.set(tid, curPState).add(tid_, newPState), store)
                 case DerefFuture(tid_ : TID@unchecked, store) =>

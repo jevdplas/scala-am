@@ -23,6 +23,8 @@ class AtomlangSemantics[A <: Address, V, T, C, TID <: ThreadIdentifier](addressA
     import Action.{Err, NewFuture, Push}
     import schemeLattice._
     
+    case class EmptyBodyException() extends Error
+    
     /**
       * Performs an evaluation step of a given expression.
       *
@@ -33,10 +35,17 @@ class AtomlangSemantics[A <: Address, V, T, C, TID <: ThreadIdentifier](addressA
       */
     override def stepEval(e: SchemeExp, env: Env, store: Sto, t: T): Actions = e match {
         case AtomlangDeref(exp, _) => Push(FrameDeref(), exp, env, store)
-        case AtomlangFuture(_, _) =>
-            val tid = tidAllocator.allocate(e, t)
-            val tidv = future(tid)
-            NewFuture(tid, tidv, e, env, store) // Let the machine handle the actual thread creation.
+        // NewFuture contains a frame used to evaluate the rest of the body of the future (after having evaluated the first expression).
+        // Another implementation strategy would be to alter the parser and to create an explicit "begin" expression using the expressions in the future's body.
+        case AtomlangFuture(body, _) =>
+            body match {
+                case Nil => Err(EmptyBodyException()) // Disallow a body of a future to be empty.
+                case fst :: rst =>
+                    val tid = tidAllocator.allocate(e, t)
+                    val tidv = future(tid)
+                    val fram = FrameBegin(rst, env)
+                    NewFuture(tid, tidv, fst, fram, env, store) // Let the machine handle the actual thread creation.
+            }
         case AtomlangSwap(atomExp, funExp, argExps, _) => Push(FrameSwapAtom(atomExp, funExp, argExps, env), atomExp, env, store)
         case _ => super.stepEval(e, env, store, t)
     }
@@ -64,14 +73,10 @@ class AtomlangSemantics[A <: Address, V, T, C, TID <: ThreadIdentifier](addressA
     }
     
     def swapArgs(atomv: V, atomExp: SchemeExp, funv: V, funExp: SchemeExp, args: List[(SchemeExp, V)], toEval: List[SchemeExp], env: Env, store: Sto, t: T): Actions = toEval match {
-        case Nil => evalSwap(atomv, atomExp, funv, funExp, args, env, store, t)
+        case Nil => throw new Exception("") //evalSwap(atomv, atomExp, funv, funExp, args, env, store, t)
         case argExp :: _ => Push(FrameSwapArgs(atomv, atomExp, funv, funExp, args, toEval, env), argExp, env, store)
     }
-    
-    def evalSwap(atomv: V, atomExp: SchemeExp, funv: V, funExp: SchemeExp, args: List[(SchemeExp, V)], env: Env, store: Sto, t: T): Actions = {
-        ???
-    }
-    
+
     trait AtomLangFrame extends SchemeFrame
     case class FrameDeref() extends AtomLangFrame
     case class FrameSwapAtom(atomExp: SchemeExp, funExp: SchemeExp, argExps: List[SchemeExp], env: Env) extends AtomLangFrame
