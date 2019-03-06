@@ -20,7 +20,7 @@ trait Semantics[Exp, Addr <: Address, V, T, C] {
         // Action used when a new future needs to be created.
         case class NewFuture[TID <: ThreadIdentifier, F](tid: TID, tidv: V, first: Exp, fram: F, env: Environment[Addr], store: Store[Addr, V], effs: Effects[Addr] = Set.empty) extends A
         case class  DerefFuture[TID <: ThreadIdentifier](tid: TID,                                                       store: Store[Addr, V], effs: Effects[Addr] = Set.empty) extends A
-        case class         Swap[E](value: V, atomExp: E, funv: V, funExp: E, args: List[(E, V)], env: Environment[Addr], store: Store[Addr, V], effs: Effects[Addr] = Set.empty) extends A
+        // case class         Swap[E](value: V, atomExp: E, funv: V, funExp: E, args: List[(E, V)], env: Environment[Addr], store: Store[Addr, V], effs: Effects[Addr] = Set.empty) extends A
         
         val None: Set[A] = Set.empty
         implicit def actionToSet(act: A): Set[A] = Set(act)

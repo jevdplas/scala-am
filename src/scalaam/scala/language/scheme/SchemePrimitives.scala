@@ -342,10 +342,10 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       getPointerAddresses(x).foldLeft(MayFail.success[(V, Effects[A]), Error]((bottom, Effects.noEff())))(
         (acc, a) =>
           for {
-            v    <- store.lookupMF(a)
-            (res, eff)  <- f(v)
+            v            <- store.lookupMF(a)
+            res          <- f(v)
             (accv, effs) <- acc
-          } yield (join(accv, res), effs ++ eff ++ Effects.rAddr(a)))
+          } yield (join(accv, res), effs ++ Effects.rAddr(a)))
     
     /* TODO[medium] improve these implicit classes to be able to write primitives more clearly */
     implicit class V1Ops(f: V => MayFail[V, Error]) {
@@ -379,6 +379,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       }
     }
   
+    /*
     def ifThenElseWithEffs(cond: MayFail[(V, Effects[A]), Error])(thenBranch: => MayFail[(V, Effects[A]), Error])(
         elseBranch: => MayFail[(V, Effects[A]), Error]): MayFail[(V, Effects[A]), Error] = {
       val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
@@ -391,6 +392,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         mfMon.append(t, f)
       }
     }
+    */
 
     implicit def fromMF[X](x: X): MayFail[X, Error] = MayFail.success(x)
 
@@ -764,7 +766,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T) = args match {
         case (_, car) :: (_, cdr) :: Nil =>
           val consa = allocator.pointer(fexp, t)
-          (pointer(consa), store.extend(consa, cons(car, cdr)), Effects.wAddr(consa))
+          MayFail.success((pointer(consa), store.extend(consa, cons(car, cdr)), Effects.noEff()))
         case l => MayFail.failure(PrimitiveArityError(name, 2, l.size))
       }
     }
@@ -952,7 +954,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
               (cons (car args) (apply list (cdr args)))
               args))))
       */
-    object ListPrim extends StoreOperationWithEffs("list", None) {
+    object ListPrim extends StoreOperation("list", None) {
       override def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T): MayFail[(V, Store[A, V], Effects[A]), Error] =
         args match {
           case Nil => MayFail.success((nil, store, Effects.noEff()))
@@ -962,42 +964,42 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
               consv  = cons(v, restv)
               consa  = allocator.pointer(exp, t)
               store3 = store2.extend(consa, consv)
-            } yield (pointer(consa), store3, effs ++ Effects.wAddr(consa))
+            } yield (pointer(consa), store3, effs)
         }
     }
 
     /** (define (list? l) (or (and (pair? l) (list? (cdr l))) (null? l))) */
-    object Listp extends StoreOperationWithEffs("list?", Some(1)) {
-      override def call(l: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects[A]), Error] = {
-        def listp(l: V, visited: Set[V]): MayFail[(V, Effects[A]), Error] = {
+    object Listp extends StoreOperation("list?", Some(1)) {
+      override def call(l: V, store: Store[A, V]): MayFail[(V, Store[A, V]), Error] = {
+        def listp(l: V, visited: Set[V]): MayFail[V, Error] = {
           if (visited.contains(l)) {
             /* R5RS: "all lists have finite length", and the cases where this is reached
              * include circular lists. If an abstract list reaches this point, it
              * may be also finite but will reach a true branch somewhere else, and
              * both booleans will get joined */
-            MayFail.success((bool(false), Effects.noEff()))
+            MayFail.success(bool(false))
           } else {
-            ifThenElseWithEffs(isNull(l).map(bool => (bool, Effects.noEff()))) {
-              MayFail.success((bool(true), Effects.noEff()))
+            ifThenElse(isNull(l)) {
+              MayFail.success(bool(true))
             } {
-              ifThenElseWithEffs(isCons(l).map(bool => (bool, Effects.noEff()))) {
+              ifThenElse(isCons(l)) {
                 /* This is a cons, check that the cdr itself is a list */
                 cdr(l) >>= (listp(_, visited + l))
               } {
-                ifThenElseWithEffs(isPointer(l).map(bool => (bool, Effects.noEff()))) {
+                ifThenElse(isPointer(l)) {
                   /* This is a pointer, dereference it and check if it is itself a list */
-                  dereferencePointerWithEffs(l, store) { consv =>
+                  dereferencePointer(l, store) { consv =>
                     listp(consv, visited + l)
                   }
                 } {
                   /* Otherwise, not a list */
-                  MayFail.success((bool(false), Effects.noEff()))
+                  MayFail.success(bool(false))
                 }
               }
             }
           }
         }
-        listp(l, Set()).map({case (v, effs) => (v, store, effs)})
+        listp(l, Set()).map(v => (v, store))
       }
     }
 
