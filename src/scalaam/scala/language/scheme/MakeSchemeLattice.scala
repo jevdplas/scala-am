@@ -479,11 +479,6 @@ class MakeSchemeLattice[
       case _           => Set()
     }
     
-//    def getAtoms(x: Value): Set[L] = x match {
-//      case Atom(data) => Set(data)
-//      case _          => Set()
-//    }
-    
     def deref(x: Value): MayFail[L, Error] = x match {
       case Atom(data)  => MayFail.success(data)
       case _           => MayFail.failure(TypeError("Expecting atom to dereference.", x))
@@ -619,7 +614,6 @@ class MakeSchemeLattice[
       x.foldMapL(x => Value.getPrimitives[Primitive](x))(setMonoid)
     def getPointerAddresses(x: L): Set[A] = x.foldMapL(x => Value.getPointerAddresses(x))(setMonoid)
     def getFutures(x: L): Set[ThreadIdentifier] = x.foldMapL(x => Value.getFutures(x))(setMonoid)
-//    def getAtomValues(x: L): Set[L] = x.foldMapL(x => Value.getPointerAddresses(x).map(Value.getAtoms(_))(setMonoid))
 //    def getVectors[Addr : Address](x: L): Set[Addr] = foldMapL(x, x => valueSchemeLattice.getVectors(x))
 
     def bottom: L                             = Element(Value.bottom)

@@ -35,10 +35,10 @@ object AtomlangRenamer extends SchemeRenamer {
             this.renameList(body, names, count) match {
                 case (body1, count1) => (AtomlangFuture(body1, pos), count1)
             }
-        case AtomlangSwap(atom, fun, args, pos) =>
-            this.renameList(atom :: fun :: args, names, count) match {
-                case (atom1 :: fun1 :: args1, count1) => (AtomlangSwap(atom1, fun1, args1, pos), count1)
-            }
+//        case AtomlangSwap(atom, fun, args, pos) =>
+//            this.renameList(atom :: fun :: args, names, count) match {
+//                case (atom1 :: fun1 :: args1, count1) => (AtomlangSwap(atom1, fun1, args1, pos), count1)
+//            }
         case _ => super.rename(exp, names, count)
     }
 }

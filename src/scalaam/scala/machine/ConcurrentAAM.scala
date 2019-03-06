@@ -9,7 +9,7 @@ import scalaam.machine.Strategy.Strategy
 import scala.core.MachineUtil
 
 /**
-  * Implementation of an abstract PCESK machine. This machine uses an underlying AAM for stepping single threads.<br><br>
+  * Implementation of an abstract PCESK machine. This machine uses parts of an underlying AAM.<br><br>
   *
   * Based on https://github.com/acieroid/scala-am/blob/744a13a5b957c73a9d0aed6e10f7dae382c9b2e3/src/main/scala/machine/concurrent/ConcurrentAAM.scala
   */
@@ -53,19 +53,19 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         /** Executes one action on a state corresponding to a given tid and returns the result. */
         def act(threads: Threads, action: Act, cc: KAddr, time: T, old: VStore, kstore: KStore): (Threads, VStore) =
             action match {
-                case Value(v, store) => (threads.set(tid, Context(tid, ControlKont(v), cc, timestamp.tick(time), kstore)), store)
-                case Push(frame, e, env, store) =>
+                case Value(v, store, _) => (threads.set(tid, Context(tid, ControlKont(v), cc, timestamp.tick(time), kstore)), store)
+                case Push(frame, e, env, store, _) =>
                     val cc_ = KontAddr(e, time)
                     (threads.set(tid, Context(tid, ControlEval(e, env), cc_, timestamp.tick(time), kstore.extend(cc_, Set(Kont(frame, cc))))), store)
-                case Eval(e, env, store) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time), kstore)), store)
-                case StepIn(f, _, e, env, store) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time, f), kstore)), store)
+                case Eval(e, env, store, _) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time), kstore)), store)
+                case StepIn(f, _, e, env, store, _) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time, f), kstore)), store)
                 case Err(e) => (threads.set(tid, Context(tid, ControlError(e), cc, timestamp.tick(time), kstore)), old)
-                case NewFuture(tid_ : TID@unchecked, tidv, fst, frame: Frame@unchecked, env, store) =>
+                case NewFuture(tid_ : TID@unchecked, tidv, fst, frame: Frame@unchecked, env, store, _) =>
                     val cc_ = KontAddr(fst, time)
                     val newPState = Context(tid_, ControlEval(fst, env), cc_, timestamp.initial(tid_.toString), Store.empty[KA, Set[Kont]](t).extend(cc_, Set(Kont(frame, HaltKontAddr))))
                     val curPState = Context(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
                     (threads.set(tid, curPState).add(tid_, newPState), store)
-                case DerefFuture(tid_ : TID@unchecked, store) =>
+                case DerefFuture(tid_ : TID@unchecked, store, _) =>
                     if (threads.hasFinished(tid_)) {
                         (threads.set(tid, Context(tid, ControlKont(threads.getResult(tid_)), cc, timestamp.tick(time), kstore)), store)
                     } else {

@@ -22,10 +22,10 @@ class ConcreteMachine[Exp, A <: Address, V, T](val t: StoreType, val sem: Semant
         
         def next(action: Act, store: Store[A, V], stack: List[Frame], t: T): TailRec[Result] = {
             action match {
-                case Value(v, store) => tailcall(loop(ControlKont(v), store, stack, Timestamp[T, Exp].tick(t)))
-                case Push(f, e, env, store) => tailcall(loop(ControlEval(e, env), store, f :: stack, Timestamp[T, Exp].tick(t)))
-                case Eval(e, env, store) => tailcall(loop(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t)))
-                case StepIn(f, _, e, env, store) => tailcall(loop(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t, f)))
+                case Value(v, store, _) => tailcall(loop(ControlKont(v), store, stack, Timestamp[T, Exp].tick(t)))
+                case Push(f, e, env, store, _) => tailcall(loop(ControlEval(e, env), store, f :: stack, Timestamp[T, Exp].tick(t)))
+                case Eval(e, env, store, _) => tailcall(loop(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t)))
+                case StepIn(f, _, e, env, store, _) => tailcall(loop(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t, f)))
                 case Err(e) => done(ResultError(e))
                 case a => throw new Exception(s"Unsupported action: $a.")
             }
@@ -67,10 +67,10 @@ class ConcreteMachine[Exp, A <: Address, V, T](val t: StoreType, val sem: Semant
         def next(actions: Set[sem.Action.A], store: Store[A, V], stack: List[Frame], t: T): Option[State] = {
             if (actions.size == 1) {
                 actions.head match {
-                    case Value(v, store) => Some(State(ControlKont(v), store, stack, Timestamp[T, Exp].tick(t)))
-                    case Push(f, e, env, store) => Some(State(ControlEval(e, env), store, f :: stack, Timestamp[T, Exp].tick(t)))
-                    case Eval(e, env, store) => Some(State(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t)))
-                    case StepIn(f, _, e, env, store) => Some(State(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t, f)))
+                    case Value(v, store, _) => Some(State(ControlKont(v), store, stack, Timestamp[T, Exp].tick(t)))
+                    case Push(f, e, env, store, _) => Some(State(ControlEval(e, env), store, f :: stack, Timestamp[T, Exp].tick(t)))
+                    case Eval(e, env, store, _) => Some(State(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t)))
+                    case StepIn(f, _, e, env, store, _) => Some(State(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t, f)))
                     case Err(e) => Some(State(ControlError(e), store, stack, Timestamp[T, Exp].tick(t)))
                 }
             }

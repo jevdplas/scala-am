@@ -80,10 +80,10 @@ class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, 
     private def integrate(a: KA, actions: Set[Action.A]): Set[State] =
       actions.flatMap({
         /* When a value is reached, we go to a continuation state */
-        case Action.Value(v, store) =>
+        case Action.Value(v, store, _) =>
           Set(State(ControlKont(v), store, kstore, a, Timestamp[T, Exp].tick(t)))
         /* When a continuation needs to be pushed, push it in the continuation store */
-        case Action.Push(frame, e, env, store) => {
+        case Action.Push(frame, e, env, store, _) => {
           val next = KontAddr(e, t)
           Set(
             State(ControlEval(e, env),
@@ -93,10 +93,10 @@ class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, 
                   Timestamp[T, Exp].tick(t)))
         }
         /* When a value needs to be evaluated, we go to an eval state */
-        case Action.Eval(e, env, store) =>
+        case Action.Eval(e, env, store, _) =>
           Set(State(ControlEval(e, env), store, kstore, a, Timestamp[T, Exp].tick(t)))
         /* When a function is stepped in, we also go to an eval state */
-        case Action.StepIn(fexp, _, e, env, store) =>
+        case Action.StepIn(fexp, _, e, env, store, _) =>
           Set(State(ControlEval(e, env), store, kstore, a, Timestamp[T, Exp].tick(t, fexp)))
         /* When an error is reached, we go to an error state */
         case Action.Err(err) =>
@@ -146,7 +146,6 @@ class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, 
     * timeout can also be given.
     */
   def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
-    import scala.language.higherKinds
     /* The fixpoint computation loop. @param todo is the set of states that need to
      * be visited (the worklist). @param visited is the set of states that have
      * already been visited. @param halted is the set of "final" states, where

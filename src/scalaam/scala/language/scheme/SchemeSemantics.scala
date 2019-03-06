@@ -479,7 +479,7 @@ class OptimizedSchemeSemantics[A <: Address, V, T, C](allocator: Allocator[A, T,
     */
   protected def optimizeAtomic(actions: Actions, t: T): Actions =
     actions.flatMap({
-      case act @ Action.Push(frame, exp, env, store) =>
+      case act @ Action.Push(frame, exp, env, store, _) =>
         atomicEval(exp, env, store) match {
           case Some(v) => stepKont(v, frame, store, t)
           case None    => act

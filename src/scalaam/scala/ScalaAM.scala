@@ -115,7 +115,7 @@ object AtomlangRunAAM {
         Type.Sym]
     val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
     val machine = new ConcurrentAAM[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
-    val graph = DotGraph[machine.State, machine.Transition]
+    val graph = DotGraph[machine.State, machine.Transition]()
     
     def run(file: String, out: String = "AtomlangRunAAMResult.dot", timeout: Timeout.T = Timeout.seconds(10), strategy: Strategy = Strategy.AllInterleavings): AtomlangRunAAM.graph.G = {
         val f = scala.io.Source.fromFile(file)
@@ -161,7 +161,7 @@ object AtomlangRunConcrete {
         Concrete.Sym]
     val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
     val machine = new ConcreteMachine[SchemeExp, address.A, lattice.L, timestamp.T](StoreType.CountingStore, sem)
-    val graph = DotGraph[machine.State, machine.Transition]
+    val graph = DotGraph[machine.State, machine.Transition]()
     
     /**
       * Evaluate an Atomlang expression. Prints the result to out.
@@ -198,7 +198,7 @@ object AtomlangRunConcrete {
     /**
       * Evaluate an Atomlang expression. Returns the resulting graph.
       *
-      * @param input   A path to a file or a string representing code.
+      * @param file    A path to a file or a string representing code.
       * @param out     A path to which the dotgraph will be written.
       * @param timeout A timeout value. Evaluation will stop after the timeout has been reached.
       */

@@ -6,9 +6,10 @@ import scalaam.language.scheme._
 /**
   * This class extends SchemeSemantics with constructs for concurrency using futures and atoms.
   *
-  * @param allocator An allocator for memory.
-  * @param t         A timestamp.
-  * @param latt      A lattice.
+  * @param addressAllocator An allocator for memory.
+  * @param tidAllocator     An allocator for timestamps.
+  * @param t                A timestamp.
+  * @param lat              A lattice.
   * @tparam A The type of addresses.
   * @tparam V The type of values.
   * @tparam T The type of timestamps.
@@ -68,18 +69,34 @@ class AtomlangSemantics[A <: Address, V, T, C, TID <: ThreadIdentifier](addressA
             }
         case FrameSwapAtom(atomExp, funExp, argExps, env) => Push(FrameSwapFun(v, atomExp, funExp, argExps, env), funExp, env, store)
         case FrameSwapFun(atomv, atomExp, funExp, argExps, env) => swapArgs(atomv, atomExp, v, funExp, List(), argExps, env, store, t)
-        case FrameSwapArgs(atomv, atomExp, funv, funExp, args, argExp :: rest , env) => swapArgs(atomv, atomExp, funv, funExp, (argExp, v) :: args, rest, env, store, t)
+        case FrameSwapArgs(atomv, atomExp, funv, funExp, args, argExp :: rest, env) => swapArgs(atomv, atomExp, funv, funExp, (argExp, v) :: args, rest, env, store, t)
         case _ => super.stepKont(v, frame, store, t)
     }
     
     def swapArgs(atomv: V, atomExp: SchemeExp, funv: V, funExp: SchemeExp, args: List[(SchemeExp, V)], toEval: List[SchemeExp], env: Env, store: Sto, t: T): Actions = toEval match {
-        case Nil => throw new Exception("") //evalSwap(atomv, atomExp, funv, funExp, args, env, store, t)
+        case Nil => ??? // evalSwap(atomv, atomExp, funv, funExp, args, env, store, t)
         case argExp :: _ => Push(FrameSwapArgs(atomv, atomExp, funv, funExp, args, toEval, env), argExp, env, store)
     }
-
+    
+    /*
+      def evalSwap(atomv: V, atomExp: SchemeExp, funv: V, funExp: SchemeExp, args: List[(SchemeExp, V)], env: Env, store: Sto, t: T): Actions = {
+          val atomValues = getPointerAddresses(atomv).flatMap(store.lookup(_).map(deref))
+          if (atomValues.isEmpty) {
+              Err(TypeError("Pointer to atom expected.", atomv))
+          } else {
+              atomValues.map(value => Swap(value, atomExp, funv, funExp, args, env, store))
+          }
+          
+      }
+  */
     trait AtomLangFrame extends SchemeFrame
+    
     case class FrameDeref() extends AtomLangFrame
+    
     case class FrameSwapAtom(atomExp: SchemeExp, funExp: SchemeExp, argExps: List[SchemeExp], env: Env) extends AtomLangFrame
+    
     case class FrameSwapFun(atomv: V, atomExp: SchemeExp, funExp: SchemeExp, argExps: List[SchemeExp], env: Env) extends AtomLangFrame
+    
     case class FrameSwapArgs(atomv: V, atomExp: SchemeExp, funv: V, funExp: SchemeExp, args: List[(SchemeExp, V)], toEval: List[SchemeExp], env: Env) extends SchemeFrame
+    
 }
