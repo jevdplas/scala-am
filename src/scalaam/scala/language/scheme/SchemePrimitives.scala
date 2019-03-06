@@ -19,6 +19,11 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                    t: T): Set[Action.A] =
       call(fexp, args, store, t)
         .mapSet[Action.A](vstore => Action.Value(vstore._1, vstore._2))(err => Action.Err(err))
+    def callActionEffs(fexp: SchemeExp,
+                       args: List[(SchemeExp, V)],
+                       store: Store[A, V], t: T): Set[(Action.A, Effects[A])] =
+      call(fexp, args, store, t)
+          .mapSet[(Action.A, Effects[A])](vStEffs => (Action.Value(vStEffs._1, vStEffs._2), vStEffs._3))(err => (Action.Err(err), Effects.noEff()))
     def call(fexp: SchemeExp,
              args: List[(SchemeExp, V)],
              store: Store[A, V],
