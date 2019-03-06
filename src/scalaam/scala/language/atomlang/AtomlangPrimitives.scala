@@ -51,10 +51,9 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
             
             // We use a pointer to store the atom. TODO: is this the best way?
             def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T): MayFail[(V, Store[A, V], Effects[A]), Error] = args match {
-                case (_, v) :: Nil => {
+                case (_, v) :: Nil =>
                     val addr = allocator.pointer(fexp, t)
                     MayFail.success((pointer(addr), store.extend(addr, atom(v)), Effects.wAddr(addr)))
-                }
                 case _ => MayFail.failure(PrimitiveArityError(name, 1, args.size))
             }
         }

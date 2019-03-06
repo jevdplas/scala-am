@@ -115,7 +115,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         
         /** Step the context(s) corresponding to a TID. Returns a set of tuples consisting out of the tid that was stepped and a resulting state. */
         def stepOne(tid: TID): Set[(TID, State)] = { // TODO: Just return a set of states?
-            threads.get(tid).flatMap(state => state.step(threads, store).map({ case state_ => (tid, state_) }))
+            threads.get(tid).flatMap(state => state.step(threads, store).map((tid, _)))
         }
         
         /** Step the context(s) corresponding to multiple TIDs. Returns a set of tuples containing the tid that was stepped and a resulting state. */

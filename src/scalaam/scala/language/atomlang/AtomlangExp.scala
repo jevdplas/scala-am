@@ -12,7 +12,7 @@ case class AtomlangDeref(exp: SchemeExp, pos: Position) extends SchemeExp {
 
 /** Future creation: (future e) */
 case class AtomlangFuture(exps: List[SchemeExp], pos: Position) extends SchemeExp {
-    override def toString = {
+    override def toString: String = {
         val body = exps.mkString(" ")
         s"(future $body)"
     }

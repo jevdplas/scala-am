@@ -5,11 +5,11 @@ import scalaam.machine.Strategy.Strategy
 import scalaam.machine.{ConcreteMachine, ConcurrentAAM, Strategy}
 
 object Main {
-    def main(args: Array[String]) = {
+    def main(args: Array[String]): Unit = {
         ()
     }
     
-    def lambda() = {
+    def lambda(): Unit = {
         import scalaam.core._
         import scalaam.graph._
         import scalaam.language.lambda._
@@ -21,7 +21,7 @@ object Main {
         val sem = LambdaSemantics[lattice.L, address.A, timestamp.T, LambdaExp](
             address.Alloc[timestamp.T, LambdaExp])
         val machine = new AAM[LambdaExp, address.A, lattice.L, timestamp.T](StoreType.BasicStore, sem)
-        val graph = DotGraph[machine.State, machine.Transition]
+        val graph = DotGraph[machine.State, machine.Transition]()
         val result = machine.run[graph.G](
             LambdaParser.parse("((lambda (x) (lambda (y) y)) (lambda (z) z))"),
             Timeout.Infinity)
