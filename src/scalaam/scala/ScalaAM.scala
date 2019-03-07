@@ -70,7 +70,7 @@ object SchemeRun {
     val sem = new BaseSchemeSemantics[address.A, lattice.L, timestamp.T, SchemeExp](
         address.Alloc[timestamp.T, SchemeExp])
     val machine = new AAM[SchemeExp, address.A, lattice.L, timestamp.T](StoreType.BasicStore, sem)
-    val graph = DotGraph[machine.State, machine.Transition]
+    val graph = DotGraph[machine.State, machine.Transition]()
     
     def run(file: String, timeout: Timeout.T = Timeout.seconds(10)) = {
         val f = scala.io.Source.fromFile(file)
@@ -119,7 +119,7 @@ object AtomlangRunAAM {
     
     def run(file: String, out: String = "AtomlangRunAAMResult.dot", timeout: Timeout.T = Timeout.seconds(10), strategy: Strategy = Strategy.AllInterleavings): AtomlangRunAAM.graph.G = {
         val f = scala.io.Source.fromFile(file)
-        val content = f.getLines.mkString("\n")
+        val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
         val t0 = System.nanoTime
         val result = machine.run[graph.G](
             AtomlangParser.parse(content),
@@ -178,14 +178,14 @@ object AtomlangRunConcrete {
                 return
             case _ if input.startsWith("test/Atomlang/") || input.startsWith("./test/Atomlang/") =>
                 val f = scala.io.Source.fromFile(input)
-                val content = f.getLines.mkString("\n")
+                val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
                 f.close()
                 t0 = System.nanoTime
                 machine.eval(AtomlangParser.parse(content), timeout).print()
                 t1 = System.nanoTime
             case _ =>
                 t0 = System.nanoTime
-                machine.eval(AtomlangParser.parse(input), timeout).print()
+                machine.eval(AtomlangParser.parse(StandardPrelude.atomlangPrelude ++ input), timeout).print()
                 t1 = System.nanoTime
         }
         if (timeout.reached) {
@@ -204,7 +204,7 @@ object AtomlangRunConcrete {
       */
     def run(file: String, out: String = "AtomlangRunConcreteResult.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunConcrete.graph.G = {
         val f = scala.io.Source.fromFile(file)
-        val content = f.getLines.mkString("\n")
+        val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
         val t0 = System.nanoTime
         val result = machine.run[graph.G](
             AtomlangParser.parse(content),
@@ -222,4 +222,12 @@ object AtomlangRunConcrete {
         Dot.toImage(out)
         result
     }
+}
+
+object StandardPrelude {
+    val atomlangPrelude: String =
+        """(define (swap! at fn)
+          |  (let ((vl (read at)))
+          |    (if (not (compare-and-set! at vl (fn vl)))
+          |      (swap! at fn))))""".stripMargin
 }
