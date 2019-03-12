@@ -7,56 +7,59 @@ object EffectKind extends Enumeration {
 
 object EffectTarget extends Enumeration {
     type EffectTarget = Value
-    val RefTarget, ThreadTarget = Value
+    val StoreTarget, ProcessTarget = Value
 }
 
 import EffectKind._
 import EffectTarget._
 
-abstract class Effect[Addr <: Address] {
+trait EffectKindT {
     val kind: EffectKind
-    val tkind: EffectTarget
-    val target: Addr
+    def prefix: String
 }
 
-trait ReadEffect[Addr <: Address] extends Effect[Addr] {
+trait ReadEffectT extends EffectKindT {
     val kind: EffectKind = EffectKind.ReadEffect
-    
-    override def toString: String = s"R:$target"
+    def prefix: String = "R:"
 }
 
-trait WriteEffect[Addr <: Address] extends Effect[Addr] {
+trait WriteEffectT extends EffectKindT {
     val kind: EffectKind = EffectKind.WriteEffect
-    
-    override def toString: String = s"W:$target"
+    def prefix: String = "W:"
 }
 
-trait RefEffect[Addr <: Address] extends Effect[Addr] {
-    val tkind: EffectTarget = EffectTarget.RefTarget
+trait EffectTargetT {
+    val tkind: EffectTarget
+    def suffix: String
 }
 
-trait ConcEffect[Addr <: Address] extends Effect[Addr] {
-    val tkind: EffectTarget = EffectTarget.ThreadTarget
+trait StoreEffectT[Addr <: Address] extends EffectTargetT {
+    val tkind = EffectTarget.StoreTarget
+    val target: Addr
+    val suffix: String = target.toString
 }
 
-case class ReadAddrEff[Addr <: Address](target: Addr) extends ReadEffect[Addr] with RefEffect[Addr]
+trait ConcEffectT[TID <: ThreadIdentifier] extends EffectTargetT {
+    val tkind = EffectTarget.ProcessTarget
+    val target: TID
+    val suffix: String = target.toString
+}
 
-case class WriteAddrEff[Addr <: Address](target: Addr) extends WriteEffect[Addr] with RefEffect[Addr]
+trait Effect {
+    this: EffectKindT with EffectTargetT =>
+    override def toString: String = prefix + suffix
+}
 
-case class SpawnEff[Addr <: Address](target: Addr) extends WriteEffect[Addr] with ConcEffect[Addr]
-
-case class JoinEff[Addr <: Address](target: Addr) extends ReadEffect[Addr] with ConcEffect[Addr]
+case class      ReadAddrEff[Addr <: Address](target: Addr) extends Effect with StoreEffectT[Addr] with ReadEffectT
+case class     WriteAddrEff[Addr <: Address](target: Addr) extends Effect with StoreEffectT[Addr] with WriteEffectT
+case class SpawnEff[TID <: ThreadIdentifier](target:  TID) extends Effect with  ConcEffectT[ TID] with WriteEffectT
+case class  JoinEff[TID <: ThreadIdentifier](target:  TID) extends Effect with  ConcEffectT[ TID] with ReadEffectT
 
 object Effects {
-    type Effects[Addr <: Address] = Set[Effect[Addr]]
-    
-    def noEff[Addr <: Address](): Effects[Addr] = Set.empty
-    
-    def rAddr[Addr <: Address](target: Addr): Effects[Addr] = Set(ReadAddrEff(target))
-    
-    def wAddr[Addr <: Address](target: Addr): Effects[Addr] = Set(WriteAddrEff(target))
-    
-    def spawn[Addr <: Address](target: Addr): Effects[Addr] = Set(SpawnEff(target))
-    
-    def  join[Addr <: Address](target: Addr): Effects[Addr] = Set(JoinEff(target))
+    type Effects = Set[Effect]
+    def noEff():                                     Effects = Set.empty
+    def rAddr[Addr <: Address](target: Addr):        Effects = Set(ReadAddrEff(target))
+    def wAddr[Addr <: Address](target: Addr):        Effects = Set(WriteAddrEff(target))
+    def spawn[TID <: ThreadIdentifier](target: TID): Effects = Set(SpawnEff(target))
+    def  join[TID <: ThreadIdentifier](target: TID): Effects = Set(JoinEff(target))
 }

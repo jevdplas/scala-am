@@ -27,15 +27,15 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
     import seqAAM._
     
     /** Various type declarations. */
-    type KAddr = seqAAM.KA
-    type VStore = Store[A, V]
-    type KStore = Store[KAddr, Set[seqAAM.Kont]]
+    type KAddr   = KA
+    type VStore  = Store[A, V]
+    type KStore  = Store[KAddr, Set[Kont]]
     type Threads = TMap[TID, Context, V]
     
     /**
       * The state of one thread.
       *
-      * @param tid     The threadidentifier corresponding to this context.
+      * @param tid     The thread identifier corresponding to this context.
       * @param control The control component of the thread.
       * @param cc      The address of the current continuation.
       * @param time    A timestamp.
@@ -45,7 +45,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         override def toString: String = control.toString
         
         def halted: Boolean = (cc, control) match {
-            case (seqAAM.HaltKontAddr, ControlKont(_)) => true
+            case (HaltKontAddr, ControlKont(_)) => true
             case (_, ControlError(_)) => true
             case _ => false
         }
@@ -73,7 +73,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
                     }
             }
         
-        /** Produces the states following this state by appying the given actions. */
+        /** Produces the states following this state by applying the given actions. */
         def next(actions: Set[Act], threads: Threads, store: VStore, cc: KAddr): Set[State] = {
             actions.map(action => act(threads, action, cc, time, store, kstore) match {
                 case (threads, store) => State(threads, store)
@@ -81,10 +81,10 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         }
         
         /** Steps from this state to the next. Returns a set of successorStates. */
-        def step(threads: Threads, store: Store[A, V]): Set[State] =
+        def step(threads: Threads, store: VStore): Set[State] =
             control match {
                 case ControlEval(exp, env) => next(sem.stepEval(exp, env, store, time), threads, store, cc)
-                case ControlKont(v) if cc == seqAAM.HaltKontAddr => Set(State(threads.finish(tid, v), store))
+                case ControlKont(v) if cc == HaltKontAddr => Set(State(threads.finish(tid, v), store))
                 case ControlKont(v) => kstore.lookup(cc) match {
                     case Some(konts) => konts.flatMap({
                         case Kont(frame, cc_) => next(sem.stepKont(v, frame, store, time), threads, store, cc_)

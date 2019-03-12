@@ -180,7 +180,7 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
           TypeError("operator expected to be a closure, but is not", closure((lambda, env1))))
     })
     val fromPrim: Actions =
-      getPrimitives[Primitive](function).flatMap(prim => prim.callAction(fexp, argsv, store, t))
+      getPrimitives[Primitive](function).flatMap(prim => prim.callActionEffs(fexp, argsv, store, t)) // Effects from primitives are studied!
     if (fromClo.isEmpty && fromPrim.isEmpty) {
       Action.Err(TypeError("operator expected to be a function, but is not", function))
     } else {
