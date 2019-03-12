@@ -45,6 +45,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     case class State(tid: TID, control: Control, cc: KAddr, time: T, kstore: KStore) extends {
         override def toString: String = control.toString
         
+        /** Indicates whether this state is a final state. */
         def halted: Boolean = (cc, control) match {
             case (HaltKontAddr, ControlKont(_)) => true
             case (_, ControlError(_)) => true
@@ -56,11 +57,11 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
             // Adds the accumulator. Important: keeps the store of "this".
             def merge(acc: stepResult): stepResult =
                 stepResult(successors ++ acc.successors,
-                            created ++ acc.created,
-                            joined ++ acc.joined,
-                            Option.empty,
-                            effects ++ acc.effects,
-                            store) // Important: keeps the store of "this".
+                              created ++ acc.created,
+                               joined ++ acc.joined,
+                                  Option.empty,
+                              effects ++ acc.effects,
+                                    store) // Important: keeps the store of "this".
         }
         
         /** Helper function to create new results easily without having to write all fields explicitly. */
@@ -96,13 +97,18 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
             case a => throw new Exception(s"Unsupported action: $a.\n")
         }
     
-        /** Produces the states following this state by applying the given actions. */
+        /**
+          * Produces the states following this state by applying the given actions successively, thereby updating the store.
+          * Returns a stepResult containing of all successor states and bookkeeping information, as well as the final store.
+          */
         private def next(actions: Set[Act], old: VStore, cc: KAddr, results: RetVals): stepResult = {
             val init: stepResult = stepResult(Set.empty, Set.empty, Set.empty, Option.empty, Set.empty, old)
             actions.foldLeft(init)((acc, action) => act(action,time, acc.store, kstore, cc, results).merge(acc))
         }
         
         /**
+          * Decides on what to do by looking at the control component of the state and executes the according actions
+          * if necessary.
           * @param store The store to use while stepping this state.
           * @return A tuple containing of:
           *         * the successor states of this state;
@@ -113,14 +119,19 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           *         * the resulting store.
           */
         def step(store: VStore, results: RetVals): stepResult = control match {
+            // Evaluate the given expression in the given environment.
             case ControlEval(exp, env) => next(sem.stepEval(exp, env, store, time), store, cc, results)
+            // The end of evaluation has been reached. Return the final result.
             case ControlKont(v) if cc == HaltKontAddr => stepResult(Set.empty, Set.empty, Set.empty, Some(v), Set.empty, store)
+            // Continue with a given value, given the continuation frame in this state. Pops this frame of the stack.
             case ControlKont(v) =>
                 val init: stepResult = stepResult(Set.empty, Set.empty, Set.empty, Option.empty, Set.empty, store)
                 kstore.lookup(cc).foldLeft(init){case (acc, Kont(frame, cc_)) =>
                     next(sem.stepKont(v, frame, store, time), store, cc_, results).merge(acc)
                 }
+            // Handle an error. This results in no successor states.
             case ControlError(e) => stepResult(Set.empty, Set.empty, Set.empty, None, Set.empty, store)
+            // An unknown control component has been reached. Should not happen so throw an error.
             case e => throw new Exception(s"Unsupported control sequence: $e.\n")
         }
     }
@@ -131,7 +142,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         
         @scala.annotation.tailrec
         def innerLoop(work: List[State], visited: Set[State], store: VStore) = {
-        
+            ???
         }
         
         def outerLoop() = ???
