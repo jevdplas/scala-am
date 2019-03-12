@@ -50,7 +50,7 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
             val name = "atom"
             
             // We use a pointer to store the atom. TODO: is this the best way?
-            def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T): MayFail[(V, Store[A, V], Effects[A]), Error] = args match {
+            def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T): MayFail[(V, Store[A, V], Effects), Error] = args match {
                 case (_, v) :: Nil =>
                     val addr = allocator.pointer(fexp, t)
                     MayFail.success((pointer(addr), store.extend(addr, atom(v)), Effects.wAddr(addr)))
@@ -65,7 +65,7 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         
         /** Implementation of the "deref" primitive. */
         object Deref extends StoreOperationWithEffs("read", Some(1)) { // Fixme: Change name to deref, but make distinction from futures in semantics. => Need store there.
-            override def call(v: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects[A]), Error] = {
+            override def call(v: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
                 for {(res, effs) <- dereferencePointerWithEffs(v, store)(deref)} yield (res, store, effs)
             }
         }
@@ -74,9 +74,9 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         // Fixme: should only the comparison & setting be atomic, or also the evaluation of the arguments? => Special form.
         object CompareAndSet extends Primitive {
             val name = "compare-and-set!"
-            override def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T): MayFail[(V, Store[A, V], Effects[A]), Error] = args match {
+            override def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T): MayFail[(V, Store[A, V], Effects), Error] = args match {
                 case (_, v) :: (_, old) :: (_, nw) :: Nil =>
-                    getPointerAddresses(v).foldLeft(MayFail.success[(V, Store[A, V], Effects[A]), Error]((bottom, store, Effects.noEff())))((acc, addr) =>
+                    getPointerAddresses(v).foldLeft(MayFail.success[(V, Store[A, V], Effects), Error]((bottom, store, Effects.noEff())))((acc, addr) =>
                         for {
                             atomv <- store.lookupMF(addr)
                             vatm <- deref(atomv) // TODO
@@ -91,9 +91,9 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         
         /** Implementation of the "reset!" primitive. */
         object Reset extends StoreOperationWithEffs("reset!", Some(2)) {
-            override def call(v: V, value: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects[A]), Error] = {
+            override def call(v: V, value: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
                 // foldLeft: the accumulator is an updated store.
-                getPointerAddresses(v).foldLeft(MayFail.success[(Store[A, V], Effects[A]), Error]((store, Effects.noEff())))((acc, addr) =>
+                getPointerAddresses(v).foldLeft(MayFail.success[(Store[A, V], Effects), Error]((store, Effects.noEff())))((acc, addr) =>
                     for {
                         atomv <- store.lookupMF(addr)
                         (store_, effs) <- acc

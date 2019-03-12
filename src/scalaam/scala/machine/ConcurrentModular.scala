@@ -3,7 +3,7 @@ package scala.machine
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
-import scalaam.machine.{AAM, ConcurrentAAM}
+import scalaam.machine.AAM
 //import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
 //import scalaam.machine.Strategy.Strategy
@@ -42,8 +42,14 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
       * @param time    A timestamp.
       * @param kstore  A continuation store.
       */
-    case class State(tid: TID, control: Control, cc: KAddr, time: T, kstore: KStore) extends {
+    case class State(tid: TID, control: Control, cc: KAddr, time: T, kstore: KStore) extends GraphElement {
         override def toString: String = control.toString
+    
+        override def label: String = toString
+    
+        override def color: Color = if (halted) Colors.Yellow else Colors.Green
+    
+        override def metadata = GraphMetadataMap(Map("halted" -> GraphMetadataBool(halted), "type" -> GraphMetadataString("conc")))
         
         /** Indicates whether this state is a final state. */
         def halted: Boolean = (cc, control) match {
@@ -126,18 +132,18 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
             // Continue with a given value, given the continuation frame in this state. Pops this frame of the stack.
             case ControlKont(v) =>
                 val init: stepResult = stepResult(Set.empty, Set.empty, Set.empty, Option.empty, Set.empty, store)
-                kstore.lookup(cc).foldLeft(init){case (acc, Kont(frame, cc_)) =>
-                    next(sem.stepKont(v, frame, store, time), store, cc_, results).merge(acc)
-                }
+                kstore.lookup(cc).foldLeft(init)((acc1, konts) => // Lookup all associated continuation frames.
+                    konts.foldLeft(acc1){case (acc2, Kont(frame, cc_)) => // For each frame, generate the next actions and accumulate everything (starting from acc1).
+                        next(sem.stepKont(v, frame, acc2.store, time), store, cc_, results).merge(acc2)
+                })
             // Handle an error. This results in no successor states.
-            case ControlError(e) => stepResult(Set.empty, Set.empty, Set.empty, None, Set.empty, store)
+            case ControlError(_) => stepResult(Set.empty, Set.empty, Set.empty, None, Set.empty, store)
             // An unknown control component has been reached. Should not happen so throw an error.
             case e => throw new Exception(s"Unsupported control sequence: $e.\n")
         }
     }
     
-    def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
-    
+    def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = ??? /* {
         case class InnerLoop(work: List[State], visited: Set[State], results: RetVals)
         
         @scala.annotation.tailrec
@@ -147,4 +153,5 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         
         def outerLoop() = ???
     }
+    */
 }
