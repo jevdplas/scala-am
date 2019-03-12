@@ -20,7 +20,6 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     
     /** Certain parts of this AAM will be reused. */
     val seqAAM = new AAM[Exp, A, V, T](t, sem)
-    
     import seqAAM._
     
     /** Various type declarations. */
@@ -34,7 +33,8 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     type RetVals    = Map[TID, V]
     
     /**
-      * The execution state of one process.
+      * The execution state of one process (thread), containing its identifier and running information.
+      * The variable store is shared among all threads; the continuation store is not.
       *
       * @param tid     The thread identifier corresponding to this context.
       * @param control The control component of the thread.
@@ -47,14 +47,20 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     
         override def label: String = toString
     
-        override def color: Color = if (halted) Colors.Yellow else Colors.Green
+        override def color: Color = if (!halted) Colors.Green else if (errored) Colors.Pink else Colors.Yellow
     
-        override def metadata = GraphMetadataMap(Map("halted" -> GraphMetadataBool(halted), "type" -> GraphMetadataString("conc")))
+        override def metadata = GraphMetadataMap(Map("halted" -> GraphMetadataBool(halted), "type" -> GraphMetadataString("concMod")))
         
         /** Indicates whether this state is a final state. */
         def halted: Boolean = (cc, control) match {
             case (HaltKontAddr, ControlKont(_)) => true
             case (_, ControlError(_)) => true
+            case _ => false
+        }
+        
+        /** Indicates whether this state represents an error. */
+        def errored: Boolean = control match {
+            case ControlError(_) => true
             case _ => false
         }
         
@@ -76,8 +82,16 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
             stepResult(Set(successor), created, joined, result, effects, store)
         }
         
-        /** Executes an action on this state and returns the result as well as other bookkeeping information in the form of a stepResults instance. */
-        private def act(action: Act, time: T, old: VStore, kstore: KStore, cc: KAddr, results: RetVals): stepResult = action match {
+        /**
+          * Executes an action on this state and returns the result as well as other bookkeeping information in the form of a stepResults instance.
+          * @param action  The action to perform on this state.
+          * @param old     The store that was used to obtain the action.
+          * @param cc      The address of the current continuation. May differ from the instance variable cc stored in this state (e.g. after a frame has been popped of the stack).
+          * @param results A map of TIDs to values, used to retrieve the return values of other processes.
+          * @return Returns a stepResult containing all successor states of this states after performing the actions
+          *         as well as bookkeeping information and the resulting store.
+          */
+        private def act(action: Act, time: T, old: VStore, cc: KAddr, results: RetVals): stepResult = action match {
             // The semantics reached a value => continue with this value.
             case Value(v, store, effs) => newResult(State(tid, ControlKont(v), cc, timestamp.tick(time), kstore), effs, store)
             // A frame needs to be pushed on the stack and the evaluation needs to continue by evaluating 'e'.
@@ -105,11 +119,15 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     
         /**
           * Produces the states following this state by applying the given actions successively, thereby updating the store.
-          * Returns a stepResult containing of all successor states and bookkeeping information, as well as the final store.
+          * @param actions The set of actions to perform.
+          * @param old     The store that was used to obtain the actions.
+          * @param cc      The address of the current continuation. May differ from the instance variable cc stored in this state.
+          * @param results A map of TIDs to values, used to retrieve the return values of other processes.
+          * @return Returns a stepResult containing all successor states and bookkeeping information, as well as the final store.
           */
         private def next(actions: Set[Act], old: VStore, cc: KAddr, results: RetVals): stepResult = {
             val init: stepResult = stepResult(Set.empty, Set.empty, Set.empty, Option.empty, Set.empty, old)
-            actions.foldLeft(init)((acc, action) => act(action,time, acc.store, kstore, cc, results).merge(acc))
+            actions.foldLeft(init)((acc, action) => act(action,time, acc.store, cc, results).merge(acc))
         }
         
         /**
@@ -134,7 +152,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                 val init: stepResult = stepResult(Set.empty, Set.empty, Set.empty, Option.empty, Set.empty, store)
                 kstore.lookup(cc).foldLeft(init)((acc1, konts) => // Lookup all associated continuation frames.
                     konts.foldLeft(acc1){case (acc2, Kont(frame, cc_)) => // For each frame, generate the next actions and accumulate everything (starting from acc1).
-                        next(sem.stepKont(v, frame, acc2.store, time), store, cc_, results).merge(acc2)
+                        next(sem.stepKont(v, frame, acc2.store, time), store, cc_, results).merge(acc2) // Note that the frame is popped of the stack by passing cc_.
                 })
             // Handle an error. This results in no successor states.
             case ControlError(_) => stepResult(Set.empty, Set.empty, Set.empty, None, Set.empty, store)
@@ -143,6 +161,14 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         }
     }
     
+    /**
+      * Analyses a given program in a thread-modular way. Returns a state graph representing the collecting semantics of the program.
+      * @param program The program to be analysed.
+      * @param timeout A timeout after which the analysis should stop to prevent looping.
+      * @param ev      A implicit graph.
+      * @tparam G The type of the graph to be returned.
+      * @return Returns a state graph representing the collecting semantics of the program that was analysed.
+      */
     def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = ??? /* {
         case class InnerLoop(work: List[State], visited: Set[State], results: RetVals)
         
