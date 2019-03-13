@@ -32,50 +32,6 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     type Joined     = Set[TID]
     type RetVals    = Map[TID, V]
     
-    case class StoreWrapper(store: Store[A, V], modified: Boolean = false) extends Store[A, V] {
-        def                       keys: Iterable[A] = store.keys
-        def forall(p: ((A, V)) => Boolean): Boolean = store.forall(p)
-        def    subsumes(that: Store[A, V]): Boolean = store.subsumes(that)
-        def                 lookup(a: A): Option[V] = store.lookup(a)
-        def       lookupMF(a: A): MayFail[V, Error] = store.lookupMF(a)
-        def         extend(a: A, v: V): Store[A, V] = verifyChange(a, v, (a, v) => store.extend(a, v))
-        def         update(a: A, v: V): Store[A, V] = verifyChange(a, v, (a, v) => store.update(a, v))
-        def updateOrExtend(a: A, v: V): Store[A, V] = verifyChange(a, v, (a, v) => store.updateOrExtend(a, v))
-        def    join(that: Store[A, V]): Store[A, V] = verifyMerge(that)
-        
-        /** Creates a new and updated wrapped store based on this store and an update function for a specific binding.
-          * The procedure marks whether the new store differs from the original one for the binding under inspection. */
-        private def verifyChange(a: A, v: V, fun: (A, V) => Store[A, V]): Store[A, V] = {
-            // Verify whether the store has been changed by comparing the original and new value.
-            store.lookup(a) match {
-                case None => StoreWrapper(fun(a, v), true) // If the entry did not exist yet, the store will change.
-                case Some(v1) => // Otherwise, the store only changes when the new and old results differ.
-                    val store_ : Store[A, V] = fun(a, v)
-                    // Fun must ensure store_ has a mapping for fun's first argument.
-                    val v2 : V = store_.lookup(a).getOrElse(throw new Exception(s"Condition failure: missing required binding of $a in store $store_."))
-                    StoreWrapper(store_, lattice.lteq(v2, v1))
-            }
-        }
-    
-        /** Joins two stores and returns an updated wrapper indicating whether the store has changed. */
-        private def verifyMerge(that: Store[A, V]): Store[A, V] = {
-            if (store.keys != that.keys)
-                StoreWrapper(store.join(that), true)
-            else {
-                // Check subsumption for every element. If at least one element of that is not subsumed by the corresponding element of this,
-                // the resulting store will differ from this.
-                for (key <- store.keys) {
-                    if (!lattice.lteq(that.lookup(key).get, store.lookup(key).get))
-                        return StoreWrapper(store.join(that), true)
-                }
-                StoreWrapper(store.join(that), false)
-            }
-        }
-        
-        def updated:   Boolean = modified
-        def reset: Store[A, V] = StoreWrapper(store, false)
-    }
-    
     /**
       * The execution state of one process (thread), containing its identifier and running information.
       * The variable store is shared among all threads; the continuation store is not.
@@ -224,6 +180,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                 work.foldLeft((store, graph, visited, List.empty[State])){case ((sto, gra, vis, wrk), ste) =>
                     if (vis.contains(ste)) (sto, gra, vis, wrk) else {
                         val res = ste.step(sto, results)
+                        // TODO clear visited set if needed.
                         (res.store, gra, vis + ste, wrk ++ res.successors)
                     }
                 }
@@ -233,4 +190,61 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         
         def outerLoop() = ???
     } */
+}
+
+object ConcurrentModular {
+    
+    /**
+      * Wrapper for a store providing change tracking.
+      * @param store    The store to be wrapped.
+      * @param modified Parameter indicating whether the store has been changed.
+      * @param lattice  The lattice corresponding to the value type V.
+      * @tparam A Type of addresses, domain of the store.
+      * @tparam V Type of values, codomain of the store.
+      */
+    case class WrappedStore[A <: Address, V](store: Store[A, V], modified: Boolean = false)(implicit val lattice: Lattice[V]) extends Store[A, V] {
+        def                       keys: Iterable[A] = store.keys
+        def forall(p: ((A, V)) => Boolean): Boolean = store.forall(p)
+        def    subsumes(that: Store[A, V]): Boolean = store.subsumes(that)
+        def                 lookup(a: A): Option[V] = store.lookup(a)
+        def       lookupMF(a: A): MayFail[V, Error] = store.lookupMF(a)
+        def         extend(a: A, v: V): Store[A, V] = verifyChange(a, v, (a, v) => store.extend(a, v))
+        def         update(a: A, v: V): Store[A, V] = verifyChange(a, v, (a, v) => store.update(a, v))
+        def updateOrExtend(a: A, v: V): Store[A, V] = verifyChange(a, v, (a, v) => store.updateOrExtend(a, v))
+        def    join(that: Store[A, V]): Store[A, V] = verifyMerge(that)
+        
+        /** Creates a new and updated wrapped store based on this store and an update function for a specific binding.
+          * The procedure marks whether the new store differs from the original one for the binding under inspection. */
+        private def verifyChange(a: A, v: V, fun: (A, V) => Store[A, V]): Store[A, V] = {
+            // Verify whether the store has been changed by comparing the original and new value.
+            store.lookup(a) match {
+                case None => WrappedStore(fun(a, v), true) // If the entry did not exist yet, the store will change.
+                case Some(v1) => // Otherwise, the store only changes when the new and old results differ.
+                    val store_ : Store[A, V] = fun(a, v)
+                    // Fun must ensure store_ has a mapping for fun's first argument.
+                    val v2 : V = store_.lookup(a).getOrElse(throw new Exception(s"Condition failure: missing required binding of $a in store $store_."))
+                    WrappedStore(store_, lattice.lteq(v2, v1))
+            }
+        }
+        
+        /** Joins two stores and returns an updated wrapped store indicating whether the store has changed. */
+        private def verifyMerge(that: Store[A, V]): Store[A, V] = {
+            if (store.keys != that.keys)
+                WrappedStore(store.join(that), true)
+            else {
+                // Check subsumption for every element. If at least one element of that is not subsumed by the corresponding element of this,
+                // the resulting store will differ from this.
+                for (key <- store.keys) {
+                    if (!lattice.lteq(that.lookup(key).get, store.lookup(key).get))
+                        return WrappedStore(store.join(that), true)
+                }
+                WrappedStore(store.join(that), false)
+            }
+        }
+        
+        /** Get information on whether the store has been updated. */
+        def updated:   Boolean = modified
+        /** Reset the updated flag of the store. */
+        def reset: Store[A, V] = WrappedStore(store, false)
+    }
 }
