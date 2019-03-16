@@ -117,7 +117,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
             case Err(e) => newResult(State(tid, ControlError(e), cc, timestamp.tick(time), kstore), Set.empty, old)
             // A new process is spawn by the semantics. The machine allocates a new TID and records the state of the new process.
             case NewFuture(ftid: TID@unchecked, tidv, fst, frame: Frame@unchecked, env, store, effs) =>
-                val cc_ =  HaltKontAddr // KontAddr(fst, time) // TODO: check this address (see concurrentAAM).
+                val cc_ =  HaltKontAddr // KontAddr(fst, time) // TODO: check this address (see concurrentAAM using a KontAddr).
                 val newPState = State(ftid, ControlEval(fst, env), cc_, timestamp.initial(ftid.toString), Store.empty[KA, Set[Kont]](t).extend(cc_, Set(Kont(frame, HaltKontAddr))))
                 val curPState = State(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
                 StepResult(Set(curPState), Set(newPState), Set.empty, Option.empty, effs ++ Effects.spawn(ftid), store)
@@ -215,7 +215,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                         else {                           // If the state has not been explored yet, take a step.
                             val StepResult(succs, crea, joi, res, effs, sto: WStore) = state.step(store, results)
                             val vis = if (sto.updated) Set.empty[State] else visited + state // Immediately clear the visited set upon a store change.
-                            (work, vis, sto.reset, iState.add(crea, joi, effs, res, succs.toList.map((state, empty, _))))
+                            (work ++ succs, vis, sto.reset, iState.add(crea, joi, effs, res, succs.toList.map((state, empty, _))))
                         }
                     }
                 innerLoop(work_, results, store_, visited_, iState_)
@@ -241,14 +241,14 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                     val stid: TID = state.tid
                     val (store, InnerLoopState(crea, joi, effs, res, gra)) = innerLoop(List(state), oState.results, oState.store)
                     // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
-                    val (todoCreated, newThreads): (Set[State], Threads) = crea.foldLeft((Set[State](), Map[TID, Set[State]]())) {case ((created, threads), state) =>
+                    val (todoCreated, newThreads): (Set[State], Threads) = crea.foldLeft((Set[State](), oState.threads)) {case ((created, threads), state) =>
                         if (threads(state.tid).contains(state)) (created, threads) // There already is an identical thread, so do nothing.
                         else (created + state, threads + (state.tid -> (threads(state.tid) + state)))
                     }
                     // Update module dependencies. todoEffects indicates which modules have to be reanalysed.
-                    val joinDeps: JoinDeps = joi.foldLeft(oState.joinDeps)((deps, tid) => deps + (stid -> (deps(stid) + tid)))
+                    val joinDeps: JoinDeps = joi.foldLeft(oState.joinDeps)((deps, tid) => deps + (tid -> (deps(tid) + stid)))
                     val (readDeps, writeDeps): (ReadDeps, WriteDeps) = effs.foldLeft((oState.readDeps, oState.writeDeps)){case ((r, w), eff) => eff match {
-                        case ReadAddrEff(target: A@unchecked) => (r + (stid -> (r(stid) + target)), w)
+                        case ReadAddrEff(target:  A@unchecked) => (r + (stid -> (r(stid) + target)), w)
                         case WriteAddrEff(target: A@unchecked) => (r, w + (stid -> (w(stid) + target)))
                         case _ => (r, w)
                         }
@@ -262,7 +262,6 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                     // Join the old and new return value. If the return value changes, all other threads joining in this thread need to be reanalysed.
                     val retVal: V = lattice.join(oState.results(stid), res)
                     val todoJoined: List[State] = if (oState.results(stid) == retVal) List.empty else joinDeps(stid).flatMap(newThreads).toList
-                    
                     (work ++ todoCreated.toList ++ todoEffects ++ todoJoined,
                      OuterLoopState(newThreads, readDeps, writeDeps, joinDeps, oState.results + (stid -> retVal), store, oState.graphs + (stid -> gra)))
                 }
@@ -278,10 +277,15 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         val time    :              T = timestamp.initial("")
         val tid     :            TID = allocator.allocate(program, time)
         val state   :          State = State(tid, control, cc, time, kstore)
-        val threads :        Threads = Map(tid -> Set(state))
+        val threads :        Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
         val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
         val wstore  :         WStore = WrappedStore[A, V](vstore)(lattice)
-        val oState  : OuterLoopState = OuterLoopState(threads, Map.empty, Map.empty, Map.empty, Map.empty, wstore, graphs)
+        val oState  : OuterLoopState = OuterLoopState(threads,
+                                                      Map.empty.withDefaultValue(Set.empty),
+                                                      Map.empty.withDefaultValue(Set.empty),
+                                                      Map.empty.withDefaultValue(Set.empty),
+                                                      Map.empty.withDefaultValue(lattice.bottom),
+                                                      wstore, graphs)
         
         outerLoop(List(state), oState).toSet[(TID, Edges)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, e) => ev.addEdges(acc, e))
     }
