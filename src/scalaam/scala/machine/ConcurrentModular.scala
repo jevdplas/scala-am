@@ -41,7 +41,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     type ReadDeps   = Map[TID, Set[A]]
     type WriteDeps  = Map[TID, Set[A]]
     
-   // type Edges      = (State, Transition, State)
+    type Edges      = List[(State, Transition, State)]
     
     /** Class used to return all information resulting from stepping this state. */
     case class StepResult(successors: Successors, created: Created, joined: Joined, result: Option[V], effects: Effects, store: VStore) {
@@ -183,15 +183,15 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     def run[G](program: Exp, timeout: Timeout.T)
               (implicit ev: Graph[G, State, Transition]): G = {
         
-        type Graphs = Map[TID, G]
+        type Graphs = Map[TID, Edges]
     
-        case class InnerLoopState(created: Created, joined: Joined, effects: Effects, result: V, graph: G) {
-            def add(crea: Created, joi: Joined, effs: Effects, res: Option[V], edges: List[(State, State)]): InnerLoopState =  InnerLoopState(
+        case class InnerLoopState(created: Created, joined: Joined, effects: Effects, result: V, edges: Edges) {
+            def add(crea: Created, joi: Joined, effs: Effects, res: Option[V], edg: Edges): InnerLoopState =  InnerLoopState(
                 created ++ crea,
                 joined  ++  joi,
                 effects ++ effs,
                 lattice.join(result, res.getOrElse(lattice.bottom)),
-                edges.foldLeft(graph){case (g, (from, to)) => ev.addEdge(g, from, empty, to)}
+                edges ++ edg
             )
         }
     
@@ -206,7 +206,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           */
         @scala.annotation.tailrec
         def innerLoop(work: List[State], results: RetVals, store: WStore, visited: Set[State] = Set.empty,
-                      iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, Set.empty, lattice.bottom, ev.empty)): (WStore, InnerLoopState) = {
+                      iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, Set.empty, lattice.bottom, List.empty)): (WStore, InnerLoopState) = {
             if (timeout.reached || work.isEmpty) (store, iState)
             else {
                 val (work_, visited_, store_, iState_): (List[State], Set[State], WStore, InnerLoopState) =
@@ -215,7 +215,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                         else {                           // If the state has not been explored yet, take a step.
                             val StepResult(succs, crea, joi, res, effs, sto: WStore) = state.step(store, results)
                             val vis = if (sto.updated) Set.empty[State] else visited + state // Immediately clear the visited set upon a store change.
-                            (work, vis, sto.reset, iState.add(crea, joi, effs, res, succs.toList.map((state, _))))
+                            (work, vis, sto.reset, iState.add(crea, joi, effs, res, succs.toList.map((state, empty, _))))
                         }
                     }
                 innerLoop(work_, results, store_, visited_, iState_)
@@ -234,7 +234,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: WStore, graphs: Graphs)
     
         @scala.annotation.tailrec
-        def outerLoop(work: List[State], oState: OuterLoopState): Map[TID, G] = {
+        def outerLoop(work: List[State], oState: OuterLoopState): Graphs = {
             if (timeout.reached || work.isEmpty) oState.graphs
             else {
                 val next: (List[State], OuterLoopState) = work.foldLeft((List[State](), oState)) {case ((work, oState), state) =>
@@ -273,7 +273,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         val cc      :          KAddr = HaltKontAddr
         val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
         val control :        Control = ControlEval(program, env)
-        val graphs  :    Map[TID, G] = Map[TID,G]().withDefaultValue(Graph[G, State, Transition].empty)
+        val graphs  :         Graphs = Map[TID, Edges]().withDefaultValue(List.empty)
         val kstore  :         KStore = Store.empty[KA, Set[Kont]](t)
         val time    :              T = timestamp.initial("")
         val tid     :            TID = allocator.allocate(program, time)
@@ -283,7 +283,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         val wstore  :         WStore = WrappedStore[A, V](vstore)(lattice)
         val oState  : OuterLoopState = OuterLoopState(threads, Map.empty, Map.empty, Map.empty, Map.empty, wstore, graphs)
         
-        outerLoop(List(state), oState).toSet[(TID, G)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, g) => ev.addEdges(acc, g))
+        outerLoop(List(state), oState).toSet[(TID, Edges)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, e) => ev.addEdges(acc, e))
     }
 }
 
