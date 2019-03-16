@@ -70,8 +70,13 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     
         override def label: String = toString
     
-        override def color: Color = if (!halted) Colors.Green else if (errored) Colors.Pink else Colors.Yellow
-    
+        override def color: Color = control match {
+            case ControlEval(_, _)        => Colors.Blue
+            case ControlKont(_) if halted => Colors.Grass
+            case ControlKont(_)           => Colors.Yellow
+            case ControlError(_)          => Colors.Red
+        }
+        
         override def metadata = GraphMetadataMap(Map("halted" -> GraphMetadataBool(halted), "type" -> GraphMetadataString("concMod")))
         
         /** Indicates whether this state is a final state. */
@@ -138,7 +143,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           */
         private def next(actions: Set[Act], old: VStore, cc: KAddr, results: RetVals): StepResult = {
             val init: StepResult = StepResult(Set.empty, Set.empty, Set.empty, Option.empty, Set.empty, old)
-            actions.foldLeft(init)((acc, action) => act(action,time, acc.store, cc, results).merge(acc))
+            actions.foldLeft(init)((acc, curAction) => act(curAction, time, acc.store, cc, results).merge(acc))
         }
         
         /**
@@ -210,12 +215,12 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
             if (timeout.reached || work.isEmpty) (store, iState)
             else {
                 val (work_, visited_, store_, iState_): (List[State], Set[State], WStore, InnerLoopState) =
-                    work.foldLeft((List.empty[State], visited, store, iState)){case (acc@(work, visited, store, iState), state) =>
-                        if (visited.contains(state)) acc // If the state has been explored already, do not take a step.
-                        else {                           // If the state has not been explored yet, take a step.
-                            val StepResult(succs, crea, joi, res, effs, sto: WStore) = state.step(store, results)
-                            val vis = if (sto.updated) Set.empty[State] else visited + state // Immediately clear the visited set upon a store change.
-                            (work ++ succs, vis, sto.reset, iState.add(crea, joi, effs, res, succs.toList.map((state, empty, _))))
+                    work.foldLeft((List.empty[State], visited, store, iState)){case (acc@(workAcc, visitedAcc, storeAcc, iStateAcc), curState) =>
+                        if (visitedAcc.contains(curState)) acc // If the state has been explored already, do not take a step.
+                        else {                                 // If the state has not been explored yet, take a step.
+                            val StepResult(succs, crea, joi, res, effs, sto: WStore) = curState.step(storeAcc, results)
+                            val vis = if (sto.updated) Set.empty[State] else visitedAcc + curState // Immediately clear the visited set upon a store change.
+                            (workAcc ++ succs, vis, sto.reset, iStateAcc.add(crea, joi, effs, res, succs.toList.map((curState, empty, _))))
                         }
                     }
                 innerLoop(work_, results, store_, visited_, iState_)
@@ -237,33 +242,33 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         def outerLoop(work: List[State], oState: OuterLoopState): Graphs = {
             if (timeout.reached || work.isEmpty) oState.graphs
             else {
-                val next: (List[State], OuterLoopState) = work.foldLeft((List[State](), oState)) {case ((work, oState), state) =>
-                    val stid: TID = state.tid
-                    val (store, InnerLoopState(crea, joi, effs, res, gra)) = innerLoop(List(state), oState.results, oState.store)
+                val next: (List[State], OuterLoopState) = work.foldLeft((List[State](), oState)){case ((workAcc, oStateAcc), curState) =>
+                    val stid: TID = curState.tid
+                    val (store, InnerLoopState(created, joined, effects, result, graph)) = innerLoop(List(curState), oStateAcc.results, oStateAcc.store)
                     // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
-                    val (todoCreated, newThreads): (Set[State], Threads) = crea.foldLeft((Set[State](), oState.threads)) {case ((created, threads), state) =>
-                        if (threads(state.tid).contains(state)) (created, threads) // There already is an identical thread, so do nothing.
-                        else (created + state, threads + (state.tid -> (threads(state.tid) + state)))
+                    val (todoCreated, newThreads): (Set[State], Threads) = created.foldLeft((Set[State](), oStateAcc.threads)) {case ((createdAcc, threadsAcc), curState) =>
+                        if (threadsAcc(curState.tid).contains(curState)) (createdAcc, threadsAcc) // There already is an identical thread, so do nothing.
+                        else (createdAcc + curState, threadsAcc + (curState.tid -> (threadsAcc(curState.tid) + curState)))
                     }
                     // Update module dependencies. todoEffects indicates which modules have to be reanalysed.
-                    val joinDeps: JoinDeps = joi.foldLeft(oState.joinDeps)((deps, tid) => deps + (tid -> (deps(tid) + stid)))
-                    val (readDeps, writeDeps): (ReadDeps, WriteDeps) = effs.foldLeft((oState.readDeps, oState.writeDeps)){case ((r, w), eff) => eff match {
-                        case ReadAddrEff(target:  A@unchecked) => (r + (stid -> (r(stid) + target)), w)
-                        case WriteAddrEff(target: A@unchecked) => (r, w + (stid -> (w(stid) + target)))
-                        case _ => (r, w)
+                    val joinDeps: JoinDeps = joined.foldLeft(oStateAcc.joinDeps)((depsAcc, curTid) => depsAcc + (curTid -> (depsAcc(curTid) + stid)))
+                    val (readDeps, writeDeps): (ReadDeps, WriteDeps) = effects.foldLeft((oStateAcc.readDeps, oStateAcc.writeDeps)){case ((rAcc, wAcc), curEff) => curEff match {
+                        case ReadAddrEff(target:  A@unchecked) => (rAcc + (stid -> (rAcc(stid) + target)), wAcc)
+                        case WriteAddrEff(target: A@unchecked) => (rAcc, wAcc + (stid -> (wAcc(stid) + target)))
+                        case _ => (rAcc, wAcc)
                         }
                     }
                     // Wherever there is an R/W or W/W conflict, add the states that need to be re-explored due to a store change.
-                    val todoEffects: List[State] = (readDeps.keySet.foldLeft(Set[TID]())((acc, tid2) =>
-                        if (stid != tid2 && writeDeps(stid).intersect(oState.readDeps(tid2)).exists(addr => oState.store.lookup(addr) != store.lookup(addr)))
-                            acc + tid2 else acc) ++ writeDeps.keySet.foldLeft(Set[TID]())((acc, tid2) =>
-                        if (stid != tid2 && writeDeps(stid).intersect(oState.writeDeps(tid2)).exists(addr => oState.store.lookup(addr) != store.lookup(addr)))
-                            acc + tid2 else acc)).toList.flatMap(newThreads)
+                    val todoEffects: List[State] = (readDeps.keySet.foldLeft(Set[TID]())((acc, curTid) =>
+                        if (stid != curTid && writeDeps(stid).intersect(oStateAcc.readDeps(curTid)).exists(addr => oStateAcc.store.lookup(addr) != store.lookup(addr)))
+                            acc + curTid else acc) ++ writeDeps.keySet.foldLeft(Set[TID]())((acc, curTid) =>
+                        if (stid != curTid && writeDeps(stid).intersect(oStateAcc.writeDeps(curTid)).exists(addr => oStateAcc.store.lookup(addr) != store.lookup(addr)))
+                            acc + curTid else acc)).toList.flatMap(newThreads)
                     // Join the old and new return value. If the return value changes, all other threads joining in this thread need to be reanalysed.
-                    val retVal: V = lattice.join(oState.results(stid), res)
-                    val todoJoined: List[State] = if (oState.results(stid) == retVal) List.empty else joinDeps(stid).flatMap(newThreads).toList
-                    (work ++ todoCreated.toList ++ todoEffects ++ todoJoined,
-                     OuterLoopState(newThreads, readDeps, writeDeps, joinDeps, oState.results + (stid -> retVal), store, oState.graphs + (stid -> gra)))
+                    val retVal: V = lattice.join(oStateAcc.results(stid), result)
+                    val todoJoined: List[State] = if (oStateAcc.results(stid) == retVal) List.empty else joinDeps(stid).flatMap(newThreads).toList
+                    (workAcc ++ todoCreated.toList ++ todoEffects ++ todoJoined,
+                     OuterLoopState(newThreads, readDeps, writeDeps, joinDeps, oStateAcc.results + (stid -> retVal), store, oStateAcc.graphs + (stid -> graph)))
                 }
                 outerLoop(next._1, next._2)
             }
@@ -287,7 +292,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                                                       Map.empty.withDefaultValue(lattice.bottom),
                                                       wstore, graphs)
         
-        outerLoop(List(state), oState).toSet[(TID, Edges)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, e) => ev.addEdges(acc, e))
+        outerLoop(List(state), oState).toSet[(TID, Edges)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, curModuleGraph) => ev.addEdges(acc, curModuleGraph))
     }
 }
 
