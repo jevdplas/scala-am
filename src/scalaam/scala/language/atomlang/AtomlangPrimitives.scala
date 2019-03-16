@@ -84,7 +84,7 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
                             eqv <- Eq.call(old, vatm)
                             res <- ifThenElse(eqv){nw}{vatm}
                             bool <- ifThenElse(eqv){schemeLattice.bool(true)}{schemeLattice.bool(false)}
-                        } yield (join(v, bool), store_.update(addr, atom(res)), effs ++ Effects.wAddr(addr) ++ Effects.rAddr(addr)))
+                        } yield (join(v, bool), store_.update(addr, atom(res)), effs ++ Effects.wAddr(addr) ++ Effects.rAddr(addr))) //TODO change failure
                 case _ => MayFail.failure(PrimitiveArityError(name, 3, args.length))
             }
         }

@@ -41,6 +41,8 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     type ReadDeps   = Map[TID, Set[A]]
     type WriteDeps  = Map[TID, Set[A]]
     
+   // type Edges      = (State, Transition, State)
+    
     /** Class used to return all information resulting from stepping this state. */
     case class StepResult(successors: Successors, created: Created, joined: Joined, result: Option[V], effects: Effects, store: VStore) {
         // Adds the accumulator. Important: keeps the store of "this".
@@ -115,7 +117,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
             case Err(e) => newResult(State(tid, ControlError(e), cc, timestamp.tick(time), kstore), Set.empty, old)
             // A new process is spawn by the semantics. The machine allocates a new TID and records the state of the new process.
             case NewFuture(ftid: TID@unchecked, tidv, fst, frame: Frame@unchecked, env, store, effs) =>
-                val cc_ = KontAddr(fst, time)
+                val cc_ =  HaltKontAddr // KontAddr(fst, time) // TODO: check this address (see concurrentAAM).
                 val newPState = State(ftid, ControlEval(fst, env), cc_, timestamp.initial(ftid.toString), Store.empty[KA, Set[Kont]](t).extend(cc_, Set(Kont(frame, HaltKontAddr))))
                 val curPState = State(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
                 StepResult(Set(curPState), Set(newPState), Set.empty, Option.empty, effs ++ Effects.spawn(ftid), store)
@@ -179,7 +181,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
       * @return Returns a state graph representing the collecting semantics of the program that was analysed.
       */
     def run[G](program: Exp, timeout: Timeout.T)
-              (implicit ev: Graph[G, State, Transition]): Unit = { // Todo: fix (G).
+              (implicit ev: Graph[G, State, Transition]): G = {
         
         type Graphs = Map[TID, G]
     
@@ -229,21 +231,59 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           * @param results   A map of tids to result values.
           * @param store     The store.
           */
-        case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: WStore, graphs: Graphs) {
-        
-        }
+        case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: WStore, graphs: Graphs)
     
-       // @scala.annotation.tailrec
-        def outerLoop(work: List[State], oState: OuterLoopState): Unit = {
-            if (timeout.reached || work.isEmpty) ()
+        @scala.annotation.tailrec
+        def outerLoop(work: List[State], oState: OuterLoopState): Map[TID, G] = {
+            if (timeout.reached || work.isEmpty) oState.graphs
             else {
-                val next = work.foldLeft(oState) { (acc, state) =>
+                val next: (List[State], OuterLoopState) = work.foldLeft((List[State](), oState)) {case ((work, oState), state) =>
+                    val stid: TID = state.tid
                     val (store, InnerLoopState(crea, joi, effs, res, gra)) = innerLoop(List(state), oState.results, oState.store)
-                    ???
+                    // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
+                    val (todoCreated, newThreads): (Set[State], Threads) = crea.foldLeft((Set[State](), Map[TID, Set[State]]())) {case ((created, threads), state) =>
+                        if (threads(state.tid).contains(state)) (created, threads) // There already is an identical thread, so do nothing.
+                        else (created + state, threads + (state.tid -> (threads(state.tid) + state)))
+                    }
+                    // Update module dependencies. todoEffects indicates which modules have to be reanalysed.
+                    val joinDeps: JoinDeps = joi.foldLeft(oState.joinDeps)((deps, tid) => deps + (stid -> (deps(stid) + tid)))
+                    val (readDeps, writeDeps): (ReadDeps, WriteDeps) = effs.foldLeft((oState.readDeps, oState.writeDeps)){case ((r, w), eff) => eff match {
+                        case ReadAddrEff(target: A@unchecked) => (r + (stid -> (r(stid) + target)), w)
+                        case WriteAddrEff(target: A@unchecked) => (r, w + (stid -> (w(stid) + target)))
+                        case _ => (r, w)
+                        }
+                    }
+                    // Wherever there is an R/W or W/W conflict, add the states that need to be re-explored due to a store change.
+                    val todoEffects: List[State] = (readDeps.keySet.foldLeft(Set[TID]())((acc, tid2) =>
+                        if (stid != tid2 && writeDeps(stid).intersect(oState.readDeps(tid2)).exists(addr => oState.store.lookup(addr) != store.lookup(addr)))
+                            acc + tid2 else acc) ++ writeDeps.keySet.foldLeft(Set[TID]())((acc, tid2) =>
+                        if (stid != tid2 && writeDeps(stid).intersect(oState.writeDeps(tid2)).exists(addr => oState.store.lookup(addr) != store.lookup(addr)))
+                            acc + tid2 else acc)).toList.flatMap(newThreads)
+                    // Join the old and new return value. If the return value changes, all other threads joining in this thread need to be reanalysed.
+                    val retVal: V = lattice.join(oState.results(stid), res)
+                    val todoJoined: List[State] = if (oState.results(stid) == retVal) List.empty else joinDeps(stid).flatMap(newThreads).toList
+                    
+                    (work ++ todoCreated.toList ++ todoEffects ++ todoJoined,
+                     OuterLoopState(newThreads, readDeps, writeDeps, joinDeps, oState.results + (stid -> retVal), store, oState.graphs + (stid -> gra)))
                 }
-                ???
+                outerLoop(next._1, next._2)
             }
         }
+        
+        val cc      :          KAddr = HaltKontAddr
+        val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
+        val control :        Control = ControlEval(program, env)
+        val graphs  :    Map[TID, G] = Map[TID,G]().withDefaultValue(Graph[G, State, Transition].empty)
+        val kstore  :         KStore = Store.empty[KA, Set[Kont]](t)
+        val time    :              T = timestamp.initial("")
+        val tid     :            TID = allocator.allocate(program, time)
+        val state   :          State = State(tid, control, cc, time, kstore)
+        val threads :        Threads = Map(tid -> Set(state))
+        val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
+        val wstore  :         WStore = WrappedStore[A, V](vstore)(lattice)
+        val oState  : OuterLoopState = OuterLoopState(threads, Map.empty, Map.empty, Map.empty, Map.empty, wstore, graphs)
+        
+        outerLoop(List(state), oState).toSet[(TID, G)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, g) => ev.addEdges(acc, g))
     }
 }
 
