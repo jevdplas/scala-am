@@ -273,10 +273,62 @@ object AtomlangRunConcrete {
     }
 }
 
+/* To be used with the console: `sbt console`, then scalaam.AtomlangRunConcreteModular.run(file) or scalaam.AtomlangRunConcreteModular.eval(input) */
+    object AtomlangRunConcreteModular {
+    
+    import scalaam.core._
+    import scalaam.language.atomlang._
+    import scalaam.language.scheme._
+    import scalaam.lattice._
+    
+    val address = ConcreteAddress
+    val tid = ConcreteTID
+    val timestamp = ConcreteTimestamp[SchemeExp]()
+    val lattice = new MakeSchemeLattice[SchemeExp,
+        address.A,
+        Concrete.S,
+        Concrete.B,
+        Concrete.I,
+        Concrete.R,
+        Concrete.C,
+        Concrete.Sym]
+    val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
+    val machine = new ConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.CountingStore, sem, tid.Alloc())
+    val graph = DotGraph[machine.State, machine.Transition]()
+    
+    /**
+      * Evaluate an Atomlang expression. Returns the resulting graph.
+      *
+      * @param file    A path to a file or a string representing code.
+      * @param out     A path to which the dotgraph will be written.
+      * @param timeout A timeout value. Evaluation will stop after the timeout has been reached.
+      */
+    def run(file: String, out: String = "AtomlangRunConcreteModularResult.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunConcreteModular.graph.G = {
+        val f = scala.io.Source.fromFile(file)
+        val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
+        val t0 = System.nanoTime
+        val result = machine.run[graph.G](
+            AtomlangParser.parse(content),
+            timeout)
+        val t1 = System.nanoTime
+        if (timeout.reached) {
+            println("Time out!")
+        } else {
+            println(s"Time: ${(t1 - t0) / 1000000}ms")
+        }
+        f.close()
+        result.toFile(out)
+        import Graph.GraphOps
+        println(s"States: ${result.nodes}")
+        Dot.toImage(out)
+        result
+    }
+}
+
 object StandardPrelude {
-    val atomlangPrelude: String =
+    val atomlangPrelude: String = "" /*
         """(define (swap! at fn)
           |  (let ((vl (read at)))
           |    (if (not (compare-and-set! at vl (fn vl)))
-          |      (swap! at fn))))""".stripMargin
+          |      (swap! at fn))))""".stripMargin */
 }

@@ -17,7 +17,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     extends MachineAbstraction[Exp, A, V, T, Exp]
         with MachineUtil[Exp, A, V] {
     
-    import sem.Action.{DerefFuture, Err, Eval, NewFuture, Push, StepIn, Value, A => Act}
+    import sem.Action.{DerefFuture, Err, Eval, NewFuture, Push, StepIn, Value, Swap, A => Act}
     import scala.machine.ConcurrentModular.WrappedStore
     
     /** Certain parts of this AAM will be reused. */
@@ -129,6 +129,10 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
             // The semantics wants to read a value from another thread, which needs to be looked up in the 'results' map.
             case DerefFuture(ftid: TID@unchecked, store, effs) =>
                 StepResult(results.get(ftid).map(v => State(tid, ControlKont(v), cc, timestamp.tick(time), kstore)).toSet, Set.empty, Set(ftid), Option.empty, effs ++ Effects.join(ftid), store)
+            case Swap(exp, action_, frame, _) =>
+                val cc_ = KontAddr(exp, time)
+                val state_ = this.copy(kstore = kstore.extend(cc_, Set(Kont(frame, cc))))
+                state_.act(action_, timestamp.tick(time), old, cc_, results)
             // An unknown action has been returned. Should not happen, therefore this is an error.
             case a => throw new Exception(s"Unsupported action: $a.\n")
         }
