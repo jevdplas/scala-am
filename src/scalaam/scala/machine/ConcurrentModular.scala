@@ -5,9 +5,8 @@ import scalaam.core.StoreType.StoreType
 import scalaam.core._
 import scalaam.machine.AAM
 
-//import scalaam.graph.Graph.GraphOps
+import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
-//import scalaam.machine.Strategy.Strategy
 
 import scala.core.MachineUtil
 
@@ -292,7 +291,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                                                       Map.empty.withDefaultValue(lattice.bottom),
                                                       wstore, graphs)
         
-        outerLoop(List(state), oState).toSet[(TID, Edges)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, curModuleGraph) => ev.addEdges(acc, curModuleGraph))
+        outerLoop(List(state), oState).toSet[(TID, Edges)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, curModuleGraph) => acc.addEdges(curModuleGraph))
     }
 }
 
@@ -347,7 +346,8 @@ object ConcurrentModular {
         }
         
         /** Get information on whether the store has been updated. */
-        def updated:   Boolean = modified
+        def updated: Boolean = modified
+        
         /** Reset the updated flag of the store. */
         def reset: WrappedStore[A, V] = WrappedStore(store, false)
     }
