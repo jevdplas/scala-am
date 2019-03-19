@@ -122,7 +122,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
             case Err(e) => newResult(State(tid, ControlError(e), cc, timestamp.tick(time), kstore), Set.empty, old)
             // A new process is spawn by the semantics. The machine allocates a new TID and records the state of the new process.
             case NewFuture(ftid: TID@unchecked, tidv, fst, frame: Frame@unchecked, env, store, effs) =>
-                val cc_ =  HaltKontAddr // KontAddr(fst, time) // TODO: check this address (see concurrentAAM using a KontAddr).
+                val cc_ = KontAddr(fst, time)
                 val newPState = State(ftid, ControlEval(fst, env), cc_, timestamp.initial(ftid.toString), Store.empty[KA, Set[Kont]](t).extend(cc_, Set(Kont(frame, HaltKontAddr))))
                 val curPState = State(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
                 StepResult(Set(curPState), Set(newPState), Set.empty, Option.empty, effs ++ Effects.spawn(ftid), store)
