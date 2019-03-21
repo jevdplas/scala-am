@@ -277,7 +277,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
         val control :        Control = ControlEval(program, env)
         val graphs  :         Graphs = Map[TID, Edges]().withDefaultValue(List.empty)
-        val kstore  :         KStore = Store.empty[KA, Set[Kont]](t)
+        val kstore  :         KStore = Store.empty[KAddr, Set[Kont]](t)
         val time    :              T = timestamp.initial("")
         val tid     :            TID = allocator.allocate(program, time)
         val state   :          State = State(tid, control, cc, time, kstore)
