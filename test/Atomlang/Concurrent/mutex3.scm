@@ -1,10 +1,10 @@
-(letrec ((lock (atom # f))
+(letrec ((lock (atom #f))
          (acq (lambda ()
-               (if (compare-and-set! lock # f # t)
-                # t
+               (if (compare-and-set! lock #f #t)
+                #t
                 (acq))))
          (rel (lambda ()
-               (set! lock # f)))
+               (set! lock #f)))
          (counter 0)
          (inc (lambda ()
                (acq)

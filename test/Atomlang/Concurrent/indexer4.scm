@@ -10,11 +10,11 @@
                                     (letrec ((w (+ (* 11 (+ m 1)) tid))
                                              (update (lambda (h)
                                                       (if (swap! table (lambda (v) (vector-set! v h w)))
-                                                       # t
+                                                       #t
                                                        (update (modulo (+ h 1) size))))))
                                      (update (hash w))
                                      (process (+ m 1)))
-                                    # t))))
+                                    #t))))
                  (process 0))))
        (t1 (future (thread 1)))
        (t2 (future (thread 2)))

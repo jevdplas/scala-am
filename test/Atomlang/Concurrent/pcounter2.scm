@@ -3,7 +3,7 @@
                   (letrec ((old (deref counter))
                            (new (+ old 1)))
                    (if (compare-and-set! counter old new)
-                    # t
+                    #t
                     (thread n)))))
          (t1 (future (thread 1)))
          (t2 (future (thread 2))))
