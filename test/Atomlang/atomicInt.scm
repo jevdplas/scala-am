@@ -1,4 +1,4 @@
-Example modified from: https://winterbe.com/posts/2015/05/22/java8-concurrency-tutorial-atomic-concurrent-map-examples/
+; Example modified from: https://winterbe.com/posts/2015/05/22/java8-concurrency-tutorial-atomic-concurrent-map-examples/
 
 (define atomicInt (atom 0))
 (define (iter i)
