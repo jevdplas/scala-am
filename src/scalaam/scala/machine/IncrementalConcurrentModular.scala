@@ -26,7 +26,9 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     
         case class InnerLoopState(work: List[State], store: WStore, results: RetVals, visited: Set[State] = Set.empty,
                                   result: V = lattice.bottom, created: Created = Set.empty, effects: Effects = Set.empty,
-                                  deps: Deps = Deps(Map.empty, Map.empty, Map.empty), edges: Edges = List.empty)
+                                  deps: Deps = Deps(Map.empty.withDefaultValue(Set.empty), Map.empty.withDefaultValue(Set.empty),
+                                      Map.empty.withDefaultValue(Set.empty)),
+                                  edges: Edges = List.empty)
         
         case class OuterLoopState(threads: Threads, work: List[State], deps: Deps, results: RetVals, store: WStore, edges: Edges)
     
@@ -90,10 +92,13 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     
         /** Filters out unreachable graph components. */
         @scala.annotation.tailrec
-        def findConnectedStates(work: List[State], edges: Edges): Edges = {
+        def findConnectedStates(work: List[State], visited: Set[State], edges: Edges): Edges = {
             if (work.isEmpty) return edges
-            val next = edges.filter(e => e._1 == work.head)
-            findConnectedStates(work.tail ++ next.map(_._3), edges ++ next)
+            if (visited.contains(work.head)) findConnectedStates(work.tail, visited, edges)
+            else {
+                val next = edges.filter(e => e._1 == work.head)
+                findConnectedStates(work.tail ++ next.map(_._3), visited + work.head, edges ++ next)
+            }
         }
     
         val cc      :          KAddr = HaltKontAddr
@@ -116,6 +121,6 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                                        List.empty)                                          // Graph edges.
         
         val result: OuterLoopState = outerLoop(oState)
-        Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toList, result.edges))
+        Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toList, Set(), result.edges))
     }
 }
