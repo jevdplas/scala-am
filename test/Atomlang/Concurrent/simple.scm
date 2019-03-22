@@ -6,5 +6,5 @@
  (deref t1)
  (deref t2)
  (and (= y 1)
-  (or (= x 2
-       (= x 3)))))
+  (or (= x 2)
+      (= x 3))))
