@@ -32,6 +32,8 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
     type KStore  = Store[KAddr, Set[Kont]]
     type Threads = TMap[TID, Context, V]
     
+    type Transition = NoTransition
+    
     /**
       * The state of one thread.
       *

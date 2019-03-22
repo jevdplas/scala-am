@@ -40,7 +40,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     type ReadDeps   = Map[TID, Set[A]]
     type WriteDeps  = Map[TID, Set[A]]
     
-    type Edges      = List[(State, Transition, State)]
+    type Transition = NoTransition
     
     /** Class used to return all information resulting from stepping this state. */
     case class StepResult(successors: Successors, created: Created, joined: Joined, result: Option[V], effects: Effects, store: VStore) {
@@ -186,7 +186,8 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
       */
     def run[G](program: Exp, timeout: Timeout.T)
               (implicit ev: Graph[G, State, Transition]): G = {
-        
+    
+        type Edges  = List[(State, Transition, State)]
         type Graphs = Map[TID, Edges]
     
         case class InnerLoopState(created: Created, joined: Joined, effects: Effects, result: V, edges: Edges) {

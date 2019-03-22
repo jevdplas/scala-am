@@ -2,7 +2,7 @@ package scalaam.machine
 
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
-import scalaam.graph.Graph
+import scalaam.graph.{Graph, NoTransition}
 import scalaam.graph.Graph.GraphOps
 
 import scala.core.MachineUtil
@@ -16,6 +16,8 @@ class ConcreteMachine[Exp, A <: Address, V, T](val t: StoreType, val sem: Semant
         with MachineUtil[Exp, A, V] {
     
     import sem.Action.{A => Act, Err, Eval, Push, StepIn, Value}
+    
+    type Transition = NoTransition
     
     /** Evaluate an expression using the given semantics and with a given timeout. */
     def eval(exp: Exp, timeout: Timeout.T): ConcreteMachine.this.Result = {

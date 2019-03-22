@@ -9,7 +9,6 @@ trait MachineUtil[Exp, A <: Address, V] {
     
     // Graph utilities.
     
-    type Transition = NoTransition
     val empty = new NoTransition
     
     // Control components of a machine.
