@@ -1,6 +1,6 @@
 package scalaam.core
 
-import scalaam.graph.{Graph, GraphElement}
+import scalaam.graph.{BaseTransition, Graph, GraphElement}
 
 /**
   * The interface of the machine abstraction itself.
@@ -23,7 +23,7 @@ trait MachineAbstraction[Exp, A <: Address, V, T, C] {
 
   /** The transitions explored by the machine
       Transitions can be converted to graph edges */
-  type Transition <: GraphElement
+  type Transition <: BaseTransition
 
   /**
     * Runs the machine abstraction with its semantics on a program.

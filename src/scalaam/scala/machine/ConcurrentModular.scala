@@ -40,8 +40,6 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     type ReadDeps   = Map[TID, Set[A]]
     type WriteDeps  = Map[TID, Set[A]]
     
-    type Transition = NoTransition
-    
     /** Class used to return all information resulting from stepping this state. */
     case class StepResult(successors: Successors, created: Created, joined: Joined, result: Option[V], effects: Effects, store: VStore) {
         // Adds the accumulator. Important: keeps the store of "this".

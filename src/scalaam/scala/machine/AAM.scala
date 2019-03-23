@@ -35,8 +35,6 @@ class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, 
     with MachineUtil[Exp, A, V]
 {
   
-  type Transition = NoTransition
-
   val Action = sem.Action
 
   /** Kontinuation addresses */

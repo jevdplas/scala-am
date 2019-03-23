@@ -19,17 +19,10 @@ trait GraphElement {
   def metadata: GraphMetadata
 }
 
-trait Transition extends GraphElement {
-  def color: Color = Colors.Black
+case class BaseTransition(l: String = "") extends GraphElement {
+  def label: String = " " + l
+  def color: Color  = Colors.Black
   def metadata: GraphMetadata = GraphMetadataNone
-}
-
-class NoTransition extends Transition {
-  def label = ""
-}
-
-case class LabeledTransition(l: String) extends Transition {
-  def label: String = " " ++ l
 }
 
 object EmptyGraphElement

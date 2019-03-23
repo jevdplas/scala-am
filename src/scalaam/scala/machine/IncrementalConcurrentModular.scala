@@ -3,25 +3,17 @@ package scala.machine
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
-import scalaam.graph.{Graph, LabeledTransition}
+import scalaam.graph.{BaseTransition, Graph}
 import scalaam.graph.Graph.GraphOps
 
-import scala.core.MachineUtil
 import scala.machine.ConcurrentModular.WrappedStore
 
-class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])(
+class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
     override implicit val timestamp: Timestamp[T, Exp],
     override implicit val lattice: Lattice[V])
-    extends MachineAbstraction[Exp, A, V, T, Exp]
-        with MachineUtil[Exp, A, V] {
+    extends ConcurrentModular[Exp, A, V, T, TID](t, sem, allocator) {
     
-    // ConcurrentModular can also be subclassed (which is easier), but this leads to issues with the type Transition in the signature of run.
-    val concMod = new ConcurrentModular[Exp, A, V, T, TID](t, sem, allocator)
-    import concMod._
-    import concMod.seqAAM._
-    
-    type State   = concMod.State
-    type Control = concMod.Control
+    import seqAAM._
 
     // Dependencies are now tracked on state basis instead of on thread basis.
     type StateJoinDeps  = Map[TID, Set[State]]
@@ -30,12 +22,9 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     
     type UnlabeledEdges = List[(State, State)]
     
-    // Transitions are annotated with the iteration number of the outer loop in which they are generated (starting from one).
-    override type Transition = LabeledTransition
-    
     case class Deps(joined: StateJoinDeps, read: StateReadDeps, written: StateWriteDeps)
     
-    def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
+    override def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
     
         type Edges      = List[(State, Transition, State)]
     
@@ -101,7 +90,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                 val fromInterference: List[State] = todoEffects ++ todoJoined
                 OuterLoopState(newThreads, oStateAcc.work ++ todoCreated ++ fromInterference, Deps(joinDeps, readDeps, writeDeps),
                     // All outgoing edges van states that need recomputation (are in fromInterference) are removed. Each edge that is added is annotated with the iteration number.
-                    oStateAcc.results + (stid -> retVal), iState.store, oStateAcc.edges.filter(e => !fromInterference.contains(e._1)) ++ iState.edges.map(ue => (ue._1, LabeledTransition(iteration.toString), ue._2)))
+                    oStateAcc.results + (stid -> retVal), iState.store, oStateAcc.edges.filter(e => !fromInterference.contains(e._1)) ++ iState.edges.map(ue => (ue._1, BaseTransition(iteration.toString), ue._2)))
             }, iteration + 1)
         }
     
@@ -118,11 +107,11 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     
         val cc      :          KAddr = HaltKontAddr
         val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
-        val control :        Control = concMod.ControlEval(program, env)
+        val control :        Control = ControlEval(program, env)
         val kstore  :         KStore = Store.empty[KAddr, Set[Kont]](t)
         val time    :              T = timestamp.initial("")
         val tid     :            TID = allocator.allocate(program, time)
-        val state   :          State = concMod.State(tid, control, cc, time, kstore)
+        val state   :          State = State(tid, control, cc, time, kstore)
         val threads :        Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
         val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
         val wstore  :         WStore = WrappedStore[A, V](vstore)(lattice)
