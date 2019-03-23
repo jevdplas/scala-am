@@ -9,18 +9,19 @@ import scalaam.graph.Graph.GraphOps
 import scala.core.MachineUtil
 import scala.machine.ConcurrentModular.WrappedStore
 
-class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, semantics: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
+class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])(
     override implicit val timestamp: Timestamp[T, Exp],
     override implicit val lattice: Lattice[V])
     extends MachineAbstraction[Exp, A, V, T, Exp]
         with MachineUtil[Exp, A, V] {
     
-    val sem = semantics
+    // ConcurrentModular can also be subclassed (which is easier), but this leads to issues with the type Transition in the signature of run.
     val concMod = new ConcurrentModular[Exp, A, V, T, TID](t, sem, allocator)
     import concMod._
     import concMod.seqAAM._
     
-    type State = concMod.State
+    type State   = concMod.State
+    type Control = concMod.Control
 
     // Dependencies are now tracked on state basis instead of on thread basis.
     type StateJoinDeps  = Map[TID, Set[State]]
@@ -29,6 +30,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     
     type UnlabeledEdges = List[(State, State)]
     
+    // Transitions are annotated with the iteration number of the outer loop in which they are generated (starting from one).
     override type Transition = LabeledTransition
     
     case class Deps(joined: StateJoinDeps, read: StateReadDeps, written: StateWriteDeps)
@@ -45,9 +47,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
         
         case class OuterLoopState(threads: Threads, work: List[State], deps: Deps, results: RetVals, store: WStore, edges: Edges)
     
-        /**
-          * Innerloop like ConcurrentModular.run.innerLoop, except that now relations between effects and states are tracked.
-          */
+        /** Innerloop like ConcurrentModular.run.innerLoop, except that now relations between effects and states are tracked. */
         @scala.annotation.tailrec
         def innerLoop(iState: InnerLoopState): InnerLoopState = {
             if (timeout.reached || iState.work.isEmpty) return iState
@@ -75,6 +75,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     
         /**
           * OuterLoop like ConcurrentModular.run.outerLoop, but upon reanalysis, a thread is not started from scratch again.
+          * Added: iteration counter for edge annotation.
           */
         @scala.annotation.tailrec
         def outerLoop(oState: OuterLoopState, iteration: Int): OuterLoopState = {
@@ -99,11 +100,12 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                 val todoJoined: List[State] = if (oStateAcc.results(stid) == retVal) List.empty else joinDeps(stid).toList
                 val fromInterference: List[State] = todoEffects ++ todoJoined
                 OuterLoopState(newThreads, oStateAcc.work ++ todoCreated ++ fromInterference, Deps(joinDeps, readDeps, writeDeps),
-                    oStateAcc.results + (stid -> retVal), iState.store, oStateAcc.edges.filter(e => !fromInterference.contains(e._1)) ++ iState.edges.map(ue => (ue._1, LabeledTransition(iteration.toString) ,ue._2)))
+                    // All outgoing edges van states that need recomputation (are in fromInterference) are removed. Each edge that is added is annotated with the iteration number.
+                    oStateAcc.results + (stid -> retVal), iState.store, oStateAcc.edges.filter(e => !fromInterference.contains(e._1)) ++ iState.edges.map(ue => (ue._1, LabeledTransition(iteration.toString), ue._2)))
             }, iteration + 1)
         }
     
-        /** Filters out unreachable graph components. */
+        /** Filters out unreachable graph components that may result from invalidating edges. */
         @scala.annotation.tailrec
         def findConnectedStates(work: List[State], visited: Set[State], edges: Edges): Edges = {
             if (work.isEmpty) return edges
@@ -114,24 +116,24 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
             }
         }
     
-        val cc      :           KAddr = HaltKontAddr
-        val env     :  Environment[A] = Environment.initial[A](sem.initialEnv)
-        val control : concMod.Control = concMod.ControlEval(program, env)
-        val kstore  :          KStore = Store.empty[KAddr, Set[Kont]](t)
-        val time    :               T = timestamp.initial("")
-        val tid     :             TID = allocator.allocate(program, time)
-        val state   :           State = concMod.State(tid, control, cc, time, kstore)
-        val threads :         Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
-        val vstore  :          VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
-        val wstore  :          WStore = WrappedStore[A, V](vstore)(lattice)
-        val oState  :  OuterLoopState = OuterLoopState(threads,                              // Threads.
-                                        List(state),                                         // Worklist.
-                                        Deps(Map.empty.withDefaultValue(Set.empty),          // Join dependencies.
-                                             Map.empty.withDefaultValue(Set.empty),          // Read dependencies.
-                                             Map.empty.withDefaultValue(Set.empty)),         // Write dependencies.
-                                             Map.empty.withDefaultValue(lattice.bottom),     // Return values.
-                                        wstore,                                              // Store.
-                                        List.empty)                                          // Graph edges.
+        val cc      :          KAddr = HaltKontAddr
+        val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
+        val control :        Control = concMod.ControlEval(program, env)
+        val kstore  :         KStore = Store.empty[KAddr, Set[Kont]](t)
+        val time    :              T = timestamp.initial("")
+        val tid     :            TID = allocator.allocate(program, time)
+        val state   :          State = concMod.State(tid, control, cc, time, kstore)
+        val threads :        Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
+        val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
+        val wstore  :         WStore = WrappedStore[A, V](vstore)(lattice)
+        val oState  : OuterLoopState = OuterLoopState(threads,                              // Threads.
+                                       List(state),                                         // Worklist.
+                                       Deps(Map.empty.withDefaultValue(Set.empty),          // Join dependencies.
+                                            Map.empty.withDefaultValue(Set.empty),          // Read dependencies.
+                                            Map.empty.withDefaultValue(Set.empty)),         // Write dependencies.
+                                            Map.empty.withDefaultValue(lattice.bottom),     // Return values.
+                                       wstore,                                              // Store.
+                                       List.empty)                                          // Graph edges.
         
         val result: OuterLoopState = outerLoop(oState, 1)
         Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toList, Set(), result.edges))
