@@ -32,9 +32,9 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                                   result: V = lattice.bottom, created: Created = Set.empty, effects: Effects = Set.empty,
                                   deps: Deps = Deps(Map.empty.withDefaultValue(Set.empty), Map.empty.withDefaultValue(Set.empty),
                                       Map.empty.withDefaultValue(Set.empty)),
-                                  edges: UnlabeledEdges = List.empty)
+                                  edges: UnlabeledEdges = List.empty) extends SmartHash
         
-        case class OuterLoopState(threads: Threads, work: List[State], deps: Deps, results: RetVals, store: WStore, edges: Edges)
+        case class OuterLoopState(threads: Threads, work: List[State], deps: Deps, results: RetVals, store: WStore, edges: Edges) extends SmartHash
     
         /** Innerloop like ConcurrentModular.run.innerLoop, except that now relations between effects and states are tracked. */
         @scala.annotation.tailrec

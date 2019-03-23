@@ -4,7 +4,6 @@ import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
 import scalaam.machine.AAM
-
 import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
 
@@ -188,7 +187,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         type Edges  = List[(State, Transition, State)]
         type Graphs = Map[TID, Edges]
     
-        case class InnerLoopState(created: Created, joined: Joined, effects: Effects, result: V, edges: Edges) {
+        case class InnerLoopState(created: Created, joined: Joined, effects: Effects, result: V, edges: Edges) extends SmartHash {
             def add(crea: Created, joi: Joined, effs: Effects, res: Option[V], edg: Edges): InnerLoopState =  InnerLoopState(
                 created ++ crea,
                 joined  ++  joi,
@@ -234,7 +233,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           * @param results   A map of tids to result values.
           * @param store     The store.
           */
-        case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: WStore, graphs: Graphs)
+        case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: WStore, graphs: Graphs) extends SmartHash
     
         @scala.annotation.tailrec
         def outerLoop(work: List[State], oState: OuterLoopState, iteration: Int): Graphs = {
