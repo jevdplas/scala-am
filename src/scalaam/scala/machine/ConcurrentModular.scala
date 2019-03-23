@@ -208,7 +208,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           * @return A set of a new global store and an innerloopstate containing extra bookkeeping information for the outer loop.
           */
         @scala.annotation.tailrec
-        def innerLoop(work: List[State], results: RetVals, store: WStore, visited: Set[State] = Set.empty,
+        def innerLoop(work: List[State], results: RetVals, store: WStore, iteration: Int, visited: Set[State] = Set.empty,
                       iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, Set.empty, lattice.bottom, List.empty)): (WStore, InnerLoopState) = {
             if (timeout.reached || work.isEmpty) (store, iState)
             else {
@@ -218,10 +218,10 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                         else {                                 // If the state has not been explored yet, take a step.
                             val StepResult(succs, crea, joi, res, effs, sto: WStore) = curState.step(storeAcc, results)
                             val vis = if (sto.updated) Set.empty[State] else visitedAcc + curState // Immediately clear the visited set upon a store change.
-                            (workAcc ++ succs, vis, sto.reset, iStateAcc.add(crea, joi, effs, res, succs.toList.map((curState, empty, _))))
+                            (workAcc ++ succs, vis, sto.reset, iStateAcc.add(crea, joi, effs, res, succs.toList.map((curState, BaseTransition(iteration.toString), _))))
                         }
                     }
-                innerLoop(work_, results, store_, visited_, iState_)
+                innerLoop(work_, results, store_, iteration, visited_, iState_)
             }
         }
     
@@ -237,12 +237,12 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: WStore, graphs: Graphs)
     
         @scala.annotation.tailrec
-        def outerLoop(work: List[State], oState: OuterLoopState): Graphs = {
+        def outerLoop(work: List[State], oState: OuterLoopState, iteration: Int): Graphs = {
             if (timeout.reached || work.isEmpty) oState.graphs
             else {
                 val next: (List[State], OuterLoopState) = work.foldLeft((List[State](), oState)){case ((workAcc, oStateAcc), curState) =>
                     val stid: TID = curState.tid
-                    val (store, InnerLoopState(created, joined, effects, result, graph)) = innerLoop(List(curState), oStateAcc.results, oStateAcc.store)
+                    val (store, InnerLoopState(created, joined, effects, result, graph)) = innerLoop(List(curState), oStateAcc.results, oStateAcc.store, iteration)
                     // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
                     val (todoCreated, newThreads): (Set[State], Threads) = created.foldLeft((Set[State](), oStateAcc.threads)) {case ((createdAcc, threadsAcc), curState) =>
                         if (threadsAcc(curState.tid).contains(curState)) (createdAcc, threadsAcc) // There already is an identical thread, so do nothing.
@@ -268,7 +268,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                     (workAcc ++ todoCreated.toList ++ todoEffects ++ todoJoined,
                      OuterLoopState(newThreads, readDeps, writeDeps, joinDeps, oStateAcc.results + (stid -> retVal), store, oStateAcc.graphs + (stid -> graph)))
                 }
-                outerLoop(next._1, next._2)
+                outerLoop(next._1, next._2, iteration + 1)
             }
         }
         
@@ -290,7 +290,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                                                       Map.empty.withDefaultValue(lattice.bottom),
                                                       wstore, graphs)
         
-        outerLoop(List(state), oState).toSet[(TID, Edges)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, curModuleGraph) => acc.addEdges(curModuleGraph))
+        outerLoop(List(state), oState, 1).toSet[(TID, Edges)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, curModuleGraph) => acc.addEdges(curModuleGraph))
     }
 }
 
