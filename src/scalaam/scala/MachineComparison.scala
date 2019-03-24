@@ -34,17 +34,22 @@ object MachineComparison extends App {
     type Configuration = (String, MachineAbstraction[SchemeExp, MachineComparison.address.A, MachineComparison.lattice.L, MachineComparison.timestamp.T, SchemeExp] with MachineUtil[SchemeExp, MachineComparison.address.A, MachineComparison.lattice.L])
     type Measurement = (Double, Int) // Runtime, State count
     
-    val iterations: Int = 15
+    val iterations: Int = 20
+    val startup: Int = 3
     val configurations: List[Configuration] = List(("regAAM", regAAM),
                                                    ("cncMOD", cncMOD),
                                                    ("incMOD", incMOD))
-    val timeout: Timeout.T = Timeout.seconds(60)
+    val timeout: Int = 60
     
-    val benchmarks: List[String] = List("./test/Atomlang/Concurrent/simple.scm")
+    val benchmarks: List[String] = List("./test/Atomlang/Concurrent/simple.scm",
+                                        "./test/Atomlang/atomicInt.scm",
+                                        "./test/Atomlang/list-with-length.scm.scm",
+                                        "./test/Atomlang/future-swap.scm")
     
     // Experiment implementation
     
     def forFile(file: String): Unit = {
+        println("\n***** " + file + " *****")
         val f = scala.io.Source.fromFile(file)
         val content: String    = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
         f.close()
@@ -68,21 +73,21 @@ object MachineComparison extends App {
         
         @scala.annotation.tailrec
         def iterate(n: Int, measurements: List[Measurement]): (String, List[Measurement]) = {
-            if (n == 0) return (configuration._1, measurements.reverse)
+            if (n == 0) return (configuration._1, measurements.reverse.drop(startup))
             val t0 = System.nanoTime()
-            val rs = machine.run[graph.G](program, timeout)
+            val rs = machine.run[graph.G](program, Timeout.seconds(timeout))
             val t1 = System.nanoTime()
             val ms = ((t1 - t0) / 1000000).toDouble
             val st = rs.nodes
+            print(".")
             iterate(n - 1, (ms, st) +: measurements)
         }
-        
-        iterate(iterations, List())
+        print(s"\n${configuration._1} > ")
+        iterate(startup + iterations, List())
     }
     
     def printStatistics(file: String, statistics: List[(String, List[(Double, Int)], Double, Double, Double, Double)]): Unit = {
-        println("\n***** " + file + " *****")
-        println(" name   |\tvalue\t|\tmean\t|\tstdev\t|\traw")
+        println("\n name   |\tvalue\t|\tmean\t|\tstdev\t|\traw")
         statistics.foreach{s => println(f"${s._1}%s\t   runtime    ${s._3}%09.4f\t  ${s._4}%09.4f\t  ${s._2.map(_._1)}")
                                 println(f"           states     ${s._5}%09.4f\t  ${s._6}%09.4f\t  ${s._2.map(_._2)}")}
     }
