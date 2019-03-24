@@ -6,5 +6,5 @@
         (cons (future (swap! atomicInt inc) #t)
               (iter (+ i 1)))))
 (define futures (iter 0))
-(for-each (lambda (future) (deref future) #t) futures)
+(for-each (lambda (fut) (deref fut) #t) futures)
 (= (read atomicInc) 1000)
