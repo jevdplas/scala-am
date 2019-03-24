@@ -52,9 +52,12 @@ object MachineComparison extends App {
         val results = configurations.map(executeExperiment(program, _))
         val statistics = results.map{case (name, measurements) =>
             val times = measurements.map(_._1)
-            val mean = times.sum / times.length
-            val stdv = Math.sqrt(times.map(t => (t - mean) * (t - mean)).sum / times.length)
-            (name, measurements, mean, stdv)
+            val meantime = times.sum / times.length
+            val stdvtime = Math.sqrt(times.map(t => (t - meantime) * (t - meantime)).sum / times.length)
+            val states = measurements.map(_._2)
+            val meanstat = (states.sum / states.length).toDouble
+            val stdvstat = Math.sqrt(states.map(t => (t - meanstat) * (t - meanstat)).sum / states.length)
+            (name, measurements, meantime, stdvtime, meanstat, stdvstat)
         }
         printStatistics(file, statistics)
     }
@@ -71,18 +74,17 @@ object MachineComparison extends App {
             val t1 = System.nanoTime()
             val ms = ((t1 - t0) / 1000000).toDouble
             val st = rs.nodes
-            rs.toFile(n.toString + ".dot")
-            Dot.toImage(n.toString + ".dot")
             iterate(n - 1, (ms, st) +: measurements)
         }
         
         iterate(iterations, List())
     }
     
-    def printStatistics(file: String, statistics: List[(String, List[(Double, Int)], Double, Double)]): Unit = {
+    def printStatistics(file: String, statistics: List[(String, List[(Double, Int)], Double, Double, Double, Double)]): Unit = {
         println("\n***** " + file + " *****")
-        println(" name  | mean | stdev | raw")
-        statistics.foreach(s => println(s._1 + " " +  s._3) + " " + s._4 + " " + " " + s._2)
+        println(" name   |\tvalue\t|\tmean\t|\tstdev\t|\traw")
+        statistics.foreach{s => println(f"${s._1}%s\t   runtime    ${s._3}%09.4f\t  ${s._4}%09.4f\t  ${s._2.map(_._1)}")
+                                println(f"           states     ${s._5}%09.4f\t  ${s._6}%09.4f\t  ${s._2.map(_._2)}")}
     }
     
     benchmarks.foreach(forFile)
