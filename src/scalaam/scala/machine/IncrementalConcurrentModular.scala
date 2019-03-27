@@ -22,9 +22,10 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     
     case class Deps(joined: StateJoinDeps, read: StateReadDeps, written: StateWriteDeps)
     
+    type UnlabeledEdges = Map[State, Set[State]]
+    
     override def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
     
-        type UnlabeledEdges = Map[State, Set[State]]
         type Edges          = Map[State, Set[(Transition, State)]]
         type GraphEdges     = List[(State, Transition, State)]
     
@@ -56,7 +57,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                     InnerLoopState(iStateAcc.work ++ successors, store.reset, iStateAcc.results, vis,
                                    lattice.join(iStateAcc.result, result.getOrElse(lattice.bottom)),
                                    iStateAcc.created ++ created, iStateAcc.effects ++ effects,
-                                   Deps(iStateAcc.deps.joined ++ joined, read, written),
+                                   Deps(iStateAcc.deps.joined ++ joined, iStateAcc.deps.read ++ read, iStateAcc.deps.written ++ written),
                                    iStateAcc.edges + (curState -> successors))
                 }
             })
