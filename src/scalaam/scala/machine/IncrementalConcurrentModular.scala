@@ -8,6 +8,11 @@ import scalaam.graph.Graph.GraphOps
 
 import scala.machine.ConcurrentModular.WrappedStore
 
+/**
+  * Implementation of a concurrent modular machine that is incremental in the construction of the inner-loop (intra-modular) results.
+  * This is accomplished by a change in dependency tracking, so that dependencies are to States and not to Threads, i.e., the tracking
+  * of dependencies now uses a finer granularity.
+  */
 class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
     override implicit val timestamp: Timestamp[T, Exp],
     override implicit val lattice: Lattice[V])
@@ -20,14 +25,14 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     type StateReadDeps  = Map[  A, Set[State]]
     type StateWriteDeps = Map[  A, Set[State]]
     
-    case class Deps(joined: StateJoinDeps, read: StateReadDeps, written: StateWriteDeps)
-    
     type UnlabeledEdges = Map[State, Set[State]]
     
     override def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
     
         type Edges          = Map[State, Set[(Transition, State)]]
         type GraphEdges     = List[(State, Transition, State)]
+    
+        case class Deps(joined: StateJoinDeps, read: StateReadDeps, written: StateWriteDeps)
     
         case class InnerLoopState(work: List[State], store: WStore, results: RetVals, visited: Set[State] = Set.empty,
                                   result: V = lattice.bottom, created: Created = Set.empty, effects: Effects = Set.empty,
