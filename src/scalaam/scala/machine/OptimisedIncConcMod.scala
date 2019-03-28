@@ -18,6 +18,8 @@ import scalaam.graph.Graph.GraphOps
   * </ul>
   * <b>Important:</b> note that the implementation is incremental in the construction of the inner-loop (intra-modular) results and <i>not</i>
   * with regard to source code changes.
+  *
+  * @see scala.machine.IncrementalConcurrentModular
   */
 class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
     override implicit val timestamp: Timestamp[T, Exp],
@@ -43,14 +45,17 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
         type Edges          = Map[State, Set[(Transition, State)]]
         type GraphEdges     = List[(State, Transition, State)]
     
+        /** Class collecting the dependencies of all threads. */
         case class Deps(joined: ExtendedStateJoinDeps, read: ExtendedStateReadDeps, written: ExtendedStateWriteDeps)
     
+        /** Class containing bookkeeping information for the inner loop of a thread. All arguments except the first three are optional. */
         case class InnerLoopState(work: List[State], store: TStore, results: RetVals, visited: Set[State] = Set.empty,
                                   result: V = lattice.bottom, created: Created = Set.empty, effects: Effects = Set.empty,
                                   deps: Deps = Deps(Map.empty.withDefaultValue(Set.empty), Map.empty.withDefaultValue(Set.empty),
                                       Map.empty.withDefaultValue(Set.empty)),
                                   edges: UnlabeledEdges = Map.empty) extends SmartHash
     
+        /** Class containing bookkeeping information for the outer loop. Contains a.o. the global store. */
         case class OuterLoopState(threads: Threads, work: List[WorkItem], deps: Deps, results: RetVals, store: TStore, edges: Edges) extends SmartHash
     
         /** Optimised innerLoop: the loop will not explore paths that have to be reanalysed anyway (i.e. after reading a bottom return value). */
@@ -89,6 +94,7 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
             })
         }
     
+        /** Outer loop of the fixed-point computation. */
         @scala.annotation.tailrec
         def outerLoop(oState: OuterLoopState, iteration: Int): OuterLoopState = {
             if (timeout.reached || oState.work.isEmpty) return oState
@@ -123,6 +129,7 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
         }
     
         /** Filters out unreachable graph components that may result from invalidating edges. */
+        // Fixme: same remark than in unoptimised machine.
         @scala.annotation.tailrec
         def findConnectedStates(work: List[State], visited: Set[State], edges: GraphEdges): GraphEdges = {
             if (work.isEmpty) return edges

@@ -32,14 +32,17 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
         type Edges          = Map[State, Set[(Transition, State)]]
         type GraphEdges     = List[(State, Transition, State)]
     
+        /** Class collecting the dependencies of all threads. */
         case class Deps(joined: StateJoinDeps, read: StateReadDeps, written: StateWriteDeps)
     
+        /** Class containing bookkeeping information for the inner loop of a thread. All arguments except the first three are optional. */
         case class InnerLoopState(work: List[State], store: WStore, results: RetVals, visited: Set[State] = Set.empty,
                                   result: V = lattice.bottom, created: Created = Set.empty, effects: Effects = Set.empty,
                                   deps: Deps = Deps(Map.empty.withDefaultValue(Set.empty), Map.empty.withDefaultValue(Set.empty),
                                       Map.empty.withDefaultValue(Set.empty)),
                                   edges: UnlabeledEdges = Map.empty) extends SmartHash
         
+        /** Class containing bookkeeping information for the outer loop. Contains a.o. the global store. */
         case class OuterLoopState(threads: Threads, work: List[State], deps: Deps, results: RetVals, store: WStore, edges: Edges) extends SmartHash
     
         /** Innerloop like ConcurrentModular.run.innerLoop, except that now relations between effects and states are tracked. */
@@ -101,6 +104,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
         }
     
         /** Filters out unreachable graph components that may result from invalidating edges. */
+        // Fixme: is this filtering really necessary (i.e. can this situation occur)? To investigate (but probably impossible due to the monotonicity of the analysis).
         @scala.annotation.tailrec
         def findConnectedStates(work: List[State], visited: Set[State], edges: GraphEdges): GraphEdges = {
             if (work.isEmpty) return edges
@@ -131,6 +135,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                                        Map.empty)                                           // Graph edges.
         
         val result: OuterLoopState = outerLoop(oState, 1)
+        // After running the result, possibly unreachable edges may need to be filtered out.
         Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toList, Set(), result.edges.toList.flatMap(t => t._2.map(e => (t._1, e._1, e._2)))))
     }
 }

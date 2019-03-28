@@ -187,6 +187,14 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         type Edges  = List[(State, Transition, State)]
         type Graphs = Map[TID, Edges]
     
+        /**
+          * Contains bookkeeping information for the inner loop of the algorithm.
+          * @param created The threads created by the current thread.
+          * @param joined  The threads joined by the current thread.
+          * @param effects The effects generated during the evaluation of the current thread.
+          * @param result  The result value of the thread (initially bottom).
+          * @param edges   A list of graph edges.
+          */
         case class InnerLoopState(created: Created, joined: Joined, effects: Effects, result: V, edges: Edges) extends SmartHash {
             def add(crea: Created, joi: Joined, effs: Effects, res: Option[V], edg: Edges): InnerLoopState =  InnerLoopState(
                 created ++ crea,
@@ -235,8 +243,16 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           */
         case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: WStore, graphs: Graphs) extends SmartHash
     
+        /**
+          * Performs the fixed-point computation for the entire program. Uses the innerLoop method to analyse single threads and uses the results and dependencies returned from this
+          * method to steer the computation.
+          * @param work       A worklist.
+          * @param oState     An OuterLoopState to contain track of the dependencies between threads and the current global store.
+          * @param iteration  The current iteration of the outer loop. This argument can be omitted.
+          * @return A Map of TIDs to graphs.
+          */
         @scala.annotation.tailrec
-        def outerLoop(work: List[State], oState: OuterLoopState, iteration: Int): Graphs = {
+        def outerLoop(work: List[State], oState: OuterLoopState, iteration: Int = 1): Graphs = {
             if (timeout.reached || work.isEmpty) oState.graphs
             else {
                 val next: (List[State], OuterLoopState) = work.foldLeft((List[State](), oState)){case ((workAcc, oStateAcc), curState) =>
@@ -289,7 +305,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                                                       Map.empty.withDefaultValue(lattice.bottom),
                                                       wstore, graphs)
         
-        outerLoop(List(state), oState, 1).toSet[(TID, Edges)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, curModuleGraph) => acc.addEdges(curModuleGraph))
+        outerLoop(List(state), oState).toSet[(TID, Edges)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, curModuleGraph) => acc.addEdges(curModuleGraph))
     }
 }
 

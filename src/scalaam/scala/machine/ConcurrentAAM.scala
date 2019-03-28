@@ -148,9 +148,10 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
     }
     
     def run[G](program: Exp, timeout: Timeout.T, strategy: Strategy)(implicit ev: Graph[G, State, Transition]): G = {
-        
+    
+        /** Fixed-point computation to explore the entire state graph. */
         @scala.annotation.tailrec
-        def loop(work: List[State], visited: Set[State], graph: G): G = {
+        def loop(work: List[State], visited: Set[State] = Set.empty, graph: G = Graph[G, State, Transition].empty): G = {
             if (timeout.reached) graph
             else
                 work match {
@@ -171,7 +172,6 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         val cc      :          KAddr = HaltKontAddr
         val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
         val control :       Control  = ControlEval(program, env)
-        val graph   :              G = Graph[G, State, Transition].empty
         val kstore  :         KStore = Store.empty[KA, Set[Kont]](t)
         val time    :              T = timestamp.initial("")
         val tid     :            TID = allocator.allocate(program, time)
@@ -180,7 +180,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
         val state   :          State = State(threads, vstore)
         
-        loop(List(state), Set(), graph)
+        loop(List(state))
     }
     
     def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
