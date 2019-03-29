@@ -43,7 +43,6 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
         
         // As in the unoptimised version of this machine, a map is used to overwrite any old edges that would remain present in a List or Set.
         type Edges          = Map[State, Set[(Transition, State)]]
-        type GraphEdges     = List[(State, Transition, State)]
     
         /** Class collecting the dependencies of all threads. */
         case class Deps(joined: ExtendedStateJoinDeps, read: ExtendedStateReadDeps, written: ExtendedStateWriteDeps)
@@ -96,7 +95,7 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
     
         /** Outer loop of the fixed-point computation. */
         @scala.annotation.tailrec
-        def outerLoop(oState: OuterLoopState, iteration: Int): OuterLoopState = {
+        def outerLoop(oState: OuterLoopState, iteration: Int = 1): OuterLoopState = {
             if (timeout.reached || oState.work.isEmpty) return oState
             outerLoop(oState.work.foldLeft(oState.copy(work = List())){case (oStateAcc, (curState, prevVisisted, version)) =>
                 val stid: TID = curState.tid
@@ -128,18 +127,6 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
             }, iteration + 1)
         }
     
-        /** Filters out unreachable graph components that may result from invalidating edges. */
-        // Fixme: same remark than in unoptimised machine.
-        @scala.annotation.tailrec
-        def findConnectedStates(work: List[State], visited: Set[State], edges: GraphEdges): GraphEdges = {
-            if (work.isEmpty) return edges
-            if (visited.contains(work.head)) findConnectedStates(work.tail, visited, edges)
-            else {
-                val next = edges.filter(e => e._1 == work.head)
-                findConnectedStates(work.tail ++ next.map(_._3), visited + work.head, edges ++ next)
-            }
-        }
-    
         val cc      :          KAddr = HaltKontAddr
         val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
         val control :        Control = ControlEval(program, env)
@@ -159,8 +146,7 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
                                                       tstore,                                              // Store.
                                                       Map.empty)                                           // Graph edges.
     
-        val result: OuterLoopState = outerLoop(oState, 1)
-        Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toList, Set(), result.edges.toList.flatMap(t => t._2.map(e => (t._1, e._1, e._2)))))
+        Graph[G, State, Transition].empty.addEdges(outerLoop(oState).edges.toList.flatMap(t => t._2.map(e => (t._1, e._1, e._2))))
     }
 }
 
