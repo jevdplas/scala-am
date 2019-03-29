@@ -1,0 +1,4 @@
+All files in this directory were taken/modified from https://github.com/acieroid/scala-am/tree/modularthreads/threads/suite .
+Date: Fri 29/03/2019
+
+Benchmarks modified to use futures instead of threads: matmul, mcarlo, mceval, minimax, msort, sudoku, trapr
