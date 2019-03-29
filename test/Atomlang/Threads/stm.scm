@@ -15,27 +15,13 @@
           #t
           (error "map applied to a non-list"))))
 
-(define (atom v)
-  (cons (t/ref v)
-        (t/new-lock)))
-
-(define (atom-deref a)
-  (t/deref (car a)))
-
-(define (atom-swap! a f)
-  (t/acquire (cdr a))
-  (let* ((v (t/deref (car a))))
-    (t/ref-set (car a) (f v))
-    (t/release (cdr a))
-    v))
-
 (define (mc-ref val)
   (atom (cons val 0)))
 
 (define (mc-deref tx ref)
   (if tx
       (tx-read tx ref)
-      (car (atom-deref ref))))
+      (car (read ref))))
 
 (define (mc-ref-set tx ref newval)
   (if tx
@@ -55,7 +41,7 @@
 
 (define (make-transaction)
   (list
-   (atom-swap! NEXT_TRANSACTION_ID (lambda (i) (+ i 1)))
+   (swap! NEXT_TRANSACTION_ID (lambda (i) (+ i 1)))
    (atom '())           ;; map: ref -> any value
    (atom '())           ;; set of refs
    (atom '())           ;; map: ref -> revision id
@@ -80,21 +66,21 @@
 
 (define (tx-read tx ref)
   (let* ((in-tx-values (trn-in-tx-values tx))
-         (element-in-tx (assoc ref (atom-deref in-tx-values))))
+         (element-in-tx (assoc ref (read in-tx-values))))
     (if element-in-tx
         (cdr element-in-tx)
-        (let* ((l (atom-deref ref))
+        (let* ((l (read ref))
                (in-tx-value (car l))
                (read-revision (cdr l)))
-          (atom-swap! in-tx-values (lambda (v) (cons (cons ref in-tx-value) v)))
-          (atom-swap! (trn-last-seen-rev tx) (lambda (v) (cons (cons ref read-revision) v)))
+          (swap! in-tx-values (lambda (v) (cons (cons ref in-tx-value) v)))
+          (swap! (trn-last-seen-rev tx) (lambda (v) (cons (cons ref read-revision) v)))
           in-tx-value))))
 
 (define (tx-write tx ref val)
-  (atom-swap! (trn-in-tx-values tx) (lambda (v) (cons (cons ref val) v)))
-  (atom-swap! (trn-written-refs tx) (lambda (v) (set-add v ref)))
-  (if (not (map-contains ref (atom-deref (trn-last-seen-rev tx))))
-      (atom-swap! (trn-last-seen-rev tx) (lambda (v) (cons (cons ref (cdr (atom-deref ref))) v)))
+  (swap! (trn-in-tx-values tx) (lambda (v) (cons (cons ref val) v)))
+  (swap! (trn-written-refs tx) (lambda (v) (set-add v ref)))
+  (if (not (map-contains ref (read (trn-last-seen-rev tx))))
+      (swap! (trn-last-seen-rev tx) (lambda (v) (cons (cons ref (cdr (read ref))) v)))
       #t)
   val)
 
@@ -112,16 +98,16 @@
 
 (define (tx-commit tx)
   (define (validate refs)
-    (every? (lambda (ref) (= (cdr (atom-deref ref))
-                             (cdr (assoc ref (atom-deref (trn-last-seen-rev tx))))))
+    (every? (lambda (ref) (= (cdr (read ref))
+                             (cdr (assoc ref (read (trn-last-seen-rev tx))))))
             refs))
   (t/acquire COMMIT_LOCK)
-  (let* ((in-tx-values (atom-deref (trn-in-tx-values tx)))
+  (let* ((in-tx-values (read (trn-in-tx-values tx)))
          (success (validate (keys in-tx-values))))
     (map (lambda (ref)
-           (atom-swap! ref (lambda (v) (cons (cdr (assoc ref in-tx-values))
+           (swap! ref (lambda (v) (cons (cdr (assoc ref in-tx-values))
                                              (trn-id tx)))))
-         (atom-deref (trn-written-refs tx)))
+         (read (trn-written-refs tx)))
     (t/release COMMIT_LOCK)
     success))
 
@@ -165,8 +151,8 @@
                                                 (loop (+ n 1)))))))
                            (loop 0))))
                      (range nthreads)))
-         (threads (map (lambda (t) (t/spawn (t))) tasks)))
-    (map (lambda (t) (t/join t)) threads)
+         (threads (map (lambda (t) (future (t))) tasks)))
+    (map (lambda (t) (deref t)) threads)
     (map (lambda (r) (mc-deref #f r)) refs)))
 
 (test-stm 10 10 1000)

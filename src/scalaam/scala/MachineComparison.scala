@@ -51,17 +51,37 @@ object MachineComparison extends App {
     
     // List of benchmarks with the required prelude (none means only the standard prelude).
     val benchmarks: List[(String, Prelude)] = List(
-        ("./test/Atomlang/Concurrent/simple.scm",    none),
+        /* Mostly very simple programs (used to test the functioning of the machine).
         ("./test/Atomlang/atomicInt.scm",            none),
-        ("./test/Atomlang/list-with-length.scm",     none),
+        ("./test/Atomlang/cas.scm",                  none),
+        ("./test/Atomlang/collector.scm",            none),
         ("./test/Atomlang/future-swap.scm",          none),
+        ("./test/Atomlang/futurecomplexbody.scm",    none),
+        ("./test/Atomlang/list-with-length.scm",     none),
+        ("./test/Atomlang/reset.scm",                none),
+        ("./test/Atomlang/simpleatom.scm",           none),
+        ("./test/Atomlang/simplefuture.scm",         none),
+        ("./test/Atomlang/swap.scm",                 none), */
+        ("./test/Atomlang/treiber-stack.scm",        none),
     
+        //("./test/Atomlang/Concurrent/simple.scm",    none),
+        
+        // More complex programs that are more suitable for benchmarking.
         ("./test/Atomlang/Threads/atoms.scm",        none),
         ("./test/Atomlang/Threads/actors.scm",       lock),
         ("./test/Atomlang/Threads/bchain.scm",       lock),
         ("./test/Atomlang/Threads/count.scm",        lock),
         ("./test/Atomlang/Threads/dekker.scm",       none),
-        ("./test/Atomlang/Threads/fact.scm",         lock)
+        ("./test/Atomlang/Threads/fact.scm",         lock),
+        ("./test/Atomlang/Threads/mcarlo.scm",       none),
+        ("./test/Atomlang/Threads/mceval.scm",       none),
+        ("./test/Atomlang/Threads/minimax.scm",      none),
+        ("./test/Atomlang/Threads/msort.scm",        none),
+        ("./test/Atomlang/Threads/pc.scm",           lock),
+        ("./test/Atomlang/Threads/pp.scm",           lock),
+        ("./test/Atomlang/Threads/rng.scm",          lock),
+        ("./test/Atomlang/Threads/stm.scm",          lock),
+        ("./test/Atomlang/Threads/sudoku.scm",       none),
     )
     
     val lockPrelude: String =
@@ -79,25 +99,29 @@ object MachineComparison extends App {
     
     def forFile(file: String, atPrelude: Prelude): Unit = {
         println("\n***** " + file + " *****")
-        val f = scala.io.Source.fromFile(file)
-        // Add the necessary preludes to the file contents.
-        val content: String = StandardPrelude.atomlangPrelude ++ (atPrelude match {
-            case Prelude.lock => lockPrelude
-            case Prelude.none => ""
-        })  ++ f.getLines.mkString("\n")
-        f.close()
-        val program: SchemeExp = AtomlangParser.parse(content)
-        val results = configurations.map(executeExperiment(program, _))
-        val statistics = results.map{case (name, measurements) =>
-            val times = measurements.map(_._1)
-            val meantime = times.sum / times.length
-            val stdvtime = Math.sqrt(times.map(t => (t - meantime) * (t - meantime)).sum / times.length)
-            val states = measurements.map(_._2)
-            val meanstat = (states.sum / states.length).toDouble
-            val stdvstat = Math.sqrt(states.map(t => (t - meanstat) * (t - meanstat)).sum / states.length)
-            (name, measurements, meantime, stdvtime, meanstat, stdvstat)
+        try {
+            val f = scala.io.Source.fromFile(file)
+            // Add the necessary preludes to the file contents.
+            val content: String = StandardPrelude.atomlangPrelude ++ (atPrelude match {
+                case Prelude.lock => lockPrelude
+                case Prelude.none => ""
+            }) ++ f.getLines.mkString("\n")
+            f.close()
+            val program: SchemeExp = AtomlangParser.parse(content)
+            val results = configurations.map(executeExperiment(program, _))
+            val statistics = results.map { case (name, measurements) =>
+                val times = measurements.map(_._1)
+                val meantime = times.sum / times.length
+                val stdvtime = Math.sqrt(times.map(t => (t - meantime) * (t - meantime)).sum / times.length)
+                val states = measurements.map(_._2)
+                val meanstat = (states.sum / states.length).toDouble
+                val stdvstat = Math.sqrt(states.map(t => (t - meanstat) * (t - meanstat)).sum / states.length)
+                (name, measurements, meantime, stdvtime, meanstat, stdvstat)
+            }
+            printStatistics(file, statistics)
+        } catch {
+            case e: Throwable => println(e.getStackTrace)
         }
-        printStatistics(file, statistics)
     }
     
     def executeExperiment(program: SchemeExp, configuration: Configuration): (String, List[Measurement]) = {

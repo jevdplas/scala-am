@@ -4,22 +4,22 @@ Date: Fri 29/03/2019
 Benchmarks easily modifiable to use futures instead of threads:
     matmul, trapr
     fact (without fact-thread-ref)
-    atoms (without definition of atomic functions)
+    atoms, stm (without definition of atomic functions)
 
 Benchmarks modified to use futures instead of threads:
-    bchain, count, dekker, fact, mcarlo, mceval, minimax, msort, sudoku
+    bchain, count, dekker, fact, mcarlo, mceval, minimax, msort, pc, pp, rng, stm, sudoku
 
 Benchmarks using vectors (currently not supported):
     abp, crypt, life, matmul, nbody, phil, phild, pp, pps, qsort, ringbuf, sieve, trapr, tsp
 
 Benchmarks now using lists instead of vectors:
-    bchain, sudoku
+    bchain, pp, sudoku
 
 Benchmarks using references (to be replaced by atoms):
     qsort, tsp, sieve, ringbuf, pps, pp, phild, pc, mg, nbody, life, fact, dekker, count, atoms, abp
 
 Benchmarks now using atoms instead of references:
-    actors, bchain, dekker, fact
+    actors, bchain, dekker, fact, pc, pp, rng, stm
 
 Benchmarks using locks (to be implemented on top of atoms):
     abp, actors, atoms, bchain, count, fact, life, pc, phild, pp, tsp, stm
