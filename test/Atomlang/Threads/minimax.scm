@@ -1,6 +1,3 @@
-
-
-
 (define (append l m)
   (if (null? l)
       m
@@ -103,9 +100,9 @@
       (if (not (= 0 s))
           (* 10 s)
           (let* ((threads (map (lambda (move)
-                                 (t/spawn (minimax-helper (apply-move b p move) (opponent p))))
+                                 (future (minimax-helper (apply-move b p move) (opponent p))))
                                (available-moves b p)))
-                 (minimax-childs (map (lambda (t) (t/join t)) threads)))
+                 (minimax-childs (map (lambda (t) (deref t)) threads)))
             (foldl + 0 minimax-childs)))))
   (let ((possible-moves (available-moves board me)))
     (if (null? possible-moves)

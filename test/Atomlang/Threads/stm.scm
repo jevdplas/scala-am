@@ -1,6 +1,3 @@
-
-
-
 ;; Implementation of STM
 (define (map f l)
   (if (pair? l)

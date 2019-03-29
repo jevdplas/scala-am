@@ -1,14 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
 ;; define planetary masses, initial positions & velocity
 (define (map f l)
   (if (pair? l)

@@ -1,7 +1,3 @@
-
-
-
-
 ;; Trapezoidal integral approximation
 (define (map f l)
   (if (pair? l)

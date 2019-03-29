@@ -1,6 +1,3 @@
-
-
-
 ;; Monte-carlo simulation using threads
 (define MAXSIZE 10000)
 
@@ -23,9 +20,9 @@
 (define (monte-carlo-conc size n)
   (if (< n MAXSIZE)
       (monte-carlo-seq size n)
-      (let ((t1 (t/spawn (monte-carlo-conc size (quotient n 2))))
-            (t2 (t/spawn (monte-carlo-conc size (quotient n 2)))))
-        (+ (t/join t1) (t/join t2)))))
+      (let ((t1 (future (monte-carlo-conc size (quotient n 2))))
+            (t2 (future (monte-carlo-conc size (quotient n 2)))))
+        (+ (deref t1) (deref t2)))))
 
 (define (approximate-pi size iterations)
   (/ (* 4. (monte-carlo-conc size iterations)) iterations))

@@ -1,7 +1,3 @@
-
-
-
-
 ;; Parallel quick-sort
 (define (for-each f l)
   (if (pair? l)

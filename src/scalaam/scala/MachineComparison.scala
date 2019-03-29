@@ -9,7 +9,6 @@ import scalaam.machine.ConcurrentAAM
 
 import scala.core.MachineUtil
 import scala.machine._
-
 import Graph.GraphOps
 
 /**  Contains utilities to compare the different machines. Compares both the runtime and state space size. */
@@ -41,17 +40,51 @@ object MachineComparison extends App {
                                                    ("incMOD", incMOD))
     val timeout: Int = 60
     
-    val benchmarks: List[String] = List("./test/Atomlang/Concurrent/simple.scm",
-                                        "./test/Atomlang/atomicInt.scm",
-                                        "./test/Atomlang/list-with-length.scm.scm",
-                                        "./test/Atomlang/future-swap.scm")
+    // Preludes
+    
+    object Prelude extends Enumeration {
+        type Prelude = Value
+        val lock, none = Value
+    }
+    
+    import Prelude._
+    
+    // List of benchmarks with the required prelude (none means only the standard prelude).
+    val benchmarks: List[(String, Prelude)] = List(
+        ("./test/Atomlang/Concurrent/simple.scm",    none),
+        ("./test/Atomlang/atomicInt.scm",            none),
+        ("./test/Atomlang/list-with-length.scm",     none),
+        ("./test/Atomlang/future-swap.scm",          none),
+    
+        ("./test/Atomlang/Threads/atoms.scm",        none),
+        ("./test/Atomlang/Threads/actors.scm",       lock),
+        ("./test/Atomlang/Threads/bchain.scm",       lock),
+        ("./test/Atomlang/Threads/count.scm",        lock),
+        ("./test/Atomlang/Threads/dekker.scm",       none),
+        ("./test/Atomlang/Threads/fact.scm",         lock)
+    )
+    
+    val lockPrelude: String =
+        """(define (t/new-lock)
+          |  (atom #f))
+          |(define (t/acquire lock)
+          |  (let try ()
+          |    (if (compare-and-set! lock #f #t)
+          |        #t
+          |        (try))))
+          |(define (t/release lock)
+          |  (reset! lock #f))""".stripMargin
     
     // Experiment implementation
     
-    def forFile(file: String): Unit = {
+    def forFile(file: String, atPrelude: Prelude): Unit = {
         println("\n***** " + file + " *****")
         val f = scala.io.Source.fromFile(file)
-        val content: String    = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
+        // Add the necessary preludes to the file contents.
+        val content: String = StandardPrelude.atomlangPrelude ++ (atPrelude match {
+            case Prelude.lock => lockPrelude
+            case Prelude.none => ""
+        })  ++ f.getLines.mkString("\n")
         f.close()
         val program: SchemeExp = AtomlangParser.parse(content)
         val results = configurations.map(executeExperiment(program, _))
@@ -92,5 +125,5 @@ object MachineComparison extends App {
                                 println(f"           states     ${s._5}%09.4f\t  ${s._6}%09.4f\t  ${s._2.map(_._2)}")}
     }
     
-    benchmarks.foreach(forFile)
+    benchmarks.foreach(Function.tupled(forFile))
 }

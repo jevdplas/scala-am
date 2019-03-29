@@ -1,7 +1,3 @@
-
-
-
-
 ;; Dining philosophers problem with dictionary
 (define (map f l)
   (if (pair? l)

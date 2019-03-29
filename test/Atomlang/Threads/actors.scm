@@ -1,7 +1,3 @@
-
-
-
-
 (define (append l m)
   (if (null? l)
       m
@@ -13,14 +9,14 @@
           '()
           (error "map applied to a non-list"))))
 
-(define *actors* (t/ref '()))
+(define *actors* (atom '()))
 (define *actors-lock* (t/new-lock))
 (define (register-new-actor name f)
   (t/acquire *actors-lock*)
-  (t/ref-set *actors* (cons (list name f (t/new-lock) (t/ref '())) (t/deref *actors*)))
+  (reset! *actors* (cons (list name f (t/new-lock) (atom '())) (read *actors*)))
   (t/release *actors-lock*))
 (define (find-actor name)
-  (let ((v (assoc name (t/deref *actors*))))
+  (let ((v (assoc name (read *actors*))))
     (if v
         v
         (error "no actor found"))))
@@ -34,7 +30,7 @@
     (letrec ((loop (lambda (receive state)
                      (let ((mb (actor-mailbox name))
                            (lock (actor-lock name)))
-                       (if (null? (t/deref mb))
+                       (if (null? (read mb))
                            ;; nothing to receive, wait
                            (begin
                              ;(sleep 0.1)
@@ -42,8 +38,8 @@
                            ;; message to receive
                            (begin
                              (t/acquire (actor-lock name))
-                             (let ((message (car (t/deref mb))))
-                               (t/ref-set mb (cdr (t/deref mb)))
+                             (let ((message (car (read mb))))
+                               (reset! mb (cdr (read mb)))
                                (t/release (actor-lock name))
                                (let ((action (receive name state (car message) (cdr message))))
                                  (if (eq? action 'terminate)
@@ -62,7 +58,7 @@
   (let ((lock (actor-lock target))
         (mb (actor-mailbox target)))
     (t/acquire lock)
-    (t/ref-set mb (append (t/deref mb) (list (cons tag args))))
+    (reset! mb (append (read mb) (list (cons tag args))))
     (t/release lock)))
 
 (define (split from to)

@@ -1,7 +1,3 @@
-
-
-
-
 ;; Multithreaded merge-sort
 (define (merge-lists xs ys)
   (if (null? xs)
@@ -28,9 +24,9 @@
         l
         (if (= len 2)
             (merge-lists (list (car l)) (list (cadr l)))
-            (let ((first-half (t/spawn (merge-sort (take l (quotient len 2)))))
-                  (second-half (t/spawn (merge-sort (drop l (quotient len 2))))))
-              (merge-lists (t/join first-half) (t/join second-half)))))))
+            (let ((first-half (future (merge-sort (take l (quotient len 2)))))
+                  (second-half (future (merge-sort (drop l (quotient len 2))))))
+              (merge-lists (deref first-half) (deref second-half)))))))
 
 (define (sorted? l)
   (if (or (null? l) (null? (cdr l)))

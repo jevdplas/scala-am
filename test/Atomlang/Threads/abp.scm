@@ -1,7 +1,3 @@
-
-
-
-
 ;; Inspired from http://alexsclassblogg.blogspot.be/2013/11/python-alternating-bit-socket.html
 (define (build-vector n init f)
   (letrec ((v (make-vector n init))

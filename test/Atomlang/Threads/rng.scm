@@ -1,7 +1,3 @@
-
-
-
-
 ;; Random number generate sharing state among multiple threads
 (define (map f l)
   (if (pair? l)

@@ -1,7 +1,3 @@
-
-
-
-
 ;; Parallel prefix sum with threads
 ;; https://stackoverflow.com/questions/10053629/parallel-prefix-sum-fastest-implementation/12874227#12874227
 (define (build-vector n init f)

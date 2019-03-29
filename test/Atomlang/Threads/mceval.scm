@@ -1,7 +1,3 @@
-
-
-
-
 ;; Meta-circular evaluator with support for threads
 (define (range a b)
   (letrec ((loop (lambda (i acc)
@@ -50,11 +46,11 @@
       (eval else env)))
 
 (define (ev-spawn body env)
-  (t/spawn (eval body env)))
+  (future (eval body env)))
 
 (define (ev-join t env)
   (let ((thread (eval t env)))
-    (t/join thread)))
+    (deref thread)))
 
 (define (eval exp env)
   (if (number? exp)

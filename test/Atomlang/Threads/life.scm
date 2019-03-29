@@ -1,6 +1,3 @@
-
-
-
 ;; Conway's game of life with concurrent computations
 (define N (expt 2 4))
 (define MAXTHREADSIZE 10)

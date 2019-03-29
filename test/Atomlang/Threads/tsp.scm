@@ -1,7 +1,3 @@
-
-
-
-
 ;; Example adapted from "Introduction to Parallel Programming", chapter 6
 (define (append l m)
   (if (null? l)

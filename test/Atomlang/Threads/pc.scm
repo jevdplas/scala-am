@@ -1,7 +1,3 @@
-
-
-
-
 (define (map f l)
   (if (pair? l)
       (cons (f (car l)) (map f (cdr l)))

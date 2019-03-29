@@ -1,7 +1,3 @@
-
-
-
-
 ;; Ring-buffer benchmark
 (define (map f l)
   (if (pair? l)

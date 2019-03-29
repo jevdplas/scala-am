@@ -1,7 +1,3 @@
-
-
-
-
 ;; Parallel sieve of eratosthenes
 (define (build-vector n init f)
   (letrec ((v (make-vector n init))

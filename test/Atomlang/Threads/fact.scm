@@ -1,7 +1,3 @@
-
-
-
-
 (define (map f l)
   (if (pair? l)
       (cons (f (car l)) (map f (cdr l)))
@@ -38,9 +34,9 @@
       (product from to)
       (let ((steps (split from to)))
         (foldl * 1
-               (map (lambda (t) (t/join t))
+               (map (lambda (t) (deref t))
                     (map (lambda (bounds)
-                           (t/spawn
+                           (future
                             (fact-thread (car bounds) (cdr bounds))))
                          steps))))))
 
@@ -48,23 +44,23 @@
   (if (<= (- to from) FragmentSize)
       (let ((partial-fact (product from to)))
         (t/acquire result-lock)
-        (t/ref-set result (* (t/deref result) partial-fact))
+        (reset! result (* (read result) partial-fact))
         (t/release result-lock))
       (let ((steps (split from to)))
-        (map (lambda (t) (t/join t))
+        (map (lambda (t) (deref t))
              (map (lambda (bounds)
-                    (t/spawn
+                    (future
                      (fact-thread-ref (car bounds) (cdr bounds)
                                       result result-lock)))
                   steps)))))
 
 (define (fact n)
-  (let* ((t1 (t/spawn (fact-thread 1 n)))
-         (result (t/ref 1))
+  (let* ((t1 (future (fact-thread 1 n)))
+         (result (atom 1))
          (result-lock (t/new-lock))
-         (t2 (t/spawn (fact-thread-ref 1 n result result-lock)))
-         (res1 (t/join t1))
-         (res2 (begin (t/join t2) (t/deref result))))
+         (t2 (future (fact-thread-ref 1 n result result-lock)))
+         (res1 (deref t1))
+         (res2 (begin (deref t2) (read result))))
     (if (= res1 res2)
         (display res1)
         (display "factorials don't match..."))

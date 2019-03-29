@@ -1,8 +1,3 @@
-
-
-
-
-
 ;; Adapted from https://medium.com/@lhartikk/a-blockchain-in-200-lines-of-code-963cc1cc0e54
 (define (block index prev-hash timestamp data hash)
   (list 'block index prev-hash timestamp data hash))
@@ -62,17 +57,17 @@
     (block next-index (block-hash previous-block) next-timestamp data next-hash)))
 
 (define *blockchain*
-  (t/ref (list
+  (atom (list
           (block 0 0 1509658251 "genesis block" (calculate-hash 0 0 1598658251 "genesis-block")))))
 (define *blockchain-lock* (t/new-lock))
 
 (define (show-blockchain)
   (for-each (lambda (b) (display (block-data b)) (display " "))
-            (t/deref *blockchain*))
+            (read *blockchain*))
   (newline))
 
 (define (get-latest-block)
-  (car (t/deref *blockchain*)))
+  (car (read *blockchain*)))
 
 (define (is-valid-new-block new-block previous-block)
   (and (= (+ 1 (block-index previous-block)) (block-index new-block))
@@ -83,7 +78,7 @@
   (t/acquire *blockchain-lock*)
   (if (is-valid-new-block b (get-latest-block))
       (begin
-        (t/ref-set *blockchain* (cons b (t/deref *blockchain*)))
+        (atom-set *blockchain* (cons b (read *blockchain*)))
         (t/release *blockchain-lock*)
         #t)
       (begin
@@ -106,11 +101,11 @@
 (show-blockchain)
 (define NMiners 10)
 (define NBlocksPerMiner 10)
-(define miner-data (vector "a" "b" "c" "d" "e" "f" "g" "h" "i" "j"))
+(define miner-data (list "a" "b" "c" "d" "e" "f" "g" "h" "i" "j"))
 (define miners
-  (map (lambda (i) (t/spawn
+  (map (lambda (i) (future
                     (miner NBlocksPerMiner
-                           (vector-ref miner-data (modulo i (vector-length miner-data))))))
+                           (list-ref miner-data (modulo i (length miner-data))))))
        (range 0 NMiners)))
-(map (lambda (t) (t/join t)) miners)
+(map (lambda (t) (deref t)) miners)
 (show-blockchain)

@@ -1,7 +1,3 @@
-
-
-
-
 ;; Implementation of Clojure's atoms on top of threads and shared variables
 (define (map f l)
   (if (pair? l)
@@ -21,26 +17,26 @@
 
     (foldl-aux base lst)))
 
-(define (atom v)
-  (cons (t/ref v)
-        (t/new-lock)))
+;(define (atom v)
+;  (cons (t/ref v)
+;        (t/new-lock)))
 
-(define (atom-deref a)
-  (t/deref (car a)))
+;(define (atom-deref a)
+;  (t/deref (car a)))
 
-(define (atom-swap! a f)
-  (t/acquire (cdr a))
-  (t/ref-set (car a) (f (t/deref (car a))))
-  (t/release (cdr a)))
+;(define (atom-swap! a f)
+;  (t/acquire (cdr a))
+;  (t/ref-set (car a) (f (t/deref (car a))))
+;  (t/release (cdr a)))
 
 (define (memoize f)
   (let ((mem (atom '())))
     (lambda (x)
-      (let ((e (assoc x (atom-deref mem))))
+      (let ((e (assoc x (read mem))))
         (if e
             (cdr e)
             (let ((ret (f x)))
-              (atom-swap! mem (lambda (v) (cons (cons x ret) v)))
+              (swap! mem (lambda (v) (cons (cons x ret) v)))
               ret))))))
 
 (define (fib n)

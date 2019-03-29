@@ -1,6 +1,3 @@
-
-
-
 ;; Example adapted from https://rosettacode.org/wiki/Vigen%C3%A8re_cipher/Cryptanalysis#Racket
 
 (define (integer->char n)

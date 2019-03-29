@@ -1,7 +1,3 @@
-
-
-
-
 ;; Ping-pong
 (define (map f l)
   (if (pair? l)
