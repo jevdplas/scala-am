@@ -340,8 +340,17 @@ object ConcurrentModular {
                     val store_ : Store[A, V] = fun(a, v)
                     // Fun must ensure store_ has a mapping for fun's first argument.
                     val v2 : V = store_.lookup(a).getOrElse(throw new Exception(s"Condition failure: missing required binding of $a in store $store_."))
-                    WrappedStore(store_, lattice.lteq(v2, v1))
+                    WrappedStore(store_, higher(v1, v2))
             }
+        }
+        
+        /** Verifies whether the new value is higher in the lattice hierarchy than the old. If it is, the store is modified. */
+        private def higher(oldv: V, newv: V) = (lattice.lteq(oldv, newv), lattice.lteq(newv, oldv)) match {
+            // (old <= new, new <= old)
+            case (true,  true)  => false // old == new
+            case (true, false)  => true  // old < new
+            case (false, true)  => throw new Exception("Store not monotonous.") // old > new
+            case (false, false) => throw new Exception("No partial order between values.") // old <?> new
         }
         
         /** Joins two stores and returns an updated wrapped store indicating whether the store has changed. */
@@ -352,7 +361,7 @@ object ConcurrentModular {
                 // Check subsumption for every element. If at least one element of that is not subsumed by the corresponding element of this,
                 // the resulting store will differ from this.
                 for (key <- store.keys) {
-                    if (!lattice.lteq(that.lookup(key).get, store.lookup(key).get))
+                    if (higher(store.lookup(key).get, that.lookup(key).get))
                         return WrappedStore(store.join(that), true)
                 }
                 WrappedStore(store.join(that), false)

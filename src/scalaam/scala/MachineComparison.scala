@@ -33,12 +33,13 @@ object MachineComparison extends App {
     type Configuration = (String, MachineAbstraction[SchemeExp, MachineComparison.address.A, MachineComparison.lattice.L, MachineComparison.timestamp.T, SchemeExp] with MachineUtil[SchemeExp, MachineComparison.address.A, MachineComparison.lattice.L])
     type Measurement = (Double, Int) // Runtime, State count
     
-    val iterations: Int = 20
-    val startup: Int = 3
+    val iterations: Int = 15
+    val startup: Int = 5 // Number of iterations to be dropped.
     val configurations: List[Configuration] = List(("regAAM", regAAM),
                                                    ("cncMOD", cncMOD),
                                                    ("incMOD", incMOD))
-    val timeout: Int = 60
+    // Timeout in seconds.
+    val timeout: Int = 10 * 60 // 10 minutes
     
     // Preludes
     
@@ -51,7 +52,7 @@ object MachineComparison extends App {
     
     // List of benchmarks with the required prelude (none means only the standard prelude).
     val benchmarks: List[(String, Prelude)] = List(
-        /* Mostly very simple programs (used to test the functioning of the machine).
+        // Mostly very simple programs (used to test the functioning of the machine).
         ("./test/Atomlang/atomicInt.scm",            none),
         ("./test/Atomlang/cas.scm",                  none),
         ("./test/Atomlang/collector.scm",            none),
@@ -61,10 +62,10 @@ object MachineComparison extends App {
         ("./test/Atomlang/reset.scm",                none),
         ("./test/Atomlang/simpleatom.scm",           none),
         ("./test/Atomlang/simplefuture.scm",         none),
-        ("./test/Atomlang/swap.scm",                 none), */
+        ("./test/Atomlang/swap.scm",                 none),
         ("./test/Atomlang/treiber-stack.scm",        none),
     
-        //("./test/Atomlang/Concurrent/simple.scm",    none),
+        ("./test/Atomlang/Concurrent/simple.scm",    none),
         
         // More complex programs that are more suitable for benchmarking.
         ("./test/Atomlang/Threads/atoms.scm",        none),
@@ -131,13 +132,16 @@ object MachineComparison extends App {
         @scala.annotation.tailrec
         def iterate(n: Int, measurements: List[Measurement]): (String, List[Measurement]) = {
             if (n == 0) return (configuration._1, measurements.reverse.drop(startup))
-            val t0 = System.nanoTime()
-            val rs = machine.run[graph.G](program, Timeout.seconds(timeout))
-            val t1 = System.nanoTime()
-            val ms = ((t1 - t0) / 1000000).toDouble
+            val to = Timeout.seconds(timeout)
+            val rs = machine.run[graph.G](program, to)
+            val sc = to.time // Seconds passed.
+            val re = to.timeout.exists(sc > _)
             val st = rs.nodes
-            print(".")
-            iterate(n - 1, (ms, st) +: measurements)
+            print(n + " ")
+            // If a timeout is reached, this will probably be the case for all iterations, so abort.
+            // Also, do not record the result, since it is only partial.
+            if (re) return (configuration._1, List((-1, -1)))
+            iterate(n - 1, (sc, st) +: measurements)
         }
         print(s"\n${configuration._1} > ")
         iterate(startup + iterations, List())

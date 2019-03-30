@@ -173,8 +173,16 @@ case class TimestampedStore[A <: Address, V](store: Store[A, V], version: Int = 
             case Some(v1) =>
                 val store_ : Store[A, V] = fun(a, v)
                 val v2 : V = store_.lookup(a).getOrElse(throw new Exception(s"Condition failure: missing required binding of $a in store $store_."))
-                TimestampedStore(store_, if (lattice.lteq(v2, v1)) version + 1 else version)
+                TimestampedStore(store_, if (higher(v1, v2)) version + 1 else version)
         }
+    }
+    
+    private def higher(oldv: V, newv: V) = (lattice.lteq(oldv, newv), lattice.lteq(newv, oldv)) match {
+        // (old <= new, new <= old)
+        case (true,  true)  => false // old == new
+        case (true, false)  => true  // old < new
+        case (false, true)  => throw new Exception("Store not monotonous.") // old > new
+        case (false, false) => throw new Exception("No partial order between values.") // old <?> new
     }
     
     private def verifyMerge(that: Store[A, V]): Store[A, V] = {
@@ -182,7 +190,7 @@ case class TimestampedStore[A <: Address, V](store: Store[A, V], version: Int = 
             TimestampedStore(store.join(that), version + 1)
         else {
             for (key <- store.keys) {
-                if (!lattice.lteq(that.lookup(key).get, store.lookup(key).get))
+                if (higher(store.lookup(key).get, that.lookup(key).get))
                     return TimestampedStore(store.join(that), version + 1)
             }
             TimestampedStore(store.join(that), version)
