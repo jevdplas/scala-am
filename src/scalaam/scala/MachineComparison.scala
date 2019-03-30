@@ -18,6 +18,9 @@ import java.io.FileWriter
 /**  Contains utilities to compare the different machines. Compares both the runtime and state space size. */
 object MachineComparison extends App {
     
+    type Configuration = (String, MachineAbstraction[SchemeExp, MachineComparison.address.A, MachineComparison.lattice.L, MachineComparison.timestamp.T, SchemeExp] with MachineUtil[SchemeExp, MachineComparison.address.A, MachineComparison.lattice.L])
+    type Measurement = (Double, Int) // Runtime, State count
+    
     /* **** General configuration **** */
     
     val address   = NameAddress
@@ -33,25 +36,19 @@ object MachineComparison extends App {
     val incMOD = new IncrementalConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val incOPT = new OptimisedIncConcMod[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     
-    // Variables for the experiments
-    
-    type Configuration = (String, MachineAbstraction[SchemeExp, MachineComparison.address.A, MachineComparison.lattice.L, MachineComparison.timestamp.T, SchemeExp] with MachineUtil[SchemeExp, MachineComparison.address.A, MachineComparison.lattice.L])
-    type Measurement = (Double, Int) // Runtime, State count
-    
-    val iterations: Int = 30
-    val startup: Int = 10 // Number of iterations to be dropped.
-    val configurations: List[Configuration] = List(("regAAM", regAAM),
-                                                   ("cncMOD", cncMOD),
-                                                   ("incMOD", incMOD),
-                                                   ("incOPT", incOPT))
-    // Timeout in seconds
+    val configurations: List[Configuration] = List(("regAAM", regAAM), ("cncMOD", cncMOD), ("incMOD", incMOD), ("incOPT", incOPT))
     val timeout: Int = 10 * 60 // 10 minutes
     
-    // Output file
-    val output: String = "./Results_MachineComparison_time.csv"
+    /* **** Experimental setup **** */
+    
+    val iterations: Int = 30
+    val startup:    Int = 10 // Number of iterations to be dropped.
+    
+    /* **** Experimental output **** */
+    val output:       String = "./Results_MachineComparison.csv"
     val fields: List[String] = List("Benchmark", "Machine", "States") ++ ((1 to startup).map("s" + _) ++ (1 to iterations).map("i" + _)).toList // Field names for the csv file.
     
-    val out = new BufferedWriter(new FileWriter(output))
+    val    out = new BufferedWriter(new FileWriter(output))
     val writer = new CSVWriter(out)
     
     /* **** Benchmarks **** */
@@ -67,15 +64,10 @@ object MachineComparison extends App {
     val benchmarks: List[(String, Prelude)] = List(
         // Mostly very simple programs (used to test the functioning of the machine).
         ("./test/Atomlang/atomicInt.scm",            none),
-        ("./test/Atomlang/cas.scm",                  none),
-        ("./test/Atomlang/collector.scm",            none),
         ("./test/Atomlang/future-swap.scm",          none),
         ("./test/Atomlang/futurecomplexbody.scm",    none),
         ("./test/Atomlang/list-with-length.scm",     none),
-        ("./test/Atomlang/reset.scm",                none),
-        ("./test/Atomlang/simpleatom.scm",           none),
         ("./test/Atomlang/simplefuture.scm",         none),
-        ("./test/Atomlang/swap.scm",                 none),
         ("./test/Atomlang/treiber-stack.scm",        none),
     
         ("./test/Atomlang/Concurrent/simple.scm",    none),
@@ -166,6 +158,7 @@ object MachineComparison extends App {
     
     /* **** Output **** */
     
+    // All measurements (also the ones for start-up) are written to the file.
     def writeStatistics(file: String, machine: String, statistics: List[Measurement]): Unit = {
         val name = file.split("/").last
         val num = statistics.size == startup + iterations
