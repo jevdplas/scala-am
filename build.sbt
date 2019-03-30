@@ -13,6 +13,7 @@ scalaSource in Compile := baseDirectory.value / "src" / "scalaam"
 logBuffered in Test := false
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.5" % "test"
 libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.0" % "test"
+libraryDependencies += "au.com.bytecode" % "opencsv" % "2.4"
 
 /* Imported options from https://tpolecat.github.io/2017/04/25/scalac-flags.html */
 scalacOptions ++= Seq(

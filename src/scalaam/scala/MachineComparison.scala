@@ -11,10 +11,14 @@ import scala.core.MachineUtil
 import scala.machine._
 import Graph.GraphOps
 
+import au.com.bytecode.opencsv.CSVWriter
+import java.io.BufferedWriter
+import java.io.FileWriter
+
 /**  Contains utilities to compare the different machines. Compares both the runtime and state space size. */
 object MachineComparison extends App {
     
-    // General configuration
+    /* **** General configuration **** */
     
     val address   = NameAddress
     val tid       = ConcreteTID
@@ -27,21 +31,30 @@ object MachineComparison extends App {
     val regAAM = new ConcurrentAAM[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val cncMOD = new ConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val incMOD = new IncrementalConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val incOPT = new OptimisedIncConcMod[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     
     // Variables for the experiments
     
     type Configuration = (String, MachineAbstraction[SchemeExp, MachineComparison.address.A, MachineComparison.lattice.L, MachineComparison.timestamp.T, SchemeExp] with MachineUtil[SchemeExp, MachineComparison.address.A, MachineComparison.lattice.L])
     type Measurement = (Double, Int) // Runtime, State count
     
-    val iterations: Int = 15
-    val startup: Int = 5 // Number of iterations to be dropped.
+    val iterations: Int = 30
+    val startup: Int = 10 // Number of iterations to be dropped.
     val configurations: List[Configuration] = List(("regAAM", regAAM),
                                                    ("cncMOD", cncMOD),
-                                                   ("incMOD", incMOD))
-    // Timeout in seconds.
+                                                   ("incMOD", incMOD),
+                                                   ("incOPT", incOPT))
+    // Timeout in seconds
     val timeout: Int = 10 * 60 // 10 minutes
     
-    // Preludes
+    // Output file
+    val output: String = "./Results_MachineComparison_time.csv"
+    val fields: List[String] = List("Benchmark", "Machine", "States") ++ ((1 to startup).map("s" + _) ++ (1 to iterations).map("i" + _)).toList // Field names for the csv file.
+    
+    val out = new BufferedWriter(new FileWriter(output))
+    val writer = new CSVWriter(out)
+    
+    /* **** Benchmarks **** */
     
     object Prelude extends Enumeration {
         type Prelude = Value
@@ -96,7 +109,7 @@ object MachineComparison extends App {
           |(define (t/release lock)
           |  (reset! lock #f))""".stripMargin
     
-    // Experiment implementation
+    /* **** Experiment implementation **** */
     
     def forFile(file: String, atPrelude: Prelude): Unit = {
         println("\n***** " + file + " *****")
@@ -104,34 +117,38 @@ object MachineComparison extends App {
             val f = scala.io.Source.fromFile(file)
             // Add the necessary preludes to the file contents.
             val content: String = StandardPrelude.atomlangPrelude ++ (atPrelude match {
-                case Prelude.lock => lockPrelude
-                case Prelude.none => ""
-            }) ++ f.getLines.mkString("\n")
+                    case Prelude.lock => lockPrelude
+                    case Prelude.none => ""
+                }) ++ f.getLines.mkString("\n")
             f.close()
             val program: SchemeExp = AtomlangParser.parse(content)
-            val results = configurations.map(executeExperiment(program, _))
-            val statistics = results.map { case (name, measurements) =>
-                val times = measurements.map(_._1)
-                val meantime = times.sum / times.length
-                val stdvtime = Math.sqrt(times.map(t => (t - meantime) * (t - meantime)).sum / times.length)
-                val states = measurements.map(_._2)
-                val meanstat = (states.sum / states.length).toDouble
-                val stdvstat = Math.sqrt(states.map(t => (t - meanstat) * (t - meanstat)).sum / states.length)
-                (name, measurements, meantime, stdvtime, meanstat, stdvstat)
+            configurations.foreach{ config =>
+                try {
+                    val result = executeExperiment(program, config) // Measurements for startup are not filtered out!
+                    writeStatistics(file, config._1, result)
+    
+                    val times = result.map(_._1).drop(startup)
+                    val meantime: Double = times.sum / times.length
+                    val states = result.map(_._2).drop(startup)
+                    val meanstat: Double = (states.sum / states.length).toDouble
+    
+                    println(s"\nTime:\t$meantime\nStates:\t$meanstat")
+                } catch {
+                    case e: Throwable => println(e.getStackTrace)
+                }
             }
-            printStatistics(file, statistics)
         } catch {
             case e: Throwable => println(e.getStackTrace)
         }
     }
     
-    def executeExperiment(program: SchemeExp, configuration: Configuration): (String, List[Measurement]) = {
+    def executeExperiment(program: SchemeExp, configuration: Configuration): List[Measurement] = {
         val machine = configuration._2
         val graph   = DotGraph[machine.State, machine.Transition]()
         
         @scala.annotation.tailrec
-        def iterate(n: Int, measurements: List[Measurement]): (String, List[Measurement]) = {
-            if (n == 0) return (configuration._1, measurements.reverse.drop(startup))
+        def iterate(n: Int, measurements: List[Measurement]): List[Measurement] = {
+            if (n == 0) return measurements.reverse
             val to = Timeout.seconds(timeout)
             val rs = machine.run[graph.G](program, to)
             val sc = to.time // Seconds passed.
@@ -140,18 +157,32 @@ object MachineComparison extends App {
             print(n + " ")
             // If a timeout is reached, this will probably be the case for all iterations, so abort.
             // Also, do not record the result, since it is only partial.
-            if (re) return (configuration._1, List((-1, -1)))
+            if (re) return List((-1, -1))
             iterate(n - 1, (sc, st) +: measurements)
         }
         print(s"\n${configuration._1} > ")
         iterate(startup + iterations, List())
     }
     
-    def printStatistics(file: String, statistics: List[(String, List[(Double, Int)], Double, Double, Double, Double)]): Unit = {
-        println("\n name   |\tvalue\t|\tmean\t|\tstdev\t|\traw")
-        statistics.foreach{s => println(f"${s._1}%s\t   runtime    ${s._3}%09.4f\t  ${s._4}%09.4f\t  ${s._2.map(_._1)}")
-                                println(f"           states     ${s._5}%09.4f\t  ${s._6}%09.4f\t  ${s._2.map(_._2)}")}
+    /* **** Output **** */
+    
+    def writeStatistics(file: String, machine: String, statistics: List[Measurement]): Unit = {
+        val name = file.split("/").last
+        val num = statistics.size == startup + iterations
+        // Make sure every line of the csv is equally long.
+        val times = if (num) statistics.map(_._1) else List.fill(startup + iterations)(-1)
+        val states = if (num) statistics.map(_._2).head else List.fill(startup + iterations)(-1)
+        val line = List(name, machine, states) ++ times
+        try {
+            writer.writeNext(line.mkString(", "))
+            writer.flush()
+        } catch {
+            case e : Throwable => println(e.getStackTrace)
+        }
     }
     
+    writer.writeNext(fields.mkString(", "))
+    writer.flush()
     benchmarks.foreach(Function.tupled(forFile))
+    writer.close()
 }
