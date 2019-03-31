@@ -55,7 +55,7 @@ object MachineComparison extends App {
     
     object Prelude extends Enumeration {
         type Prelude = Value
-        val lock, none = Value
+        val lock, list, none = Value
     }
     
     import Prelude._
@@ -105,6 +105,17 @@ object MachineComparison extends App {
           |(define (t/release lock)
           |  (reset! lock #f))""".stripMargin
     
+    val listPrelude: String =
+        """(define (map f l)
+          |  (if (null? l)
+          |      '()
+          |      (cons (f (car l))
+          |            (map f (cdr l)))))
+          |(define (for-each f l)
+          |  (if (not (null? l))
+          |      (begin (f (car l))
+          |             (for-each f (cdr l)))))""".stripMargin
+    
     /* **** Experiment implementation **** */
     
     def forFile(file: String, atPrelude: Prelude): Unit = {
@@ -114,6 +125,7 @@ object MachineComparison extends App {
             // Add the necessary preludes to the file contents.
             val content: String = StandardPrelude.atomlangPrelude ++ (atPrelude match {
                     case Prelude.lock => lockPrelude
+                    case Prelude.list => listPrelude
                     case Prelude.none => ""
                 }) ++ f.getLines.mkString("\n")
             f.close()
@@ -130,11 +142,11 @@ object MachineComparison extends App {
     
                     println(s"\nTime:\t$meantime\nStates:\t$meanstat")
                 } catch {
-                    case e: Throwable => println(e.getStackTrace)
+                    case e: Throwable => e.printStackTrace()
                 }
             }
         } catch {
-            case e: Throwable => println(e.getStackTrace)
+            case e: Throwable => e.printStackTrace()
         }
     }
     
@@ -171,14 +183,14 @@ object MachineComparison extends App {
         val states = if (num) statistics.map(_._2).head else List.fill(startup + iterations)(-1)
         val line = List(name, machine, states) ++ times
         try {
-            writer.writeNext(line.mkString(", "))
+            writer.writeNext(line.mkString(","))
             writer.flush()
         } catch {
-            case e : Throwable => println(e.getStackTrace)
+            case e : Throwable => e.printStackTrace()
         }
     }
     
-    writer.writeNext(fields.mkString(", "))
+    writer.writeNext(fields.mkString(","))
     writer.flush()
     benchmarks.foreach(Function.tupled(forFile))
     writer.close()

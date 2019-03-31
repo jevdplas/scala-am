@@ -117,7 +117,7 @@ class SExpLexer extends Lexical with SExpTokens {
 
   /* R5RS: Tokens which require implicit termination (identifiers, numbers, characters, and dot) may be terminated by any <delimiter>, but not necessarily by anything else.  */
   def delimiter: Parser[Unit] =
-    (whitespaceChar | eol | eoi | chr(')') | chr(')') | chr('\"') | chr(';')) ^^ (_ => ())
+    (whitespaceChar | eol | eoi | chr('(') | chr(')') | chr('\"') | chr(';')) ^^ (_ => ())
 
   def boolean: Parser[SExpToken] =
     '#' ~> ('t' ^^^ TBoolean(true) | 'f' ^^^ TBoolean(false))

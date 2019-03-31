@@ -1,5 +1,15 @@
 ; Inspired by the slidedeck of the course "Multicore Programming" (2017-2018) - Chapter 6.
 
+(define (map f l)
+ (if (null? l)
+  '()
+  (cons (f (car l))
+   (map f (cdr l)))))
+(define (for-each f l)
+ (if (not (null? l))
+  (begin (f (car l))
+         (for-each f (cdr l)))))
+
 (define (new-list-with-length) (atom (cons '() 0)))
 (define (app lwl e)
  (let ((lst (car lwl))
@@ -7,7 +17,7 @@
   (cons (cons e lst)
    (+ cnt 1))))
 (define (append atm e)
- (swap! atm app e))
+ (swap! atm (lambda (x) (app x e))))
 
 (define (add-lst atm l)
  (for-each (lambda (i) (append atm i))
@@ -28,4 +38,4 @@
 (and
  (= 20 (length (car (read a))))
  (= 20 (cdr (read a)))
- (not (member # f (map (lambda (e) (= (count e (car (read a))) 1)) (append l1 l2)))))
+ (not (member #f (map (lambda (e) (= (count e (car (read a))) 1)) (append l1 l2)))))
