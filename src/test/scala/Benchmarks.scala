@@ -69,7 +69,7 @@ object Benchmarks {
     import BenchmarkTestKind._
     
     val schemeBenchmarks = List(
-        Benchmark("test/Scheme/ad/abstrct.scm", ValueBoolean(true), except(run /* vectors */)),
+        Benchmark("test/Scheme/ad/abstrct.scm", ValueBoolean(true), all),
         Benchmark("test/Scheme/ad/bfirst.scm", ValueBoolean(true), none), // dot notation
         Benchmark("test/Scheme/ad/bst.scm", ValueBoolean(true), none), // dot notation
         // TODO: ad/btree.scm only contains definition, add a body

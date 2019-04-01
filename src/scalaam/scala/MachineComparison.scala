@@ -36,7 +36,7 @@ object MachineComparison extends App {
     val incMOD = new IncrementalConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val incOPT = new OptimisedIncConcMod[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     
-    val configurations: List[Configuration] = List(("regAAM", regAAM), ("cncMOD", cncMOD), ("incMOD", incMOD), ("incOPT", incOPT))
+    val configurations: List[Configuration] = List(/*("regAAM", regAAM),*/ ("cncMOD", cncMOD), ("incMOD", incMOD), ("incOPT", incOPT))
     val timeout: Int = 10 * 60 // 10 minutes
     
     /* **** Experimental setup **** */
@@ -136,9 +136,9 @@ object MachineComparison extends App {
                     writeStatistics(file, config._1, result)
     
                     val times = result.map(_._1).drop(startup)
-                    val meantime: Double = times.sum / times.length
+                    val meantime: Double = times.sum / Math.min(times.length, 1)
                     val states = result.map(_._2).drop(startup)
-                    val meanstat: Double = (states.sum / states.length).toDouble
+                    val meanstat: Double = (states.sum / Math.min(states.length, 1)).toDouble
     
                     println(s"\nTime:\t$meantime\nStates:\t$meanstat")
                 } catch {
@@ -156,7 +156,7 @@ object MachineComparison extends App {
         
         @scala.annotation.tailrec
         def iterate(n: Int, measurements: List[Measurement]): List[Measurement] = {
-            if (n == 0) return measurements.reverse
+            if (n == 0) return measurements.reverse // Restore the order of the measurements.
             val to = Timeout.seconds(timeout)
             val rs = machine.run[graph.G](program, to)
             val sc = to.time // Seconds passed.

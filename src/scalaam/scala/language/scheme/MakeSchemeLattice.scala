@@ -74,17 +74,15 @@ class MakeSchemeLattice[
   case class Pointer(a: A) extends Value {
     override def toString = "#pointer"
   }
-  /*
-  case class Vec[Addr : Address](size: I, elements: Map[I, Addr], init: Addr) extends Value {
+  
+  case class Vec(size: I, elements: Map[I, L], init: L) extends Value {
     override def toString = {
       val els = elements.toList.map({
-        case (k, v) => s"${IntLattice[I].shows(k)}: $v"
+        case (k, v) => s"$k: $v"
       }).mkString(", ")
-      s"Vec(${IntLattice[I].shows(size)}, {$els}, $init)"
+      s"Vec(size: $size, elems: {$els}, init: $init)"
     }
   }
-  case class VectorAddress[Addr : Address](a: Addr) extends Value
-   */
 
   /** The injected true value */
   val True = Bool(BoolLattice[B].inject(true))
@@ -105,6 +103,7 @@ class MakeSchemeLattice[
       case (_: Int, _: Int)    => true
       case (_: Real, _: Real)  => true
       case (_: Char, _: Char)  => true
+      case (_: Vec, _: Vec)    => true
       case _                   => false
     }
 
@@ -118,6 +117,7 @@ class MakeSchemeLattice[
         case (Int(i1), Int(i2))   => Right(Int(IntLattice[I].join(i1, i2)))
         case (Real(f1), Real(f2)) => Right(Real(RealLattice[R].join(f1, f2)))
         case (Char(c1), Char(c2)) => Right(Char(CharLattice[C].join(c1, c2)))
+        /* TODO: join cons, vectors */
         case _                    => Left((x, y))
       }
     }
@@ -157,59 +157,58 @@ class MakeSchemeLattice[
             })
           case IsCons =>
             MayFail.success(x match {
-              case Cons(_, _) => True
-              case _          => False
+              case _: Cons => True
+              case _       => False
             })
           case IsPointer =>
             MayFail.success(x match {
-              case Pointer(_) => True
+              case _: Pointer => True
               case _          => False
             })
           case IsChar =>
             MayFail.success(x match {
-              case Char(_) => True
+              case _: Char => True
               case _       => False
             })
           case IsSymbol =>
             MayFail.success(x match {
-              case Symbol(_) => True
+              case _: Symbol => True
               case _         => False
             })
           case IsString =>
             MayFail.success(x match {
-              case Str(_) => True
+              case _: Str => True
               case _      => False
             })
           case IsInteger =>
             MayFail.success(x match {
-              case Int(_) => True
+              case _: Int => True
               case _      => False
             })
           case IsReal =>
             MayFail.success(x match {
-              case Real(_) => True
+              case _: Real => True
               case _       => False
             })
           case IsBoolean =>
             MayFail.success(x match {
-              case Bool(_) => True
+              case _: Bool => True
               case _       => False
             })
           case IsAtom =>
             MayFail.success(x match {
-              case Atom(_) => True
+              case _: Atom => True
               case _       => False
             })
           case IsFuture =>
             MayFailSuccess(x match {
-              case Future(_) => True
+              case _: Future => True
               case _         => False
             })
           case IsVector =>
             MayFail.success(x match {
-              //        case Vec(_, _, _) => True
-              //        case VectorAddress(_) => True
-              case _ => False
+              case _: Vec => True
+              case _      => False
             })
           case Not =>
             MayFail.success(x match {
@@ -290,8 +289,8 @@ class MakeSchemeLattice[
             }
           case VectorLength =>
             x match {
-              //        case Vec(size, _, _) => Int(size)
-              case _ => MayFail.failure(OperatorNotApplicable("vector-length", List(x)))
+              case Vec(size, _, _) => MayFail.success(Int(size))
+              case _               => MayFail.failure(OperatorNotApplicable("vector-length", List(x)))
             }
           case StringLength =>
             x match {
@@ -417,12 +416,13 @@ class MakeSchemeLattice[
               case (Symbol(s1), Symbol(s2)) => Bool(SymbolLattice[Sym].eql(s1, s2))
               case (Nil, Nil)               => True
               case (Prim(_), Prim(_))       => Bool(BoolLattice[B].inject(x == y))
-              case (Clo(_, _), Clo(_, _))   => Bool(BoolLattice[B].inject(x == y))
-              case (Cons(_, _), Cons(_, _)) => Bool(BoolLattice[B].inject(x == y))
-              case (Atom(_), Atom(_))       => Bool(BoolLattice[B].inject(x == y))
-              case (Future(_), Future(_))   => Bool(BoolLattice[B].inject(x == y))
-              //          case (VectorAddress(_), VectorAddress(_)) => Bool(BoolLattice[B].inject(x == y))
-              case _ => False
+              case (_: Atom, _: Atom)       => Bool(BoolLattice[B].inject(x == y))
+              case (_: Future, _: Future)   => Bool(BoolLattice[B].inject(x == y))
+              case (_: Clo, _: Clo)         => Bool(BoolLattice[B].inject(x == y))
+              case (_: Cons, _: Cons)       => Bool(BoolLattice[B].inject(x == y))
+              case (_: Vec, _: Vec)         => Bool(BoolLattice[B].inject(x == y))
+              case (_: Pointer, _: Pointer) => Bool(BoolLattice[B].top) /* we can't know for sure that equal addresses are eq (in the abstract) */
+              case _                        => False
             })
           case StringAppend =>
             (x, y) match {
@@ -483,50 +483,39 @@ class MakeSchemeLattice[
       case Atom(data)  => MayFail.success(data)
       case _           => MayFail.failure(TypeError("Expecting atom to dereference.", x))
     }
-    /*
-    def vectorRef[Addr : Address](vector: Value, index: Value): MayFail[Set[Addr]] = (vector, index) match {
-      case (Vec(size, content: Map[I, Addr] @unchecked, init: Addr @unchecked), Int(index)) => {
+    def vectorRef(vector: Value, index: Value): MayFail[L, Error] = (vector, index) match {
+      case (Vec(size, content, init), Int(index)) => {
         val comp = IntLattice[I].lt(index, size)
-        val t: Set[Addr] = if (BoolLattice[B].isTrue(comp)) {
+        val t: L = if (BoolLattice[B].isTrue(comp)) {
           val vals = content.filterKeys(index2 => BoolLattice[B].isTrue(IntLattice[I].eql(index, index2))).values
-          /* init doesn't have to be included if we know for sure that index is precise enough */
-          vals.foldLeft(Set(init))((acc, v) => acc + v)
-        } else { Set() }
+          /* XXX: init doesn't have to be included if we know for sure that index is precise enough */
+          vals.foldLeft(init)((acc, v) => schemeLattice.join(acc, v))
+        } else { schemeLattice.bottom }
         /* Don't perform bound checks here because we would get too many spurious flows */
-        val f: Set[Addr] = Set()
-        MayFailSuccess(t ++ f)
+        val f: L = schemeLattice.bottom
+        MayFail.success(schemeLattice.join(t, f))
       }
-      case (_: Vec[Addr] @unchecked, _) => MayFailError(List(OperatorNotApplicable("vector-ref", List(vector, index))))
-      case _ => MayFailError(List(OperatorNotApplicable("vector-ref", List(vector, index))))
+      case (_: Vec, _) => MayFail.failure(TypeError("expecting int to access vector", index))
+      case _ => MayFail.failure(TypeError("vector-ref: expecting vector", vector))
     }
-
-    def vectorSet[Addr : Address](vector: Value, index: Value, addr: Addr): MayFail[(Value, Set[Addr])] = (vector, index) match {
-      case (Vec(size, content: Map[I, Addr] @unchecked, init: Addr @unchecked), Int(index)) => {
+  
+    def vectorSet(vector: Value, index: Value, newval: L): MayFail[L, Error] = (vector, index) match {
+      case (Vec(size, content, init), Int(index)) => {
         val comp = IntLattice[I].lt(index, size)
-        val t: (Value, Set[Addr]) = if (BoolLattice[B].isTrue(comp)) {
-          content.get(index) match {
-            case Some(a: Addr @unchecked) => (vector, Set(a))
-            case None => (Vec(size, content + (index -> addr), init), Set(addr))
-          }
-        } else { (Bot, Set()) }
-        val f: (Value, Set[Addr]) = (Bot, Set())
-        MayFailSuccess((join(t._1, f._1), t._2 ++ f._2))
+        val t: L = if (BoolLattice[B].isTrue(comp)) {
+          Element(Vec(size, content + (index -> schemeLattice.join(content.get(index).getOrElse(schemeLattice.bottom), newval)), init))
+        } else { schemeLattice.bottom }
+        val f: L = schemeLattice.bottom
+        MayFail.success(schemeLattice.join(t, f))
       }
-      case (_: Vec[Addr] @unchecked, _) => MayFailError(List(OperatorNotApplicable("vector-set!", List(vector, index, addr))))
-      case _ => MayFailError(List(OperatorNotApplicable("vector-set!", List(vector, index, addr))))
+      case (_: Vec, _) => MayFail.failure(TypeError("expecting int to set vector", index))
+      case _ => MayFail.failure(TypeError("vector-set!: expecting vector", vector))
     }
-
-/*    def getVectors[Addr : Address](x: Value) = x match {
-      case VectorAddress(a: Addr @unchecked) => Set(a)
-      case _ => Set()
+  
+    def vector(size: Value, init: L): MayFail[Value, Error] = size match {
+      case Int(size) => MayFail.success(Vec(size, Map[I, L](), init))
+      case _ => MayFail.failure(TypeError("expected int size when constructing vector", size))
     }
-
-    def vector[Addr : Address](addr: Addr, size: Value, init: Addr): MayFail[(Value, Value)] = size match {
-      case Int(size) => MayFailSuccess((VectorAddress(addr), Vec(size, Map[I, Addr](), init)))
-      case _ => MayFailError(List(OperatorNotApplicable("vector", List(addr, size, init))))
-    }
-   */
-   */
   }
 
   sealed trait L extends SmartHash {
@@ -601,20 +590,17 @@ class MakeSchemeLattice[
     def cdr(x: L) = x.foldMapL(Value.cdr(_))
     def deref(x: L) = x.foldMapL(Value.deref(_))
     def top: L    = throw LatticeTopUndefined
-
-    /*
-    def vectorRef[Addr : Address](vector: L, index: L): MayFail[Set[Addr]] = foldMapL(vector, vector => foldMapL(index, index =>
-      valueSchemeLattice.vectorRef(vector, index)))
-    def vectorSet[Addr : Address](vector: L, index: L, addr: Addr): MayFail[(L, Set[Addr])] = foldMapL(vector, vector => foldMapL(index, index =>
-      valueSchemeLattice.vectorSet(vector, index, addr).map({ case (v, addrs) => (wrap(v), addrs) })))
-     */
+  
+    def vectorRef(vector: L, index: L): MayFail[L, Error] =
+      vector.foldMapL(vec => index.foldMapL(i => Value.vectorRef(vec, i)))
+    def vectorSet(vector: L, index: L, newval: L): MayFail[L, Error] =
+      vector.foldMapL(vec => index.foldMapL(i => Value.vectorSet(vec, i, newval)))
 
     def getClosures(x: L): Set[Closure] = x.foldMapL(x => Value.getClosures(x))(setMonoid)
     def getPrimitives[Primitive](x: L): Set[Primitive] =
       x.foldMapL(x => Value.getPrimitives[Primitive](x))(setMonoid)
     def getPointerAddresses(x: L): Set[A] = x.foldMapL(x => Value.getPointerAddresses(x))(setMonoid)
     def getFutures(x: L): Set[ThreadIdentifier] = x.foldMapL(x => Value.getFutures(x))(setMonoid)
-//    def getVectors[Addr : Address](x: L): Set[Addr] = foldMapL(x, x => valueSchemeLattice.getVectors(x))
 
     def bottom: L                             = Element(Value.bottom)
     def number(x: scala.Int): L               = Element(Value.number(x))
@@ -629,10 +615,8 @@ class MakeSchemeLattice[
     def atom(data: L): L                      = Element(Value.atom(data))
     def future(tid: ThreadIdentifier): L      = Element(Value.future(tid))
     def pointer(a: A): L                      = Element(Value.pointer(a))
-    /*
-    def vector[Addr : Address](addr: Addr, size: L, init: Addr): MayFail[(L, L)] = foldMapL(size, size =>
-      valueSchemeLattice.vector(addr, size, init).map({ case (a, v) => (Element(a), Element(v)) }))
-     */
+    def vector(size: L, init: L): MayFail[L, Error] =
+      size.foldMapL(sz => Value.vector(sz, init).map(v => Element(v)))
     def nil: L = Element(Value.nil)
 
     def eql[B2: BoolLattice](x: L, y: L): B2 = ??? // TODO[medium] implement
