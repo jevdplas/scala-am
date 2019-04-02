@@ -187,7 +187,7 @@ object MachineComparison extends App {
             val to = Timeout.seconds(timeout) // Start timer.
             val rs = machine.run[graph.G](program, to) // Run benchmark.
             val sc = to.time // Seconds passed.
-            val re = to.timeout.exists(sc > _) // Check whether timeout has occurred.
+            val re = sc > timeout // Check whether timeout has occurred.
             val st = rs.nodes
             display(n + " ")
             // If a timeout is reached, this will probably be the case for all iterations, so abort.
@@ -207,7 +207,7 @@ object MachineComparison extends App {
         val num = statistics.size == startup + iterations
         // Make sure every line of the csv is equally long.
         val times = if (num) statistics.map(_._1) else List.fill(startup + iterations)(-1)
-        val states = if (num) statistics.map(_._2).head else List.fill(startup + iterations)(-1)
+        val states = if (num) statistics.map(_._2).head else -1
         val line = List(name, machine, states) ++ times
         try {
             writer.writeNext(line.mkString(","))
