@@ -82,7 +82,7 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
                     // Vis cannot be used for caching since it may contain curState. This way, an innerLoop started from curState and vis would stop immediately.
                     val vis = if (store.version != iStateAcc.store.version) Set.empty[State] else iStateAcc.visited + curState
                     // Do not explore a path if it will have to be reanalysed later anyway (because of reading an unanalysed thread's return value).
-                    // Fixme: We are now throwing away ALL successor states, although only some of them may be the result from reading bottom.
+                    // Fixme: We are now throwing away ALL successor states, although only some of them may be the result of reading bottom.
                     // Fixme: Hence, we may be throwing away too many successor states. This may depend on the precision of the thread identifiers, but
                     // Fixme: in the end, we are sure the entire graph is explored indeed, although more iterations of the outer loop may be needed.
                     val suc = if (bottomRead) Set.empty[State] else successors

@@ -4,7 +4,7 @@ import scalaam.graph.{DotGraph, Graph}
 import scalaam.machine.Strategy.Strategy
 import scalaam.machine.{ConcreteMachine, ConcurrentAAM, Strategy}
 
-import scala.machine.{ConcurrentModular, IncrementalConcurrentModular, OptimisedIncConcMod}
+import scala.machine.{ConcurrentModular, ConcurrentModularBottom, IncrementalConcurrentModular, OptimisedIncConcMod}
 
 object Main {
     def main(args: Array[String]): Unit = {
@@ -168,6 +168,51 @@ object AtomlangRunModular {
     val graph = DotGraph[machine.State, machine.Transition]()
     
     def run(file: String, out: String = "AtomlangRunModularResult.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunModular.graph.G = {
+        val f = scala.io.Source.fromFile(file)
+        val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
+        val t0 = System.nanoTime
+        val result = machine.run[graph.G](
+            AtomlangParser.parse(content),
+            timeout)
+        val t1 = System.nanoTime
+        if (timeout.reached) {
+            println("Time out!")
+        } else {
+            println(s"Time: ${(t1 - t0) / 1000000}ms")
+        }
+        f.close()
+        result.toFile(out)
+        import Graph.GraphOps
+        println(s"States: ${result.nodes}")
+        Dot.toImage(out)
+        result
+    }
+}
+
+object AtomlangRunModularBottom {
+    
+    import scalaam.core._
+    import scalaam.graph._
+    import scalaam.language.atomlang._
+    import scalaam.language.scheme._
+    import scalaam.lattice._
+    
+    val address = NameAddress
+    val tid = ConcreteTID
+    val timestamp = ZeroCFA[SchemeExp]()
+    val lattice = new MakeSchemeLattice[SchemeExp,
+        address.A,
+        Type.S,
+        Type.B,
+        Type.I,
+        Type.R,
+        Type.C,
+        Type.Sym]
+    val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
+    val machine = new ConcurrentModularBottom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val graph = DotGraph[machine.State, machine.Transition]()
+    
+    def run(file: String, out: String = "AtomlangRunModularResult.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunModularBottom.graph.G = {
         val f = scala.io.Source.fromFile(file)
         val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
         val t0 = System.nanoTime
