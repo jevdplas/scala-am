@@ -1,11 +1,11 @@
 ;; Example adapted from https://rosettacode.org/wiki/Vigen%C3%A8re_cipher/Cryptanalysis#Racket
 
 (define (integer->char n)
-  (if (bool-top)
+  (if #t
       #\A
       #\B))
 (define (char->integer c)
-  (int-top))
+  42)
 
 (define (range a b)
   (letrec ((loop (lambda (i acc)
@@ -198,8 +198,8 @@
                        (define guess*total (* total (car guess) (car guess)))
                        (cons guess*total (cdr guess)))))
     (extract-best
-     (map (lambda (t) (t/join t))
-          (map  (lambda (i) (t/spawn (local-guess i)))
+     (map (lambda (t) (deref t))
+          (map  (lambda (i) (future (local-guess i)))
                 (range 0 (* max-keylen 2)))))))
 
 (display "Best key found: ")

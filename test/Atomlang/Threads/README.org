@@ -9,9 +9,6 @@ Benchmarks easily modifiable to use futures instead of threads:
 Benchmarks modified to use futures instead of threads:
     bchain, count, dekker, fact, mcarlo, mceval, minimax, msort, pc, pp, rng, stm, sudoku
 
-Benchmarks using vectors (currently not supported):
-    abp, crypt, life, matmul, nbody, phil, phild, pp, pps, qsort, ringbuf, sieve, trapr, tsp
-
 Benchmarks now using lists instead of vectors:
     bchain, pp, sudoku
 

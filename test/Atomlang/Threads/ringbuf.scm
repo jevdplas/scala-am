@@ -18,36 +18,36 @@
 
 (define (ring-buf size)
   ;; The buffer
-  (define buffer (build-vector size (t/ref 0) (lambda (i) (t/ref 0))))
+  (define buffer (build-vector size (atom 0) (lambda (i) (atom 0))))
   ;; The read pointer
-  (define read (t/ref 0))
+  (define read (atom 0))
   ;; The write pointer
-  (define write (t/ref 0))
+  (define write (atom 0))
   ;; Number of elements in the buffer
-  (define nelems (t/ref 0))
+  (define nelems (atom 0))
   ;; Lock protecting the buffer
   (define lock (t/new-lock))
   ;; Push a value in the buffer
   (define (push v)
     (t/acquire lock)
-    (t/ref-set (vector-ref buffer (modulo (t/deref write) size)) v)
-    (t/ref-set write (+ (t/deref write) 1))
-    (t/ref-set nelems (+ (t/deref nelems) 1))
+    (reset! (vector-ref buffer (modulo (read write) size)) v)
+    (reset! write (+ (read write) 1))
+    (reset! nelems (+ (read nelems) 1))
     (t/release lock))
   ;; Pop a value from the buffer
   (define (pop)
     (t/acquire lock)
-    (let ((v (t/deref (vector-ref buffer (modulo (t/deref read) size)))))
-      (t/ref-set read (+ (t/deref read) 1))
-      (t/ref-set nelems (- (t/deref nelems) 1))
+    (let ((v (read (vector-ref buffer (modulo (read read) size)))))
+      (reset! read (+ (read read) 1))
+      (reset! nelems (- (read nelems) 1))
       (t/release lock)
       v))
-  (list push pop (lambda () (t/deref nelems))))
+  (list push pop (lambda () (read nelems))))
 
-(define NWR (int-top))
-(define NRD (int-top))
-(define Iterations (int-top))
-(define Size (int-top))
+(define NWR 42)
+(define NRD 42)
+(define Iterations 42)
+(define Size 42)
 (define (do-n n f)
   (if (= n 0)
       '()
@@ -66,7 +66,7 @@
                                       (begin
                                         (buf-push (random 100))
                                         (loop (+ i 1)))))))
-                   (t/spawn (loop 0))))))
+                   (future (loop 0))))))
 
 (define rthreads
   (do-n NRD (lambda ()
@@ -77,10 +77,10 @@
                                         (display (buf-pop))
                                         (newline)
                                         (loop (+ i 1)))))))
-                   (t/spawn (loop 0))))))
+                   (future (loop 0))))))
 
-(map (lambda (t) (t/join t)) wthreads)
-(map (lambda (t) (t/join t)) rthreads)
+(map (lambda (t) (deref t)) wthreads)
+(map (lambda (t) (deref t)) rthreads)
 (if (= NWR NRD)
     (= (buf-size) 0)
     #t)

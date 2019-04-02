@@ -6,7 +6,7 @@
           '()
           (error "map applied to a non-list"))))
 
-(define N (+ (int-top) 10))
+(define N (+ 42 10))
 (define (range from to)
   (if (= from to)
       (cons from '())

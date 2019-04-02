@@ -72,7 +72,7 @@
                                     (apply-proc (car exp) (cdr exp) env)))))))
               (error "unknown expression")))))
 
-(define N (int-top))
+(define N 42)
 (define initial-environment
   (list (cons 'n N)
         (cons '+ +)

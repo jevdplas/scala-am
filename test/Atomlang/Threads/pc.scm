@@ -6,8 +6,8 @@
           (error "map applied to a non-list"))))
 
 ;; Producer-consumer problem
-(define N (+ 10 (int-top)))
-(define NCONS (int-top))
+(define N (+ 10 42))
+(define NCONS 42)
 (define buffer (atom '()))
 (define done (atom #f))
 (define lock (t/new-lock))

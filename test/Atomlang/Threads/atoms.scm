@@ -18,15 +18,15 @@
     (foldl-aux base lst)))
 
 ;(define (atom v)
-;  (cons (t/ref v)
+;  (cons (atom v)
 ;        (t/new-lock)))
 
 ;(define (atom-deref a)
-;  (t/deref (car a)))
+;  (read (car a)))
 
 ;(define (atom-swap! a f)
 ;  (t/acquire (cdr a))
-;  (t/ref-set (car a) (f (t/deref (car a))))
+;  (reset! (car a) (f (read (car a))))
 ;  (t/release (cdr a)))
 
 (define (memoize f)
@@ -52,7 +52,7 @@
                                 (+ (mem-fib2 (- n 1)) (mem-fib2 (- n 2)))))))
 
 
-(define N (int-top))
+(define N 42)
 
 (define (do-n n f)
   (letrec ((loop (lambda (i acc)
@@ -61,7 +61,7 @@
                        (loop (+ i 1) (cons (f i) acc))))))
     (loop 0 '())))
 
-(define threads (do-n N (lambda (i) (t/spawn (= (mem-fib i) (mem-fib2 i))))))
+(define threads (do-n N (lambda (i) (future (= (mem-fib i) (mem-fib2 i))))))
 
 (foldl (lambda (a b) (and a b)) #t
-       (map (lambda (t) (t/join t)) threads))
+       (map (lambda (t) (deref t)) threads))

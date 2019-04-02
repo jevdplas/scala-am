@@ -6,8 +6,8 @@
           '()
           (error "map applied to a non-list"))))
 
-(define N (+ 1 (int-top)))
-(define Iterations (int-top))
+(define N (+ 1 42))
+(define Iterations 42)
 (define (prev-id id)
   (if (= id 0)
       (- N 1)

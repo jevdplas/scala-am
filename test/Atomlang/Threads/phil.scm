@@ -6,8 +6,8 @@
           '()
           (error "map applied to a non-list"))))
 
-(define N (int-top))
-(define Turns (int-top))
+(define N 42)
+(define Turns 42)
 (define (build-vector n init f)
   (letrec ((v (make-vector n init))
            (loop (lambda (i)
@@ -43,6 +43,6 @@
                        (loop (+ i 1) (cons (f i) acc))))))
     (loop 0 '())))
 
-(define philosophers (do-n N (lambda (i) (t/spawn (philosopher i)))))
+(define philosophers (do-n N (lambda (i) (future (philosopher i)))))
 ;; Wait until the end
-(map (lambda (t) (t/join t)) philosophers)
+(map (lambda (t) (deref t)) philosophers)

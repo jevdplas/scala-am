@@ -16,7 +16,7 @@
 
     (foldl-aux base lst)))
 
-(define N (+ 1 (int-top)))
+(define N (+ 1 42))
 (define FragmentSize 10)
 
 (define (split from to)

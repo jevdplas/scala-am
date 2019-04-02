@@ -13,23 +13,23 @@
 
 (define *dt* 0.01)
 
-(define (make-body x y z vx vy vz mass) (list (t/ref x) (t/ref y) (t/ref z)
-                                              (t/ref vx) (t/ref vy) (t/ref vz)
-                                              (t/ref mass)))
-(define (body-x b) (t/deref (car b)))
-(define (set-body-x! b v) (t/ref-set (car b) v))
-(define (body-y b) (t/deref (cadr b)))
-(define (set-body-y! b v) (t/ref-set (cadr b) v))
-(define (body-z b) (t/deref (caddr b)))
-(define (set-body-z! b v) (t/ref-set (caddr b) v))
-(define (body-vx b) (t/deref (cadr (cddr b))))
-(define (set-body-vx! b v) (t/ref-set (cadddr b) v))
-(define (body-vy b) (t/deref (cadr (cdddr b))))
-(define (set-body-vy! b v) (t/ref-set (cadr (cdddr b)) v))
-(define (body-vz b) (t/deref (caddr (cdddr b))))
-(define (set-body-vz! b v) (t/ref-set (caddr (cdddr b)) v))
-(define (body-mass b) (t/deref (cadddr (cdddr b))))
-(define (set-body-mass! b v) (t/ref-set (cadddr (cdddr b)) v))
+(define (make-body x y z vx vy vz mass) (list (atom x) (atom y) (atom z)
+                                              (atom vx) (atom vy) (atom vz)
+                                              (atom mass)))
+(define (body-x b) (read (car b)))
+(define (set-body-x! b v) (reset! (car b) v))
+(define (body-y b) (read (cadr b)))
+(define (set-body-y! b v) (reset! (cadr b) v))
+(define (body-z b) (read (caddr b)))
+(define (set-body-z! b v) (reset! (caddr b) v))
+(define (body-vx b) (read (cadr (cddr b))))
+(define (set-body-vx! b v) (reset! (cadddr b) v))
+(define (body-vy b) (read (cadr (cdddr b))))
+(define (set-body-vy! b v) (reset! (cadr (cdddr b)) v))
+(define (body-vz b) (read (caddr (cdddr b))))
+(define (set-body-vz! b v) (reset! (caddr (cdddr b)) v))
+(define (body-mass b) (read (cadddr (cdddr b))))
+(define (set-body-mass! b v) (reset! (cadddr (cdddr b)) v))
 
 (define *sun*
   (make-body 0.0 0.0 0.0 0.0 0.0 0.0 *solar-mass*))
@@ -116,8 +116,8 @@
                        (loop (- i 1) (cons i acc))))))
     (loop n '())))
 (define (for-each-parallel f l)
-  (let ((ts (map (lambda (x) (t/spawn (f x))) l)))
-    (map (lambda (t) (t/join t)) ts)))
+  (let ((ts (map (lambda (x) (future (f x))) l)))
+    (map (lambda (t) (deref t)) ts)))
 
 (define (advance)
   (for-each-parallel
@@ -156,7 +156,7 @@
 
 ;; -------------------------------
 
-(define N (int-top))
+(define N 42)
 (offset-momentum)
 (display (energy)) (newline)
 (map (lambda (i) (advance)) (range N))

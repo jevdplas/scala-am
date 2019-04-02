@@ -1,5 +1,5 @@
 ;; Benchmark that compare recursive concurrent matrix multiplication with naive sequential matrix multiplication
-(define N (expt 2 (int-top)))
+(define N (expt 2 42))
 (define (build-vector n init f)
   (letrec ((v (make-vector n init))
            (loop (lambda (i)
@@ -62,11 +62,11 @@
              (B12 (cadr B-sub))
              (B21 (caddr B-sub))
              (B22 (cadddr B-sub))
-             (C11t (t/spawn (matrix+ (matrix-multiply A11 B11) (matrix-multiply A12 B21))))
-             (C12t (t/spawn (matrix+ (matrix-multiply A11 B12) (matrix-multiply A12 B22))))
-             (C21t (t/spawn (matrix+ (matrix-multiply A21 B11) (matrix-multiply A22 B21))))
-             (C22t (t/spawn (matrix+ (matrix-multiply A21 B12) (matrix-multiply A22 B22)))))
-        (combine-matrices (vector-length A) (t/join C11t) (t/join C12t) (t/join C21t) (t/join C22t)))))
+             (C11t (future (matrix+ (matrix-multiply A11 B11) (matrix-multiply A12 B21))))
+             (C12t (future (matrix+ (matrix-multiply A11 B12) (matrix-multiply A12 B22))))
+             (C21t (future (matrix+ (matrix-multiply A21 B11) (matrix-multiply A22 B21))))
+             (C22t (future (matrix+ (matrix-multiply A21 B12) (matrix-multiply A22 B22)))))
+        (combine-matrices (vector-length A) (deref C11t) (deref C12t) (deref C21t) (deref C22t)))))
 
 (define (matrix-multiply-seq A B)
   (let* ((n (vector-length A))

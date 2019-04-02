@@ -46,9 +46,9 @@
 (define (new-cell)
   (list
    ;; New content of the cell
-   (t/ref #f)
+   (atom #f)
    ;; Current cell content
-   (t/ref (random-bool))
+   (atom (random-bool))
    ;; Lock protecting this cell
    (t/new-lock)))
 (define *field*
@@ -59,7 +59,7 @@
 (define (display-field)
   (for-each (lambda (i)
               (for-each (lambda (j)
-                          (if (t/deref (cadr (field-ref i j)))
+                          (if (read  (cadr (field-ref i j)))
                               (display "x ")
                               (display "  ")))
                         (range 0 N))
@@ -67,7 +67,7 @@
             (range 0 N))
   (newline))
 
-(define *current-step* (t/ref 0))
+(define *current-step* (atom 0))
 
 (define (field-ref i j)
   (vector-ref (vector-ref *field* i) j))
@@ -77,7 +77,7 @@
         (old (cadr cell))
         (new (car cell)))
     (t/acquire lock)
-    (t/ref-set old (t/deref new))
+    (reset! old (read new))
     (t/release lock)))
 
 (define (game-of-life-new-step)
@@ -90,7 +90,7 @@
 (define (cell-alive? i j)
   (if (and (>= i 0) (>= j 0) (< i N) (< j N))
       (let* ((cell (field-ref i j))
-             (v (t/deref (cadr cell))))
+             (v (read  (cadr cell))))
         v)
       #f))
 
@@ -111,7 +111,7 @@
          (ref (car cell))
          (lock (caddr cell)))
     (t/acquire lock)
-    (t/ref-set ref #t)
+    (reset! ref #t)
     (t/release lock)))
 
 (define (cell-die i j)
@@ -119,7 +119,7 @@
          (ref (car cell))
          (lock (caddr cell)))
     (t/acquire lock)
-    (t/ref-set ref #f)
+    (reset! ref #f)
     (t/release lock)))
 
 (define (game-of-life-thread fromx tox fromy toy)
@@ -151,11 +151,11 @@
 
 (define (game-of-life-threads)
   (let ((thread-bounds (split-threads 0 N 0 N MAXTHREADSIZE)))
-    (map (lambda (bound) (t/spawn (game-of-life-thread (car bound) (cadr bound) (caddr bound) (cadddr bound)))) thread-bounds)))
+    (map (lambda (bound) (future (game-of-life-thread (car bound) (cadr bound) (caddr bound) (cadddr bound)))) thread-bounds)))
 
 (define (game-of-life-whole-step)
   (let ((threads (game-of-life-threads)))
-    (map (lambda (t) (t/join t)) threads)
+    (map (lambda (t) (deref t)) threads)
     (game-of-life-new-step)))
 
 (define (game-of-life iterations)

@@ -7,20 +7,20 @@
 
 (define (counter)
   (let ((lock (t/new-lock))
-        (state (t/ref 0)))
+        (state (atom 0)))
     (lambda (op)
       (if (equal? op 'inc)
           (begin
             (t/acquire lock)
-            (t/ref-set state (+ (t/deref state) 1))
+            (reset! state (+ (read state) 1))
             (t/release lock))
           (if (equal? op 'dec)
               (begin
                 (t/acquire lock)
-                (t/ref-set state (- (t/deref state) 1))
+                (reset! state (- (read state) 1))
                 (t/release lock))
               (if (equal? op 'get)
-                  (t/deref state)
+                  (read state)
                   (error "unknown operation")))))))
 
 (define (thread cnt ops)
@@ -34,7 +34,7 @@
                 (cnt 'get)))
         (thread cnt (- ops 1)))))
 
-(define NOPS (int-top))
+(define NOPS 42)
 (define (create-threads cnt n)
   (letrec ((loop (lambda (i acc)
                    (if (= i n)
@@ -42,7 +42,7 @@
                        (loop (+ i 1) (cons (future (thread cnt NOPS)) acc))))))
     (loop 0 '())))
 
-(define N (int-top))
+(define N 42)
 (define cnt (counter))
 (map (lambda (t) (deref t))
      (create-threads cnt N))

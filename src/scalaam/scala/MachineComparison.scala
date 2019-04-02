@@ -26,6 +26,7 @@ object MachineComparison extends App {
     val address   = NameAddress
     val tid       = ConcreteTID
     val timestamp = ZeroCFA[SchemeExp]()
+    // Need to use type lattice since replaced (int-top) and (bool-top)by constant values (42 and #t).
     val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Type.S,  Type.B, Type.I, Type.R, Type.C, Type.Sym]
     val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
     
@@ -77,21 +78,34 @@ object MachineComparison extends App {
         ("./test/Atomlang/Concurrent/lastzero2.scm",     none),
         
         // More complex programs that are more suitable for benchmarking.
+        ("./test/Atomlang/Threads/abp.scm",              lock),
         ("./test/Atomlang/Threads/atoms.scm",            none),
         ("./test/Atomlang/Threads/actors.scm",           lock),
         ("./test/Atomlang/Threads/bchain.scm",           lock),
         ("./test/Atomlang/Threads/count.scm",            lock),
+        ("./test/Atomlang/Threads/crypt.scm",            none),
         ("./test/Atomlang/Threads/dekker.scm",           none),
         ("./test/Atomlang/Threads/fact.scm",             lock),
+        ("./test/Atomlang/Threads/life.scm",             lock),
+        ("./test/Atomlang/Threads/matmul.scm",           none),
         ("./test/Atomlang/Threads/mcarlo.scm",           none),
         ("./test/Atomlang/Threads/mceval.scm",           none),
         ("./test/Atomlang/Threads/minimax.scm",          none),
         ("./test/Atomlang/Threads/msort.scm",            none),
+        ("./test/Atomlang/Threads/nbody.scm",            none),
         ("./test/Atomlang/Threads/pc.scm",               lock),
+        ("./test/Atomlang/Threads/phil.scm",             lock),
+        ("./test/Atomlang/Threads/phild.scm",            lock),
         ("./test/Atomlang/Threads/pp.scm",               lock),
+        ("./test/Atomlang/Threads/pps.scm",              none),
+        ("./test/Atomlang/Threads/qsort.scm",            none),
+        ("./test/Atomlang/Threads/ringbuf.scm",          lock),
         ("./test/Atomlang/Threads/rng.scm",              lock),
+        ("./test/Atomlang/Threads/sieve.scm",            none),
         ("./test/Atomlang/Threads/stm.scm",              lock),
         ("./test/Atomlang/Threads/sudoku.scm",           none),
+        ("./test/Atomlang/Threads/trapr.scm",            none),
+        ("./test/Atomlang/Threads/tsp.scm",              none),
     )
     
     val lockPrelude: String =

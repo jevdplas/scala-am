@@ -17,10 +17,10 @@
 
     (foldl-aux base lst)))
 
-(define NumWorkers (int-top))
-(define Precision (+ 10 (int-top)))
+(define NumWorkers 42)
+(define Precision (+ 10 42))
 (define L 0.)
-(define R (* 1. (+ 100 (int-top))))
+(define R (* 1. (+ 100 42)))
 
 (define (exp x)
   (expt 2.718281828459045 x))
@@ -65,9 +65,9 @@
                          acc
                          (let* ((wl (+ (* range i) l))
                                 (wr (+ wl range)))
-                           (loop (+ i 1) (cons (t/spawn (worker wl wr h)) acc)))))))
+                           (loop (+ i 1) (cons (future (worker wl wr h)) acc)))))))
       (let* ((threads (loop 0 '()))
-             (results (map (lambda (t) (t/join t)) threads))
+             (results (map (lambda (t) (deref t)) threads))
              (result (foldl + 0 results)))
         result))))
 
