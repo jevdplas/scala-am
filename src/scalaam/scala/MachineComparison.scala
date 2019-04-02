@@ -162,9 +162,9 @@ object MachineComparison extends App {
                     writeStatistics(file, config._1, result)
     
                     val times = result.map(_._1).drop(startup)
-                    val meantime: Double = times.sum / Math.min(times.length, 1)
+                    val meantime: Double = times.sum / Math.max(times.length, 1)
                     val states = result.map(_._2).drop(startup)
-                    val meanstat: Double = (states.sum / Math.min(states.length, 1)).toDouble
+                    val meanstat: Double = (states.sum / Math.max(states.length, 1)).toDouble
     
                     display(s"\nTime:\t$meantime\nStates:\t$meanstat\n")
                 } catch {
