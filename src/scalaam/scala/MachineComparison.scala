@@ -63,21 +63,24 @@ object MachineComparison extends App {
     
     // List of benchmarks with the required prelude (none means only the standard prelude).
     val benchmarks: List[(String, Prelude)] = List(
+        
         // Mostly very simple programs (used to test the functioning of the machine).
-        ("./test/Atomlang/atomicInt.scm",                none),
-        ("./test/Atomlang/future-swap.scm",              none),
-        ("./test/Atomlang/futurecomplexbody.scm",        none),
-        ("./test/Atomlang/list-with-length.scm",         none),
-        ("./test/Atomlang/simplefuture.scm",             none),
-        ("./test/Atomlang/treiber-stack.scm",            none),
+        
+        //("./test/Atomlang/atomicInt.scm",                none),
+        //("./test/Atomlang/future-swap.scm",              none),
+        //("./test/Atomlang/futurecomplexbody.scm",        none),
+        //("./test/Atomlang/list-with-length.scm",         none),
+        //("./test/Atomlang/simplefuture.scm",             none),
+        //("./test/Atomlang/treiber-stack.scm",            none),
     
-        ("./test/Atomlang/Concurrent/simple.scm",        none),
-        ("./test/Atomlang/Concurrent/fact2.scm",         none),
-        ("./test/Atomlang/Concurrent/fact-indep.scm",    none),
-        ("./test/Atomlang/Concurrent/readers2.scm",      none),
-        ("./test/Atomlang/Concurrent/lastzero2.scm",     none),
+        //("./test/Atomlang/Concurrent/simple.scm",        none),
+        //("./test/Atomlang/Concurrent/fact2.scm",         none),
+        //("./test/Atomlang/Concurrent/fact-indep.scm",    none),
+        //("./test/Atomlang/Concurrent/readers2.scm",      none),
+        //("./test/Atomlang/Concurrent/lastzero2.scm",     none),
         
         // More complex programs that are more suitable for benchmarking.
+        
         ("./test/Atomlang/Threads/abp.scm",              lock),
         ("./test/Atomlang/Threads/atoms.scm",            none),
         ("./test/Atomlang/Threads/actors.scm",           lock),
@@ -88,6 +91,7 @@ object MachineComparison extends App {
         ("./test/Atomlang/Threads/fact.scm",             lock),
         ("./test/Atomlang/Threads/life.scm",             lock),
         ("./test/Atomlang/Threads/matmul.scm",           none),
+        
         ("./test/Atomlang/Threads/mcarlo.scm",           none),
         ("./test/Atomlang/Threads/mceval.scm",           none),
         ("./test/Atomlang/Threads/minimax.scm",          none),
@@ -98,6 +102,7 @@ object MachineComparison extends App {
         ("./test/Atomlang/Threads/phild.scm",            lock),
         ("./test/Atomlang/Threads/pp.scm",               lock),
         ("./test/Atomlang/Threads/pps.scm",              none),
+        
         ("./test/Atomlang/Threads/qsort.scm",            none),
         ("./test/Atomlang/Threads/ringbuf.scm",          lock),
         ("./test/Atomlang/Threads/rng.scm",              lock),
@@ -108,6 +113,7 @@ object MachineComparison extends App {
         ("./test/Atomlang/Threads/tsp.scm",              none),
     )
     
+    // Lock implementation by means of atoms.
     val lockPrelude: String =
         """(define (t/new-lock)
           |  (atom #f))
@@ -119,6 +125,7 @@ object MachineComparison extends App {
           |(define (t/release lock)
           |  (reset! lock #f))""".stripMargin
     
+    // Implementation of two basic list primitives.
     val listPrelude: String =
         """(define (map f l)
           |  (if (null? l)
@@ -171,10 +178,10 @@ object MachineComparison extends App {
         @scala.annotation.tailrec
         def iterate(n: Int, measurements: List[Measurement]): List[Measurement] = {
             if (n == 0) return measurements.reverse // Restore the order of the measurements.
-            val to = Timeout.seconds(timeout)
-            val rs = machine.run[graph.G](program, to)
+            val to = Timeout.seconds(timeout) // Start timer.
+            val rs = machine.run[graph.G](program, to) // Run benchmark.
             val sc = to.time // Seconds passed.
-            val re = to.timeout.exists(sc > _)
+            val re = to.timeout.exists(sc > _) // Check whether timeout has occurred.
             val st = rs.nodes
             print(n + " ")
             // If a timeout is reached, this will probably be the case for all iterations, so abort.
