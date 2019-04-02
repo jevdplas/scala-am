@@ -212,7 +212,7 @@ object AtomlangRunModularBottom {
     val machine = new ConcurrentModularBottom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]()
     
-    def run(file: String, out: String = "AtomlangRunModularResult.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunModularBottom.graph.G = {
+    def run(file: String, out: String = "AtomlangRunModularBottomResult.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunModularBottom.graph.G = {
         val f = scala.io.Source.fromFile(file)
         val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
         val t0 = System.nanoTime
