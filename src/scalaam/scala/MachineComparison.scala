@@ -10,10 +10,11 @@ import scalaam.machine.ConcurrentAAM
 import scala.core.MachineUtil
 import scala.machine._
 import Graph.GraphOps
-
 import au.com.bytecode.opencsv.CSVWriter
 import java.io.BufferedWriter
 import java.io.FileWriter
+import java.text.SimpleDateFormat
+import java.util.{Calendar, Date}
 
 /**  Contains utilities to compare the different machines. Compares both the runtime and state space size. */
 object MachineComparison extends App {
@@ -42,12 +43,16 @@ object MachineComparison extends App {
     
     /* **** Experimental setup **** */
     
-    val iterations: Int = 30
-    val startup:    Int = 10 // Number of iterations to be dropped.
+    val iterations: Int = 5 // todo 30
+    val startup:    Int = 3 // todo 10 // Number of iterations to be dropped.
     
     /* **** Experimental output **** */
-    val output:       String = "./Results_MachineComparison.csv"
-    val fields: List[String] = List("Benchmark", "Machine", "States") ++ ((1 to startup).map("s" + _) ++ (1 to iterations).map("i" + _)).toList // Field names for the csv file.
+    
+    // Avoid overwriting old results by appending the date and time to the file name.
+    val now:                Date =  Calendar.getInstance().getTime
+    val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
+    val output:           String = "./Results_MachineComparison" + format.format(now) + ".csv"
+    val fields:     List[String] = List("Benchmark", "Machine", "States") ++ ((1 to startup).map("s" + _) ++ (1 to iterations).map("i" + _)).toList // Field names for the csv file.
     
     val    out = new BufferedWriter(new FileWriter(output))
     val writer = new CSVWriter(out)
@@ -140,7 +145,7 @@ object MachineComparison extends App {
     /* **** Experiment implementation **** */
     
     def forFile(file: String, atPrelude: Prelude): Unit = {
-        println("\n***** " + file + " *****")
+        display("\n***** " + file + " *****\n")
         try {
             val f = scala.io.Source.fromFile(file)
             // Add the necessary preludes to the file contents.
@@ -161,7 +166,7 @@ object MachineComparison extends App {
                     val states = result.map(_._2).drop(startup)
                     val meanstat: Double = (states.sum / Math.min(states.length, 1)).toDouble
     
-                    println(s"\nTime:\t$meantime\nStates:\t$meanstat")
+                    display(s"\nTime:\t$meantime\nStates:\t$meanstat\n")
                 } catch {
                     case e: Throwable => e.printStackTrace()
                 }
@@ -183,13 +188,13 @@ object MachineComparison extends App {
             val sc = to.time // Seconds passed.
             val re = to.timeout.exists(sc > _) // Check whether timeout has occurred.
             val st = rs.nodes
-            print(n + " ")
+            display(n + " ")
             // If a timeout is reached, this will probably be the case for all iterations, so abort.
             // Also, do not record the result, since it is only partial.
             if (re) return List((-1, -1))
             iterate(n - 1, (sc, st) +: measurements)
         }
-        print(s"\n${configuration._1} > ")
+        display(s"\n${configuration._1} > ")
         iterate(startup + iterations, List())
     }
     
@@ -211,8 +216,15 @@ object MachineComparison extends App {
         }
     }
     
+    // Avoid output being buffered.
+    def display(data: String): Unit = {
+        print(data)
+        Console.out.flush()
+    }
+    
     writer.writeNext(fields.mkString(","))
     writer.flush()
     benchmarks.foreach(Function.tupled(forFile))
     writer.close()
+    display("\n\n***** Finished *****\n")
 }

@@ -83,5 +83,3 @@
 (define c (future (client 0 server->client server->client-lock client->server client->server-lock 1)))
 (deref s)
 (deref c)
-
-; (t/display-recorded)
