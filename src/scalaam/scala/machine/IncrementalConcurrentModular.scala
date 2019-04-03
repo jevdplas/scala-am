@@ -104,9 +104,9 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
         }
     
         /** Filters out unreachable graph components that may result from invalidating edges. */
-        @scala.annotation.tailrec
+        //@scala.annotation.tailrec
         def findConnectedStates(work: List[State], visited: Set[State], edges: GraphEdges, acc: GraphEdges = List.empty): GraphEdges = {
-            if (work.isEmpty) return acc
+            if (timeout.reached || work.isEmpty) return acc
             if (visited.contains(work.head)) findConnectedStates(work.tail, visited, edges, acc)
             else {
                 val next = edges.filter(e => e._1 == work.head)
