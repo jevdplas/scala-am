@@ -35,17 +35,17 @@ object MachineComparison extends App {
     
     val regAAM = new ConcurrentAAM[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val cncMOD = new ConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
-    val botMOD = new ConcurrentModularBottom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    //val botMOD = new ConcurrentModularBottom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val incMOD = new IncrementalConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val incOPT = new OptimisedIncConcMod[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     
-    val configurations: List[Configuration] = List(/*("regAAM", regAAM),*/ ("cncMOD", cncMOD), ("botMOD", botMOD))//, ("incMOD", incMOD), ("incOPT", incOPT))
+    val configurations: List[Configuration] = List(("regAAM", regAAM), ("cncMOD", cncMOD), ("incMOD", incMOD), ("incOPT", incOPT))
     val timeout: Int = 10 * 60 // 10 minutes
     
     /* **** Experimental setup **** */
     
-    val iterations: Int = 5 // todo 30
-    val startup:    Int = 3 // todo 10 // Number of iterations to be dropped.
+    val iterations: Int = 10 // todo 30
+    val startup:    Int = 3  // todo 10 // Number of iterations to be dropped.
     
     /* **** Experimental output **** */
     
@@ -184,6 +184,7 @@ object MachineComparison extends App {
         @scala.annotation.tailrec
         def iterate(n: Int, measurements: List[Measurement]): List[Measurement] = {
             if (n == 0) return measurements.reverse // Restore the order of the measurements.
+            System.gc() // Hint towards a gc so it does hopefully not happen during a run.
             val to = Timeout.seconds(timeout) // Start timer.
             val rs = machine.run[graph.G](program, to) // Run benchmark.
             val sc = to.time // Seconds passed.
@@ -192,7 +193,7 @@ object MachineComparison extends App {
             display(n + " ")
             // If a timeout is reached, this will probably be the case for all iterations, so abort.
             // Also, do not record the result, since it is only partial.
-            if (re) return List((-1, -1))
+            if (re) return List((-1, st)) // Return the number of states explored before timeout.
             iterate(n - 1, (sc, st) +: measurements)
         }
         display(s"\n${configuration._1} > ")
@@ -207,7 +208,7 @@ object MachineComparison extends App {
         val num = statistics.size == startup + iterations
         // Make sure every line of the csv is equally long.
         val times = if (num) statistics.map(_._1) else List.fill(startup + iterations)(-1)
-        val states = if (num) statistics.map(_._2).head else -1
+        val states = statistics.map(_._2).head // The number of states explored before timeout.
         val line = List(name, machine, states) ++ times
         try {
             writer.writeNext(line.mkString(","))

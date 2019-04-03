@@ -773,8 +773,9 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     }
     object Display extends NoStoreOperation("display", Some(1)) {
       override def call(x: V) = {
-        val str = x.toString
-        print(if (str.startsWith("\"")) { str.substring(1, str.size - 1) } else { str })
+        // TODO re-enable printing! (This is just very annoying during benchmarking.)
+        // val str = x.toString
+        // print(if (str.startsWith("\"")) { str.substring(1, str.size - 1) } else { str })
         x /* Undefined behavior in R5RS, but we return the printed value */
       }
     }
