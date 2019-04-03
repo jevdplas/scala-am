@@ -9,9 +9,9 @@ import scalaam.graph.Graph.GraphOps
 /**
   * Implementation of an optimised version of the IncrementalConcurrentModular machine. Two optimisations are implemented: <br>
   * <ul>
-  *     <li> InnerLoop abortion when it is known that the next states will need to be reanalysed. his is the case when a bottom
+  *     <li><s> InnerLoop abortion when it is known that the next states will need to be reanalysed. his is the case when a bottom
   *          return value of another thread is read. Note that in the current implementation, all successors are thrown away, which
-  *          may cause more iterations of OuterLoop. </li>
+  *          may cause more iterations of OuterLoop.</s><br< Implemented in all modular machines. </li>
   *     <li> Caching of the visited set. Instead of restarting the inner loop just from a specific state with an empty visited
   *          set, it may be possible also to use the old set. However, when the store has changed in the meantime, this is not
   *          possible. Hence, the store contains version numbers that can be compared to see whether it has changed.</li>
@@ -70,27 +70,21 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
                     // The bottomRead flag indicates whether a bottom result value was read. The visitedset and store version number are also saved, as
                     // they may be used when analysis is restarted. When the store has been modified already in this step, we immediately remember an
                     // empty visited set.
-                    val (read, written, joined, bottomRead) = effects.foldLeft((iStateAcc.deps.read, iStateAcc.deps.written, iStateAcc.deps.joined, false))
-                        {case (acc@(r, w, j, br), eff) => eff match {
-                            case     JoinEff(tid: TID@unchecked) => (r, w, j + (tid -> (j(tid) + ((curState, iStateAcc.visited, iStateAcc.store.version)))),
-                                                                        br || (iState.results(tid) == lattice.bottom))
-                            case  ReadAddrEff(addr: A@unchecked) => (r + (addr -> (r(addr) + ((curState, iStateAcc.visited, iStateAcc.store.version)))), w, j, br)
-                            case WriteAddrEff(addr: A@unchecked) => (r, w + (addr -> (w(addr) + ((curState, iStateAcc.visited, iStateAcc.store.version)))), j, br)
+                    val (read, written, joined) = effects.foldLeft((iStateAcc.deps.read, iStateAcc.deps.written, iStateAcc.deps.joined))
+                        {case (acc@(r, w, j), eff) => eff match {
+                            case     JoinEff(tid: TID@unchecked) => (r, w, j + (tid -> (j(tid) + ((curState, iStateAcc.visited, iStateAcc.store.version)))))
+                            case  ReadAddrEff(addr: A@unchecked) => (r + (addr -> (r(addr) + ((curState, iStateAcc.visited, iStateAcc.store.version)))), w, j)
+                            case WriteAddrEff(addr: A@unchecked) => (r, w + (addr -> (w(addr) + ((curState, iStateAcc.visited, iStateAcc.store.version)))), j)
                             case _ => acc
                         }
                     }
                     // Vis cannot be used for caching since it may contain curState. This way, an innerLoop started from curState and vis would stop immediately.
                     val vis = if (store.version != iStateAcc.store.version) Set.empty[State] else iStateAcc.visited + curState
-                    // Do not explore a path if it will have to be reanalysed later anyway (because of reading an unanalysed thread's return value).
-                    // Fixme: We are now throwing away ALL successor states, although only some of them may be the result of reading bottom.
-                    // Fixme: Hence, we may be throwing away too many successor states. This may depend on the precision of the thread identifiers, but
-                    // Fixme: in the end, we are sure the entire graph is explored indeed, although more iterations of the outer loop may be needed.
-                    val suc = if (bottomRead) Set.empty[State] else successors
-                    InnerLoopState(iStateAcc.work ++ suc, store, iStateAcc.results, vis,
+                    InnerLoopState(iStateAcc.work ++ successors, store, iStateAcc.results, vis,
                                    lattice.join(iStateAcc.result, result.getOrElse(lattice.bottom)),
                                    iStateAcc.created ++ created, iStateAcc.effects ++ effects,
                                    Deps(iStateAcc.deps.joined ++ joined, iStateAcc.deps.read ++ read, iStateAcc.deps.written ++ written),
-                                   iStateAcc.edges + (curState -> suc))
+                                   iStateAcc.edges + (curState -> successors))
                 }
             })
         }
