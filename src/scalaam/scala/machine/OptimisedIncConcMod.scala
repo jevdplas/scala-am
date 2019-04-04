@@ -131,7 +131,8 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
             else {
                 val head = work.head
                 val next = edges(head)
-                findConnectedStates(work.tail ++ next.map(_._2), visited + head, edges, acc ++ next.map(t => (head, t._1, t._2)))
+                // Prepend the edges and work upfront the respective lists (assume next to be much shorter than work/acc).
+                findConnectedStates(next.map(_._2).toList ++ work.tail, visited + head, edges, next.map(t => (head, t._1, t._2)).toList ++ acc)
             }
         }
     
