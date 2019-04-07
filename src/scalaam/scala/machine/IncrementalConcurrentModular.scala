@@ -104,13 +104,15 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
         }
     
         /** Filters out unreachable graph components that may result from invalidating edges. */
-        //@scala.annotation.tailrec
-        def findConnectedStates(work: List[State], visited: Set[State], edges: GraphEdges, acc: GraphEdges = List.empty): GraphEdges = {
+        @scala.annotation.tailrec
+        def findConnectedStates(work: List[State], edges: Edges, visited: Set[State] = Set.empty, acc: GraphEdges = List.empty): GraphEdges = {
             if (timeout.reached || work.isEmpty) return acc
-            if (visited.contains(work.head)) findConnectedStates(work.tail, visited, edges, acc)
+            if (visited.contains(work.head)) findConnectedStates(work.tail, edges, visited, acc)
             else {
-                val next = edges.filter(e => e._1 == work.head)
-                findConnectedStates(work.tail ++ next.map(_._3), visited + work.head, edges, acc ++ next)
+                val head = work.head
+                val next = edges(head)
+                // Prepend the edges and work upfront the respective lists (assume next to be much shorter than work/acc).
+                findConnectedStates(next.map(_._2).toList ++ work.tail, edges, visited + head, next.map(t => (head, t._1, t._2)).toList ++ acc)
             }
         }
     
@@ -135,7 +137,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     
         val result: OuterLoopState = outerLoop(oState)
         // After running the result, possibly unreachable edges may need to be filtered out.
-        Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toList, Set(), result.edges.toList.flatMap(t => t._2.map(e => (t._1, e._1, e._2)))))
+        Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toList, result.edges))
     
     }
 }

@@ -184,7 +184,12 @@ object MachineComparison extends App {
         @scala.annotation.tailrec
         def iterate(n: Int, measurements: List[Measurement]): List[Measurement] = {
             if (n == 0) return measurements.reverse // Restore the order of the measurements.
-            System.gc() // Hint towards a gc so it does hopefully not happen during a run.
+            try {
+                System.gc() // Hint towards a gc so it does hopefully not happen during a run.
+            } catch {
+                // Catch possible "GC overhead limit exceeded" errors due to this forced gc.
+                case _: Throwable =>
+            }
             val to = Timeout.seconds(timeout) // Start timer.
             val rs = machine.run[graph.G](program, to) // Run benchmark.
             val sc = to.time // Seconds passed.

@@ -125,14 +125,14 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
     
         /** Filters out unreachable graph components that may result from invalidating edges. */
         @scala.annotation.tailrec
-        def findConnectedStates(work: List[State], visited: Set[State], edges: Edges, acc: GraphEdges = List.empty): GraphEdges = {
+        def findConnectedStates(work: List[State], edges: Edges, visited: Set[State] = Set.empty, acc: GraphEdges = List.empty): GraphEdges = {
             if (timeout.reached || work.isEmpty) return acc
-            if (visited.contains(work.head)) findConnectedStates(work.tail, visited, edges, acc)
+            if (visited.contains(work.head)) findConnectedStates(work.tail, edges, visited, acc)
             else {
                 val head = work.head
                 val next = edges(head)
                 // Prepend the edges and work upfront the respective lists (assume next to be much shorter than work/acc).
-                findConnectedStates(next.map(_._2).toList ++ work.tail, visited + head, edges, next.map(t => (head, t._1, t._2)).toList ++ acc)
+                findConnectedStates(next.map(_._2).toList ++ work.tail, edges, visited + head, next.map(t => (head, t._1, t._2)).toList ++ acc)
             }
         }
     
@@ -157,7 +157,7 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
     
         val result: OuterLoopState = outerLoop(oState)
         // After running the result, possibly unreachable edges may need to be filtered out.
-        Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toList, Set(), result.edges))
+        Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toList, result.edges))
     }
 }
 
