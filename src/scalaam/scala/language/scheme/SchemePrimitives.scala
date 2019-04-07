@@ -184,7 +184,6 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       /* [x]  vector-fill!: Vector Accessors */
       VectorLength,   /* [vv] vector-length: Vector Accessors */
       VectorRef,      /* [vv] vector-ref: Vector Accessors */
-      VectorSet,      /* [vv] vector-set!: Vector Accessors */
       Vectorp,        /* [vv] vector?: Vector Creation */
       /* [x]  with-input-from-file: File Ports */
       /* [x]  with-output-to-file: File Ports */
@@ -238,9 +237,9 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
   def mutablePrimList: List[Primitive] = {
     import PrimitiveDefs._
     List(
-      SetCar, /* [vv] set-car!: Pairs */
-      SetCdr, /* [vv] set-cdr!: Pairs */
-      // TODO VectorSet,      /* [vv] vector-set!: Vector Accessors */
+      SetCar,    /* [vv] set-car!: Pairs */
+      SetCdr,    /* [vv] set-cdr!: Pairs */
+      VectorSet, /* [vv] vector-set!: Vector Accessors */
     )
   }
   def allPrimitives: List[Primitive] = functionalPrimList ++ mutablePrimList
@@ -769,7 +768,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       override def call(x: V) = stringLength(x)
     }
     object Newline extends NoStoreOperation("newline", Some(0)) {
-      override def call() = { println(""); MayFailSuccess(bool(false)) }
+      // TODO re-enable printing! (This is just very annoying during benchmarking.)
+      override def call() = { /* println(""); */ MayFailSuccess(bool(false)) }
     }
     object Display extends NoStoreOperation("display", Some(1)) {
       override def call(x: V) = {
@@ -789,12 +789,12 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T) = args match {
         case (_, car) :: (_, cdr) :: Nil =>
           val consa = allocator.pointer(fexp, t)
-          MayFail.success((pointer(consa), store.extend(consa, cons(car, cdr)), Effects.noEff()))
+          MayFail.success((pointer(consa), store.extend(consa, cons(car, cdr)), Effects.wAddr(consa)))
         case l => MayFail.failure(PrimitiveArityError(name, 2, l.size))
       }
     }
 
-    class CarCdrOperation(override val name: String) extends StoreOperation(name, Some(1)) {
+    class CarCdrOperation(override val name: String) extends StoreOperationWithEffs(name, Some(1)) {
       trait Spec
       case object Car extends Spec
       case object Cdr extends Spec
@@ -808,17 +808,17 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         })
       override def call(v: V, store: Store[A, V]) =
         for {
-          v <- spec.foldLeft(MayFail.success[V, Error](v))((acc, op) =>
+         (v, effs) <- spec.foldLeft(MayFail.success[(V, Effects), Error]((v, Effects.noEff())))((acc, op) =>
             for {
-              v <- acc
-              res <- dereferencePointer(v, store) { consv =>
+              (v, ef) <- acc
+              (res, effs) <- dereferencePointerWithEffs(v, store) { consv =>
                 op match {
                   case Car => car(consv)
                   case Cdr => cdr(consv)
                 }
               }
-            } yield res)
-        } yield (v, store)
+            } yield (res, ef ++ effs))
+        } yield (v, store, effs)
     }
 
     object Car    extends CarCdrOperation("car")
@@ -852,29 +852,29 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     object Cdddar extends CarCdrOperation("cdddar")
     object Cddddr extends CarCdrOperation("cddddr")
 
-    object SetCar extends StoreOperation("set-car!", Some(2)) {
+    object SetCar extends StoreOperationWithEffs("set-car!", Some(2)) {
       override def call(cell: V, value: V, store: Store[A, V]) =
         getPointerAddresses(cell)
-          .foldLeft(MayFail.success[Store[A, V], Error](store))((acc, a) =>
+          .foldLeft(MayFail.success[(Store[A, V], Effects), Error]((store, Effects.noEff())))((acc, a) =>
             for {
               consv <- store.lookupMF(a) /* look up in old store */
-              st    <- acc /* updated store */
+              (st, effs) <- acc /* updated store and accumulated effects. */
               v1 = value /* update car */
               v2 <- cdr(consv) /* preserves cdr */
-            } yield st.update(a, cons(v1, v2)))
-          .map(store => (bool(false) /* undefined */, store))
+            } yield (st.update(a, cons(v1, v2)), effs ++ Effects.wAddr(a)))
+          .map(storeEffs => (bool(false) /* undefined */, storeEffs._1, storeEffs._2))
     }
-    object SetCdr extends StoreOperation("set-cdr!", Some(2)) {
+    object SetCdr extends StoreOperationWithEffs("set-cdr!", Some(2)) {
       override def call(cell: V, value: V, store: Store[A, V]) =
         getPointerAddresses(cell)
-          .foldLeft(MayFail.success[Store[A, V], Error](store))((acc, a) =>
+          .foldLeft(MayFail.success[(Store[A, V], Effects), Error]((store, Effects.noEff())))((acc, a) =>
             for {
               consv <- store.lookupMF(a) /* look up in old store */
-              st    <- acc /* updated store */
+              (st, effs) <- acc /* updated store and accumulated effects. */
               v1    <- car(consv) /* preserves car */
               v2 = value /* update cdr */
-            } yield st.update(a, cons(v1, v2)))
-          .map(store => (bool(false) /* undefined */, store))
+            } yield (st.update(a, cons(v1, v2)), effs ++ Effects.wAddr(a)))
+          .map(storeEffs => (bool(false) /* undefined */, storeEffs._1, storeEffs._2))
     }
 
     object Length extends StoreOperation("length", Some(1)) {
