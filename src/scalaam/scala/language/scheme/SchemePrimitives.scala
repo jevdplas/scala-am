@@ -817,7 +817,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                   case Cdr => cdr(consv)
                 }
               }
-            } yield (res, ef ++ effs))
+            } yield (res, ef /*++ effs*/)) // TODO: uncomment to re-enable effects here.
         } yield (v, store, effs)
     }
 
@@ -861,7 +861,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
               (st, effs) <- acc /* updated store and accumulated effects. */
               v1 = value /* update car */
               v2 <- cdr(consv) /* preserves cdr */
-            } yield (st.update(a, cons(v1, v2)), effs ++ Effects.wAddr(a)))
+            } yield (st.update(a, cons(v1, v2)), effs /* ++ Effects.wAddr(a) */)) // TODO: uncomment to re-enable effects here.
           .map(storeEffs => (bool(false) /* undefined */, storeEffs._1, storeEffs._2))
     }
     object SetCdr extends StoreOperationWithEffs("set-cdr!", Some(2)) {
@@ -873,7 +873,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
               (st, effs) <- acc /* updated store and accumulated effects. */
               v1    <- car(consv) /* preserves car */
               v2 = value /* update cdr */
-            } yield (st.update(a, cons(v1, v2)), effs ++ Effects.wAddr(a)))
+            } yield (st.update(a, cons(v1, v2)), effs /* ++ Effects.wAddr(a) */)) // TODO: uncomment to re-enable effects here.
           .map(storeEffs => (bool(false) /* undefined */, storeEffs._1, storeEffs._2))
     }
 
@@ -977,7 +977,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
               (cons (car args) (apply list (cdr args)))
               args))))
       */
-    object ListPrim extends StoreOperation("list", None) {
+    object ListPrim extends StoreOperationWithEffs("list", None) {
       override def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T): MayFail[(V, Store[A, V], Effects), Error] =
         args match {
           case Nil => MayFail.success((nil, store, Effects.noEff()))
@@ -987,7 +987,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
               consv  = cons(v, restv)
               consa  = allocator.pointer(exp, t)
               store3 = store2.extend(consa, consv)
-            } yield (pointer(consa), store3, effs)
+            } yield (pointer(consa), store3, effs /* ++ Effects.wAddr(consa) */)
         }
     }
 
