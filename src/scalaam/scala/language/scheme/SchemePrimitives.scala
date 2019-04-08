@@ -31,7 +31,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
   }
 
   /** Bundles all the primitives together, annotated with R5RS support (v: supported, vv: supported and tested in PrimitiveTests, vx: not fully supported, x: not supported), and section in Guile manual */
-  def functionalPrimList: List[Primitive] = {
+  def SchemePrimitives: List[Primitive] = {
     import PrimitiveDefs._
     List(
       Times, /* [vv] *: Arithmetic */
@@ -150,6 +150,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       Remainder, /* [vv] remainder: Integer Operations */
       /* [x]  reverse: Append/Reverse */
       Round, /* [vv] round: Arithmetic */
+      SetCar,    /* [vv] set-car!: Pairs */
+      SetCdr,    /* [vv] set-cdr!: Pairs */
       Sin, /* [vv] sin: Scientific */
       Sqrt, /* [vv] sqrt: Scientific */
       /* [x]  string: String Constructors */
@@ -184,6 +186,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       /* [x]  vector-fill!: Vector Accessors */
       VectorLength,   /* [vv] vector-length: Vector Accessors */
       VectorRef,      /* [vv] vector-ref: Vector Accessors */
+      VectorSet, /* [vv] vector-set!: Vector Accessors */
       Vectorp,        /* [vv] vector?: Vector Creation */
       /* [x]  with-input-from-file: File Ports */
       /* [x]  with-output-to-file: File Ports */
@@ -234,15 +237,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       Error,
     )
   }
-  def mutablePrimList: List[Primitive] = {
-    import PrimitiveDefs._
-    List(
-      SetCar,    /* [vv] set-car!: Pairs */
-      SetCdr,    /* [vv] set-cdr!: Pairs */
-      VectorSet, /* [vv] vector-set!: Vector Accessors */
-    )
-  }
-  def allPrimitives: List[Primitive] = functionalPrimList ++ mutablePrimList
+  
+  def allPrimitives: List[Primitive] = SchemePrimitives
 
   object PrimitiveDefs {
 
@@ -323,7 +319,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
             (accv, effs) <- acc
           } yield (join(accv, res._1), effs ++ res._2 ++ Effects.rAddr(a)))
   
-    def dereferencePointerGetAddressReturnStoreFunEffs(x: V, store: Store[A, V])(f: (A, V, Store[A, V]) => MayFail[(V, Store[A, V], Effects), Error]): MayFail[(V, Store[A, V], Effects), Error] =
+    def dereferencePointerGetAddressReturnStore(x: V, store: Store[A, V])(f: (A, V, Store[A, V]) => MayFail[(V, Store[A, V], Effects), Error]): MayFail[(V, Store[A, V], Effects), Error] =
       getPointerAddresses(x).foldLeft(MayFail.success[(V, Store[A, V], Effects), Error]((bottom, store, Effects.noEff())))(
         (acc: MayFail[(V, Store[A, V], Effects), Error], a: A) =>
           acc >>= { case (accv, updatedStore, effs) =>
@@ -374,8 +370,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       val tupMon = scalaam.util.MonoidInstances.tupleMonoid(latMon, effMon)
       val mfMon  = scalaam.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
       cond >>= { condv =>
-        val t = if (isTrue(condv)) { thenBranch.map{case (v, e) => (v, e)} } else  { MayFail.success[(V, Effects), Error]((latMon.zero, Effects.noEff())) }
-        val f = if (isFalse(condv)) { elseBranch.map{case (v, e) => (v, e)} } else { MayFail.success[(V, Effects), Error]((latMon.zero, Effects.noEff())) }
+        val t = if (isTrue(condv))  { thenBranch } else { MayFail.success[(V, Effects), Error]((latMon.zero, Effects.noEff())) }
+        val f = if (isFalse(condv)) { elseBranch } else { MayFail.success[(V, Effects), Error]((latMon.zero, Effects.noEff())) }
         mfMon.append(t, f)
       }
     }
@@ -1214,7 +1210,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
   
     object VectorSet extends StoreOperation("vector-set!", Some(3)) {
       def vectorSet(v: V, index: V, newval: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
-        dereferencePointerGetAddressReturnStoreFunEffs(v, store) { case (veca, vec, store) =>
+        dereferencePointerGetAddressReturnStore(v, store) { case (veca, vec, store) =>
           isVector(vec) >>= (test => {
             val t: MayFail[(V, Option[(A, V)]), Error] =
               if (isTrue(test)) {
