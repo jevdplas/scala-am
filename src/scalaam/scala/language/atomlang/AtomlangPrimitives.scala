@@ -64,9 +64,9 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         }
         
         /** Implementation of the "deref" primitive. */
-        object Deref extends StoreOperationWithEffs("read", Some(1)) { // Fixme: Change name to deref, but make distinction from futures in semantics. => Need store there.
+        object Deref extends StoreOperation("read", Some(1)) { // Fixme: Change name to deref, but make distinction from futures in semantics. => Need store there.
             override def call(v: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
-                for {(res, effs) <- dereferencePointerWithEffs(v, store)(deref)} yield (res, store, effs)
+                for {(res, effs) <- dereferencePointer(v, store)(deref)} yield (res, store, effs)
             }
         }
     
@@ -90,7 +90,7 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         }
         
         /** Implementation of the "reset!" primitive. */
-        object Reset extends StoreOperationWithEffs("reset!", Some(2)) {
+        object Reset extends StoreOperation("reset!", Some(2)) {
             override def call(v: V, value: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
                 // foldLeft: the accumulator is an updated store.
                 getPointerAddresses(v).foldLeft(MayFail.success[(Store[A, V], Effects), Error]((store, Effects.noEff())))((acc, addr) =>
