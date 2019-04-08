@@ -71,7 +71,6 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         }
     
         /** Implementation of the "compare-and-set!" primitive. */
-        // Fixme: should only the comparison & setting be atomic, or also the evaluation of the arguments? => Special form.
         object CompareAndSet extends Primitive {
             val name = "compare-and-set!"
             override def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T): MayFail[(V, Store[A, V], Effects), Error] = args match {
@@ -79,12 +78,12 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
                     getPointerAddresses(v).foldLeft(MayFail.success[(V, Store[A, V], Effects), Error]((bottom, store, Effects.noEff())))((acc, addr) =>
                         for {
                             atomv <- store.lookupMF(addr)
-                            vatm <- deref(atomv) // TODO
+                            vatm  <- deref(atomv) // TODO
                             (v, store_, effs) <- acc
                             eqv <- Eq.call(old, vatm)
                             res <- ifThenElse(eqv){nw}{vatm}
-                            bool <- ifThenElse(eqv){schemeLattice.bool(true)}{schemeLattice.bool(false)}
-                        } yield (join(v, bool), store_.update(addr, atom(res)), effs ++ Effects.wAddr(addr) ++ Effects.rAddr(addr))) //TODO change failure
+                            (bool, eff) <- ifThenElseWithEffs(eqv){(schemeLattice.bool(true), Effects.wAddr(addr) ++ Effects.rAddr(addr))}{(schemeLattice.bool(false), Effects.rAddr(addr))}
+                        } yield (join(v, bool), store_.update(addr, atom(res)), effs ++ eff))
                 case _ => MayFail.failure(PrimitiveArityError(name, 3, args.length))
             }
         }

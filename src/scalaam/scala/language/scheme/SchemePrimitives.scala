@@ -380,7 +380,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       }
     }
   
-    def ifThenElseAccumulateEffs(cond: MayFail[(V, Effects), Error])(thenBranch: => MayFail[(V, Effects), Error])(
+    def ifThenElseCondEffs(cond: MayFail[(V, Effects), Error])(thenBranch: => MayFail[(V, Effects), Error])(
         elseBranch: => MayFail[(V, Effects), Error]): MayFail[(V, Effects), Error] = {
       val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
       val effMon = scalaam.util.MonoidInstances.setMonoid[Effect]
@@ -1073,7 +1073,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                 dereferencePointerFunEffs(l, store) { lv =>
                   for {
                     carl <- car(lv)
-                    res <- ifThenElseAccumulateEffs(eqFn(e, carl, store)) {
+                    res <- ifThenElseCondEffs(eqFn(e, carl, store)) {
                       /* (car l) and e are equal, return l */
                       (l, Effects.noEff())
                     } {
@@ -1118,7 +1118,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                       dereferencePointerFunEffs(carl, store) { carlv =>
                         for {
                           caarl <- car(carlv)
-                          res2  <- ifThenElseAccumulateEffs(eqFn(e, caarl, store)) {
+                          res2  <- ifThenElseCondEffs(eqFn(e, caarl, store)) {
                             (carl, Effects.noEff())
                           } {
                             cdr(lv) >>= (assoc(e, _, visited + l))
