@@ -1226,8 +1226,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                 MayFail.success(bottom)
               }
             t >>= {
-              case (tv, None) => f >>= (tf => MayFail.success((join(tv, tf), store, Effects.noEff())))
-              case (tv, Some((a, v))) => f >>= (tf => MayFail.success((join(tv, tf), store.update(a, v), Effects.wAddr(a))))
+              case (tv, None) => f.join(MayFail.success(tv), join).map(v => (v, store, Effects.noEff()))
+              case (tv, Some((a, va))) => f.join(MayFail.success(tv), join).map(v => (v, store.update(a, va), Effects.wAddr(a)))
             }
           })
         }

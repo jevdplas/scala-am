@@ -90,49 +90,6 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
             }
         }
         
-        /*
-        object CAS extends Primitive {
-            val name = "compare-and-set!"
-            private def execute(atm: V, old: V, nw: V, addr: A, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
-                for {
-                    value <- deref(atm)
-                    res <- Eq.call(old, value) >>= { isEq =>
-                        (isTrue(isEq), isFalse(isEq)) match {
-                            case (true, true) => MayFail.success((schemeLattice.join(schemeLattice.bool(true), schemeLattice.bool(false)),
-                                store.update(addr, nw), Effects.rAddr(addr) ++ Effects.wAddr(addr)))
-                            case (true, false) => MayFail.success((schemeLattice.bool(true), store.update(addr, atom(nw)), Effects.rAddr(addr) ++ Effects.wAddr(addr)))
-                            case (false, true) => MayFail.success((schemeLattice.bool(false), store, Effects.rAddr(addr)))
-                            case (false, false) => MayFail.success((schemeLattice.bottom, store, Effects.noEff()))
-                        }
-                    }
-                } yield res
-            }
-            override def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T): MayFail[(V, Store[A, V], Effects), Error] = args match {
-                case (_, v) :: (_, old) :: (_, nw) :: Nil =>
-                    dereferencePointerGetAddressReturnStore(v, store) {case (addr, atm, store_) => isAtom(atm) >>= { test =>
-                            // Case this is an atom.
-                            val isAtom: MayFail[Option[(V, Store[A, V], Effects)], Error] = if (isTrue(test)) {
-                                execute(atm, old, nw, addr, store_).map(v => Some(v))
-                            } else {
-                                MayFail.success(None)
-                            }
-                            // Case this is not an atom.
-                            val noAtom: MayFail[(V, Store[A, V], Effects), Error] = if (isFalse(test)) {
-                                MayFail.failure(PrimitiveNotApplicable(name, args.map(_._2)))
-                            } else {
-                                MayFailSuccess((bottom, store_, Effects.noEff()))
-                            }
-                            isAtom >>= {
-                                case None => noAtom
-                                case Some(res) => noAtom >>= (_ => res)
-                            }
-                        }
-                    }
-                case _ => MayFail.failure(PrimitiveArityError(name, 3, args.length))
-            }
-        }
-        */
-        
         /** Implementation of the "reset!" primitive. */
         object Reset extends StoreOperation("reset!", Some(2)) {
             override def call(v: V, value: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
@@ -151,5 +108,4 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
             override def call(v: V): MayFail[V, Error] = isFuture(v)
         }
     }
-    
 }
