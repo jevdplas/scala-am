@@ -1,4 +1,15 @@
 ;; Dining philosophers problem
+
+(define (t/new-lock)
+ (atom #f))
+(define (t/acquire lock)
+ (let try ()
+  (if (compare-and-set! lock #f #t)
+   #t
+   (try))))
+(define (t/release lock)
+ (reset! lock #f))
+
 (define (map f l)
   (if (pair? l)
       (cons (f (car l)) (map f (cdr l)))

@@ -112,7 +112,7 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
                 val joinDeps  = oStateAcc.deps.joined  ++ iState.deps.joined
                 // Based on R/W and W/W conflicts, decide on the states that need re-evaluation.
                 val todoEffects: List[WorkItem] = iState.deps.written.keySet.foldLeft(List[WorkItem]())((acc, addr) =>
-                    if (oStateAcc.store.lookup(addr) == iState.store.lookup(addr)) acc else  acc ++ readDeps(addr).toList ++ writeDeps(addr).toList)
+                    if (oStateAcc.store.lookup(addr) == iState.store.lookup(addr)) acc else acc ++ readDeps(addr).filter(_._1.tid != stid) ++ writeDeps(addr).filter(_._1.tid != stid))
                 // Calculate the thread's new return value. If it differs, some other threads joining this thread need re-evaluation.
                 val retVal: V = lattice.join(oStateAcc.results(stid), iState.result)
                 val todoJoined: List[WorkItem] = if (oStateAcc.results(stid) == retVal) List.empty else joinDeps(stid).toList
