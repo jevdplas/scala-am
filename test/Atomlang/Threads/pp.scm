@@ -45,4 +45,4 @@
 
 (define threads (do-n N (lambda (i)
                           (future (ping 0 (pick-str i) i lck last)))))
-(map (lambda (t) (derf t)) threads)
+(map (lambda (t) (deref t)) threads)
