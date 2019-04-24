@@ -83,7 +83,7 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
                     InnerLoopState(iStateAcc.work ++ successors, store, iStateAcc.results, vis,
                                    lattice.join(iStateAcc.result, result.getOrElse(lattice.bottom)),
                                    iStateAcc.created ++ created, iStateAcc.effects ++ effects,
-                                   Deps(iStateAcc.deps.joined ++ joined, iStateAcc.deps.read ++ read, iStateAcc.deps.written ++ written),
+                                   Deps(joined, read, written),
                                    iStateAcc.edges + (curState -> successors))
                 }
             })
@@ -115,8 +115,8 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
                     if (oStateAcc.store.lookup(addr) == iState.store.lookup(addr)) acc else acc ++ readDeps(addr).filter(_._1.tid != stid) ++ writeDeps(addr).filter(_._1.tid != stid))
                 // Calculate the thread's new return value. If it differs, some other threads joining this thread need re-evaluation.
                 val retVal: V = lattice.join(oStateAcc.results(stid), iState.result)
-                val todoJoined: List[WorkItem] = if (oStateAcc.results(stid) == retVal) List.empty else joinDeps(stid).toList
-                val fromInterference: List[WorkItem] = todoEffects ++ todoJoined
+                val todoJoined: Set[WorkItem] = if (oStateAcc.results(stid) == retVal) Set.empty else joinDeps(stid)
+                val fromInterference: Set[WorkItem] = todoJoined ++ todoEffects // Use a set to suppress duplicates.
                 OuterLoopState(newThreads, oStateAcc.work ++ todoCreated ++ fromInterference, Deps(joinDeps, readDeps, writeDeps),
                     // All outgoing edges of states that need recomputation (are in fromInterference) are removed. Each edge that is added is annotated with the iteration number.
                     oStateAcc.results + (stid -> retVal), iState.store, oStateAcc.edges -- fromInterference.map(_._1) ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))

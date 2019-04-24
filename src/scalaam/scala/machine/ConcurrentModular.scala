@@ -280,7 +280,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                     // Join the old and new return value. If the return value changes, all other threads joining in this thread need to be reanalysed.
                     val retVal: V = lattice.join(oStateAcc.results(stid), result)
                     val todoJoined: List[State] = if (oStateAcc.results(stid) == retVal) List.empty else joinDeps(stid).flatMap(newThreads).toList
-                    (workAcc ++ todoCreated.toList ++ todoEffects ++ todoJoined,
+                    (workAcc ++ todoCreated ++ todoEffects ++ todoJoined,
                      OuterLoopState(newThreads, readDeps, writeDeps, joinDeps, oStateAcc.results + (stid -> retVal), store, oStateAcc.graphs + (stid -> graph)))
                 }
                 outerLoop(next._1, next._2, iteration + 1)
