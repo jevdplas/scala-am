@@ -40,11 +40,6 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
     type TStore = TimestampedStore[A, V]
     
     override def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
-        
-        // As in the unoptimised version of this machine, a map is used to overwrite any old edges that would remain present in a List or Set.
-        type Edges      = Map[State, Set[(Transition, State)]]
-        type GraphEdges = List[(State, Transition, State)]
-    
     
         /** Class collecting the dependencies of all threads. */
         case class Deps(joined: ExtendedStateJoinDeps, read: ExtendedStateReadDeps, written: ExtendedStateWriteDeps)

@@ -25,12 +25,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     type StateReadDeps  = Map[  A, Set[State]]
     type StateWriteDeps = Map[  A, Set[State]]
     
-    type UnlabeledEdges = Map[State, Set[State]]
-    
     override def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
-    
-        type Edges      = Map[State, Set[(Transition, State)]]
-        type GraphEdges = List[(State, Transition, State)]
     
         /** Class collecting the dependencies of all threads. */
         case class Deps(joined: StateJoinDeps, read: StateReadDeps, written: StateWriteDeps)
