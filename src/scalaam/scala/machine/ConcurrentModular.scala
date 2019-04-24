@@ -325,11 +325,11 @@ object ConcurrentModular {
         def                       keys: Iterable[A] = store.keys
         def forall(p: ((A, V)) => Boolean): Boolean = store.forall(p)
         def    subsumes(that: Store[A, V]): Boolean = store.subsumes(that)
-        def                 lookup(a: A): Option[V] = store.lookup(a).map(v => { println("lookup " ++ s"$a\t -> $v"); v})
-        def       lookupMF(a: A): MayFail[V, Error] = store.lookupMF(a).map(v => { println("lookMF " ++ s"$a\t -> $v"); v})
-        def         extend(a: A, v: V): Store[A, V] = {println("extend " ++ s"$a\t -> $v");verifyChange(a, v, (a, v) => store.extend(a, v))}
-        def         update(a: A, v: V): Store[A, V] = {println("update " ++ s"$a\t -> $v");verifyChange(a, v, (a, v) => store.update(a, v))}
-        def updateOrExtend(a: A, v: V): Store[A, V] = {println("uorext " ++ s"$a\t -> $v");verifyChange(a, v, (a, v) => store.updateOrExtend(a, v))}
+        def                 lookup(a: A): Option[V] = store.lookup(a)
+        def       lookupMF(a: A): MayFail[V, Error] = store.lookupMF(a)
+        def         extend(a: A, v: V): Store[A, V] = verifyChange(a, v, (a, v) => store.extend(a, v))
+        def         update(a: A, v: V): Store[A, V] = verifyChange(a, v, (a, v) => store.update(a, v))
+        def updateOrExtend(a: A, v: V): Store[A, V] = verifyChange(a, v, (a, v) => store.updateOrExtend(a, v))
         def    join(that: Store[A, V]): Store[A, V] = verifyMerge(that)
         
         /** Creates a new and updated wrapped store based on this store and an update function for a specific binding.

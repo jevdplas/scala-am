@@ -66,6 +66,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                                    lattice.join(iStateAcc.result, result.getOrElse(lattice.bottom)),
                                    iStateAcc.created ++ created, iStateAcc.effects ++ effects,
                                    Deps(joined, read, written),
+                                   // iStateAcc.edges + (curState -> (iStateAcc.edges.getOrElse(curState, Set.empty) ++ successors)))
                                    iStateAcc.edges + (curState -> successors))
                 }
             })
