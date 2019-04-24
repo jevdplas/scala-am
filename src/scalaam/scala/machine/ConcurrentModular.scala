@@ -40,13 +40,11 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     type WriteDeps  = Map[TID, Set[A]]
     
     /** Class used to return all information resulting from stepping this state. */
-    // TODO Remove joined from stepresult, since it can simply be inferred from the effects.
-    case class StepResult(successors: Successors, created: Created, joined: Joined, result: Option[V], effects: Effects, store: VStore) {
+    case class StepResult(successors: Successors, created: Created, result: Option[V], effects: Effects, store: VStore) {
         // Adds the accumulator. Important: keeps the store of "this".
         def merge(acc: StepResult): StepResult =
             StepResult(successors ++ acc.successors,
                 created ++ acc.created,
-                joined ++ acc.joined,
                 Option.empty,
                 effects ++ acc.effects,
                 store) // Important: keeps the store of "this".
@@ -91,8 +89,8 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         
         /** Helper function to create new results easily without having to write all fields explicitly. */
         private def newResult(successor: State, effects: Effects, store: VStore,
-                              created: Created = Set.empty, joined: Joined = Set.empty, result: Option[V] = Option.empty): StepResult = {
-            StepResult(Set(successor), created, joined, result, effects, store)
+                              created: Created = Set.empty, result: Option[V] = Option.empty): StepResult = {
+            StepResult(Set(successor), created, result, effects, store)
         }
         
         /**
@@ -122,10 +120,10 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                 val cc_ = KontAddr(fst, time)
                 val newPState = State(ftid, ControlEval(fst, env), cc_, timestamp.initial(ftid.toString), Store.empty[KA, Set[Kont]](t).extend(cc_, Set(Kont(frame, HaltKontAddr))))
                 val curPState = State(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
-                StepResult(Set(curPState), Set(newPState), Set.empty, Option.empty, effs ++ Effects.spawn(ftid), store)
+                StepResult(Set(curPState), Set(newPState), Option.empty, effs ++ Effects.spawn(ftid), store)
             // The semantics wants to read a value from another thread, which needs to be looked up in the 'results' map.
             case DerefFuture(ftid: TID@unchecked, store, effs) =>
-                StepResult(results.get(ftid).map(v => State(tid, ControlKont(v), cc, timestamp.tick(time), kstore)).toSet, Set.empty, Set(ftid), Option.empty, effs ++ Effects.join(ftid), store)
+                StepResult(results.get(ftid).map(v => State(tid, ControlKont(v), cc, timestamp.tick(time), kstore)).toSet, Set.empty, Option.empty, effs ++ Effects.join(ftid), store)
             // An unknown action has been returned. Should not happen, therefore this is an error.
             case a => throw new Exception(s"Unsupported action: $a.\n")
         }
@@ -139,7 +137,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           * @return Returns a stepResult containing all successor states and bookkeeping information, as well as the final store.
           */
         private def next(actions: Set[Act], old: VStore, cc: KAddr, results: RetVals): StepResult = {
-            val init: StepResult = StepResult(Set.empty, Set.empty, Set.empty, Option.empty, Set.empty, old)
+            val init: StepResult = StepResult(Set.empty, Set.empty, Option.empty, Set.empty, old)
             actions.foldLeft(init)((acc, curAction) => act(curAction, time, acc.store, cc, results).merge(acc))
         }
         
@@ -159,16 +157,16 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
             // Evaluate the given expression in the given environment.
             case ControlEval(exp, env) => next(sem.stepEval(exp, env, store, time), store, cc, results)
             // The end of evaluation has been reached. Return the final result.
-            case ControlKont(v) if cc == HaltKontAddr => StepResult(Set.empty, Set.empty, Set.empty, Some(v), Set.empty, store)
+            case ControlKont(v) if cc == HaltKontAddr => StepResult(Set.empty, Set.empty, Some(v), Set.empty, store)
             // Continue with a given value, given the continuation frame in this state. Pops this frame of the stack.
             case ControlKont(v) =>
-                val init: StepResult = StepResult(Set.empty, Set.empty, Set.empty, Option.empty, Set.empty, store)
+                val init: StepResult = StepResult(Set.empty, Set.empty, Option.empty, Set.empty, store)
                 kstore.lookup(cc).foldLeft(init)((acc1, konts) => // Lookup all associated continuation frames.
                     konts.foldLeft(acc1){case (acc2, Kont(frame, cc_)) => // For each frame, generate the next actions and accumulate everything (starting from acc1).
                         next(sem.stepKont(v, frame, acc2.store, time), store, cc_, results).merge(acc2) // Note that the frame is popped of the stack by passing cc_.
                 })
             // Handle an error. This results in no successor states.
-            case ControlError(_) => StepResult(Set.empty, Set.empty, Set.empty, None, Set.empty, store)
+            case ControlError(_) => StepResult(Set.empty, Set.empty, None, Set.empty, store)
             // An unknown control component has been reached. Should not happen so throw an error.
             case e => throw new Exception(s"Unsupported control sequence: $e.\n")
         }
@@ -196,10 +194,9 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           * @param result  The result value of the thread (initially bottom).
           * @param edges   A list of graph edges.
           */
-        case class InnerLoopState(created: Created, joined: Joined, effects: Effects, result: V, edges: Edges) extends SmartHash {
-            def add(crea: Created, joi: Joined, effs: Effects, res: Option[V], edg: Edges): InnerLoopState =  InnerLoopState(
+        case class InnerLoopState(created: Created, effects: Effects, result: V, edges: Edges) extends SmartHash {
+            def add(crea: Created, effs: Effects, res: Option[V], edg: Edges): InnerLoopState =  InnerLoopState(
                 created ++ crea,
-                joined  ++  joi,
                 effects ++ effs,
                 lattice.join(result, res.getOrElse(lattice.bottom)),
                 edges ++ edg
@@ -218,16 +215,16 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           */
         @scala.annotation.tailrec
         def innerLoop(work: List[State], results: RetVals, store: WStore, iteration: Int, visited: Set[State] = Set.empty,
-                      iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, Set.empty, lattice.bottom, List.empty)): (WStore, InnerLoopState) = {
+                      iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, lattice.bottom, List.empty)): (WStore, InnerLoopState) = {
             if (timeout.reached || work.isEmpty) (store, iState)
             else {
                 val (work_, visited_, store_, iState_): (List[State], Set[State], WStore, InnerLoopState) =
                     work.foldLeft((List.empty[State], visited, store, iState)){case (acc@(workAcc, visitedAcc, storeAcc, iStateAcc), curState) =>
                         if (visitedAcc.contains(curState)) acc // If the state has been explored already, do not take a step.
                         else {                                 // If the state has not been explored yet, take a step.
-                            val StepResult(succs, crea, joi, res, effs, sto: WStore) = curState.step(storeAcc, results)
+                            val StepResult(succs, crea, res, effs, sto: WStore) = curState.step(storeAcc, results)
                             val vis = if (sto.updated) Set.empty[State] else visitedAcc + curState // Immediately clear the visited set upon a store change.
-                            (workAcc ++ succs, vis, sto.reset, iStateAcc.add(crea, joi, effs, res, succs.toList.map((curState, BaseTransition(iteration.toString), _))))
+                            (workAcc ++ succs, vis, sto.reset, iStateAcc.add(crea, effs, res, succs.toList.map((curState, BaseTransition(iteration.toString), _))))
                         }
                     }
                 innerLoop(work_, results, store_, iteration, visited_, iState_)
@@ -259,18 +256,18 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
             else {
                 val next: (List[State], OuterLoopState) = work.foldLeft((List[State](), oState)){case ((workAcc, oStateAcc), curState) =>
                     val stid: TID = curState.tid
-                    val (store, InnerLoopState(created, joined, effects, result, graph)) = innerLoop(List(curState), oStateAcc.results, oStateAcc.store, iteration)
+                    val (store, InnerLoopState(created, effects, result, graph)) = innerLoop(List(curState), oStateAcc.results, oStateAcc.store, iteration)
                     // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
                     val (todoCreated, newThreads): (Set[State], Threads) = created.foldLeft((Set[State](), oStateAcc.threads)) {case ((createdAcc, threadsAcc), curState) =>
                         if (threadsAcc(curState.tid).contains(curState)) (createdAcc, threadsAcc) // There already is an identical thread, so do nothing.
                         else (createdAcc + curState, threadsAcc + (curState.tid -> (threadsAcc(curState.tid) + curState)))
                     }
                     // Update module dependencies. todoEffects indicates which modules have to be reanalysed.
-                    val joinDeps: JoinDeps = joined.foldLeft(oStateAcc.joinDeps)((depsAcc, curTid) => depsAcc + (curTid -> (depsAcc(curTid) + stid)))
-                    val (readDeps, writeDeps): (ReadDeps, WriteDeps) = effects.foldLeft((oStateAcc.readDeps, oStateAcc.writeDeps)){case ((rAcc, wAcc), curEff) => curEff match {
-                        case ReadAddrEff(target:  A@unchecked) => (rAcc + (stid -> (rAcc(stid) + target)), wAcc)
-                        case WriteAddrEff(target: A@unchecked) => (rAcc, wAcc + (stid -> (wAcc(stid) + target)))
-                        case _ => (rAcc, wAcc)
+                    val (readDeps, writeDeps, joinDeps): (ReadDeps, WriteDeps, JoinDeps) = effects.foldLeft((oStateAcc.readDeps, oStateAcc.writeDeps, oStateAcc.joinDeps)){case ((rAcc, wAcc, jAcc), curEff) => curEff match {
+                        case       JoinEff(tid: TID@unchecked) => (rAcc, wAcc, jAcc + (tid -> (jAcc(tid) + stid)))
+                        case ReadAddrEff(target:  A@unchecked) => (rAcc + (stid -> (rAcc(stid) + target)), wAcc, jAcc)
+                        case WriteAddrEff(target: A@unchecked) => (rAcc, wAcc + (stid -> (wAcc(stid) + target)), jAcc)
+                        case _ => (rAcc, wAcc, jAcc)
                         }
                     }
                     // Wherever there is an R/W or W/W conflict, add the states that need to be re-explored due to a store change.

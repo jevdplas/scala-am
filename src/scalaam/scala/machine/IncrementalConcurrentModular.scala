@@ -52,7 +52,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
             innerLoop(iState.work.foldLeft(iState.copy(work = List())){case (iStateAcc, curState) =>
                 if (iStateAcc.visited.contains(curState)) iStateAcc
                 else {
-                    val StepResult(successors, created, _, result, effects, store: WStore) = curState.step(iStateAcc.store, iStateAcc.results)
+                    val StepResult(successors, created, result, effects, store: WStore) = curState.step(iStateAcc.store, iStateAcc.results)
                     val (read, written, joined) = effects.foldLeft((iStateAcc.deps.read, iStateAcc.deps.written, iStateAcc.deps.joined))
                         {case (acc@(r, w, j), eff) => eff match {
                             case     JoinEff(tid: TID@unchecked) => (r, w, j + (tid -> (j(tid) + curState)))

@@ -66,7 +66,7 @@ class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: 
             innerLoop(iState.work.foldLeft(iState.copy(work = List())){case (iStateAcc, curState) =>
                 if (iStateAcc.visited.contains(curState)) iStateAcc
                 else {
-                    val StepResult(successors, created, _, result, effects, store: TStore) = curState.step(iStateAcc.store, iStateAcc.results)
+                    val StepResult(successors, created, result, effects, store: TStore) = curState.step(iStateAcc.store, iStateAcc.results)
                     // The bottomRead flag indicates whether a bottom result value was read. The visitedset and store version number are also saved, as
                     // they may be used when analysis is restarted. When the store has been modified already in this step, we immediately remember an
                     // empty visited set.
