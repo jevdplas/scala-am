@@ -40,6 +40,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     type WriteDeps  = Map[TID, Set[A]]
     
     /** Class used to return all information resulting from stepping this state. */
+    // TODO Remove joined from stepresult, since it can simply be inferred from the effects.
     case class StepResult(successors: Successors, created: Created, joined: Joined, result: Option[V], effects: Effects, store: VStore) {
         // Adds the accumulator. Important: keeps the store of "this".
         def merge(acc: StepResult): StepResult =
@@ -207,11 +208,12 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     
         /**
           * Performs the analysis for a single thread.
-          * @param work    A worklist.
-          * @param results A mapping from TIDs to result values.
-          * @param store   The global store.
-          * @param visited A list of visited states to be omitted during looping. This argument can (should) be omitted.
-          * @param iState  An InnerLoopState containing initial bookkeeping information. This argument can (should) be omitted.
+          * @param work      A worklist.
+          * @param results   A mapping from TIDs to result values.
+          * @param store     The global store.
+          * @param iteration The iteration of the outer loop.
+          * @param visited   A list of visited states to be omitted during looping. This argument can (should) be omitted.
+          * @param iState    An InnerLoopState containing initial bookkeeping information. This argument can (should) be omitted.
           * @return A set of a new global store and an innerloopstate containing extra bookkeeping information for the outer loop.
           */
         @scala.annotation.tailrec
