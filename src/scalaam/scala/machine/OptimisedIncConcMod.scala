@@ -21,7 +21,7 @@ import scalaam.graph.Graph.GraphOps
   *
   * @see scala.machine.IncrementalConcurrentModular
   */
-class OptimisedIncConcMod [Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
+class OptimisedIncConcMod[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
     override implicit val timestamp: Timestamp[T, Exp],
     override implicit val lattice: Lattice[V])
     extends IncrementalConcurrentModular[Exp, A, V, T, TID](t, sem, allocator) {

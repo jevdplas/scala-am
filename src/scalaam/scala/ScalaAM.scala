@@ -4,7 +4,7 @@ import scalaam.graph.{DotGraph, Graph}
 import scalaam.machine.Strategy.Strategy
 import scalaam.machine.{ConcreteMachine, ConcurrentAAM, Strategy}
 
-import scala.machine.{ConcurrentModular, ConcurrentModularBottom, IncrementalConcurrentModular, OptimisedIncConcMod}
+import scala.machine._
 
 object Main {
     def main(args: Array[String]): Unit = {

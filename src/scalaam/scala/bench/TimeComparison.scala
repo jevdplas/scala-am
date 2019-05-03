@@ -16,14 +16,14 @@ import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date}
 
+import scalaam.bench.BenchConfig.Prelude
+import scalaam.bench.BenchConfig.Prelude.Prelude
+import scalaam.bench.BenchConfig._
+
 /**  Contains utilities to compare the different machines. Compares both the runtime and state space size. */
 object TimeComparison extends App {
     
-    import BenchConfig._
-    import BenchConfig.Prelude._
-    
-    
-    type Configuration = (String, MachineAbstraction[SchemeExp, TimeComparison.address.A, TimeComparison.lattice.L, TimeComparison.timestamp.T, SchemeExp] with MachineUtil[SchemeExp, TimeComparison.address.A, TimeComparison.lattice.L])
+    type Configuration = (String, MachineAbstraction[SchemeExp, address.A, lattice.L, timestamp.T, SchemeExp] with MachineUtil[SchemeExp, address.A, lattice.L])
     type Measurement = (Double, Int) // Runtime, State count
     
     /* **** General configuration **** */
@@ -44,13 +44,19 @@ object TimeComparison extends App {
     val incOPT = new OptimisedIncConcMod[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     
     val configurations: List[Configuration] = List(/*("regAAM", regAAM),*/ ("cncMOD", cncMOD), /*("incMOD", incMOD),*/ ("incOPT", incOPT))
+    val timeout: Int = 10 * 60 // 10 minutes
+    
+    /* **** Experimental setup **** */
+    
+    val iterations: Int = 1//10 // todo 30
+    val startup:    Int = 0//3  // todo 10 // Number of iterations to be dropped.
     
     /* **** Experimental output **** */
     
     // Avoid overwriting old results by appending the date and time to the file name.
     val now:                Date =  Calendar.getInstance().getTime
     val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
-    val output:           String = "./Results_TimeComparison" + format.format(now) + ".csv"
+    val output:           String = "./Results_MachineComparison" + format.format(now) + ".csv"
     val fields:     List[String] = List("Benchmark", "Machine", "States") ++ ((1 to startup).map("s" + _) ++ (1 to iterations).map("i" + _)).toList // Field names for the csv file.
     
     val    out = new BufferedWriter(new FileWriter(output))
@@ -64,22 +70,22 @@ object TimeComparison extends App {
             val f = scala.io.Source.fromFile(file)
             // Add the necessary preludes to the file contents.
             val content: String = StandardPrelude.atomlangPrelude ++ (atPrelude match {
-                    case Prelude.lock => lockPrelude
-                    case Prelude.list => listPrelude
-                    case Prelude.none => ""
-                }) ++ f.getLines.mkString("\n")
+                case Prelude.lock => lockPrelude
+                case Prelude.list => listPrelude
+                case Prelude.none => ""
+            }) ++ f.getLines.mkString("\n")
             f.close()
             val program: SchemeExp = AtomlangParser.parse(content)
             configurations.foreach{ config =>
                 try {
                     val result = executeExperiment(program, config) // Measurements for startup are not filtered out!
                     writeStatistics(file, config._1, result)
-    
+                    
                     val times = result.map(_._1).drop(startup)
                     val meantime: Double = times.sum / Math.max(times.length, 1)
                     val states = result.map(_._2).drop(startup)
                     val meanstat: Double = (states.sum / Math.max(states.length, 1)).toDouble
-    
+                    
                     display(s"\nTime:\t$meantime\nStates:\t$meanstat\n")
                 } catch {
                     case e: Throwable => e.printStackTrace()
