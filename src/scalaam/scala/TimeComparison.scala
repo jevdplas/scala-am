@@ -17,9 +17,13 @@ import java.text.SimpleDateFormat
 import java.util.{Calendar, Date}
 
 /**  Contains utilities to compare the different machines. Compares both the runtime and state space size. */
-object MachineComparison extends App {
+object TimeComparison extends App {
     
-    type Configuration = (String, MachineAbstraction[SchemeExp, MachineComparison.address.A, MachineComparison.lattice.L, MachineComparison.timestamp.T, SchemeExp] with MachineUtil[SchemeExp, MachineComparison.address.A, MachineComparison.lattice.L])
+    import BenchConfig._
+    import BenchConfig.Prelude._
+    
+    
+    type Configuration = (String, MachineAbstraction[SchemeExp, TimeComparison.address.A, TimeComparison.lattice.L, TimeComparison.timestamp.T, SchemeExp] with MachineUtil[SchemeExp, TimeComparison.address.A, TimeComparison.lattice.L])
     type Measurement = (Double, Int) // Runtime, State count
     
     /* **** General configuration **** */
@@ -40,90 +44,17 @@ object MachineComparison extends App {
     val incOPT = new OptimisedIncConcMod[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     
     val configurations: List[Configuration] = List(/*("regAAM", regAAM),*/ ("cncMOD", cncMOD), /*("incMOD", incMOD),*/ ("incOPT", incOPT))
-    val timeout: Int = 10 * 60 // 10 minutes
-    
-    /* **** Experimental setup **** */
-    
-    val iterations: Int = 1//10 // todo 30
-    val startup:    Int = 0//3  // todo 10 // Number of iterations to be dropped.
     
     /* **** Experimental output **** */
     
     // Avoid overwriting old results by appending the date and time to the file name.
     val now:                Date =  Calendar.getInstance().getTime
     val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
-    val output:           String = "./Results_MachineComparison" + format.format(now) + ".csv"
+    val output:           String = "./Results_TimeComparison" + format.format(now) + ".csv"
     val fields:     List[String] = List("Benchmark", "Machine", "States") ++ ((1 to startup).map("s" + _) ++ (1 to iterations).map("i" + _)).toList // Field names for the csv file.
     
     val    out = new BufferedWriter(new FileWriter(output))
     val writer = new CSVWriter(out)
-    
-    /* **** Benchmarks **** */
-    
-    object Prelude extends Enumeration {
-        type Prelude = Value
-        val lock, list, none = Value
-    }
-    
-    import Prelude._
-    
-    // List of benchmarks with the required prelude (none means only the standard prelude).
-    val benchmarks: List[(String, Prelude)] = List(
-        ("./test/Atomlang/Threads/abp.scm",              lock),
-        ("./test/Atomlang/Threads/atoms.scm",            none),
-        ("./test/Atomlang/Threads/actors.scm",           lock),
-        ("./test/Atomlang/Threads/bchain.scm",           lock),
-        ("./test/Atomlang/Threads/count.scm",            lock),
-        ("./test/Atomlang/Threads/crypt.scm",            none),
-        ("./test/Atomlang/Threads/dekker.scm",           none),
-        ("./test/Atomlang/Threads/fact.scm",             lock),
-        ("./test/Atomlang/Threads/life.scm",             lock),
-        ("./test/Atomlang/Threads/matmul.scm",           none),
-        
-        ("./test/Atomlang/Threads/mcarlo.scm",           none),
-        ("./test/Atomlang/Threads/mceval.scm",           none),
-        ("./test/Atomlang/Threads/minimax.scm",          none),
-        ("./test/Atomlang/Threads/msort.scm",            none),
-        ("./test/Atomlang/Threads/nbody.scm",            none),
-        ("./test/Atomlang/Threads/pc.scm",               lock),
-        ("./test/Atomlang/Threads/phil.scm",             lock),
-        ("./test/Atomlang/Threads/phild.scm",            lock),
-        ("./test/Atomlang/Threads/pp.scm",               lock),
-        ("./test/Atomlang/Threads/pps.scm",              none),
-        
-        ("./test/Atomlang/Threads/qsort.scm",            none),
-        ("./test/Atomlang/Threads/ringbuf.scm",          lock),
-        ("./test/Atomlang/Threads/rng.scm",              lock),
-        ("./test/Atomlang/Threads/sieve.scm",            none),
-        ("./test/Atomlang/Threads/stm.scm",              lock),
-        ("./test/Atomlang/Threads/sudoku.scm",           none),
-        ("./test/Atomlang/Threads/trapr.scm",            none),
-        ("./test/Atomlang/Threads/tsp.scm",              none),
-    )
-    
-    // Lock implementation by means of atoms.
-    val lockPrelude: String =
-        """(define (t/new-lock)
-          |  (atom #f))
-          |(define (t/acquire lock)
-          |  (let try ()
-          |    (if (compare-and-set! lock #f #t)
-          |        #t
-          |        (try))))
-          |(define (t/release lock)
-          |  (reset! lock #f))""".stripMargin
-    
-    // Implementation of two basic list primitives.
-    val listPrelude: String =
-        """(define (map f l)
-          |  (if (null? l)
-          |      '()
-          |      (cons (f (car l))
-          |            (map f (cdr l)))))
-          |(define (for-each f l)
-          |  (if (not (null? l))
-          |      (begin (f (car l))
-          |             (for-each f (cdr l)))))""".stripMargin
     
     /* **** Experiment implementation **** */
     
@@ -203,12 +134,6 @@ object MachineComparison extends App {
         } catch {
             case e : Throwable => e.printStackTrace()
         }
-    }
-    
-    // Avoid output being buffered.
-    def display(data: String): Unit = {
-        print(data)
-        Console.out.flush()
     }
     
     writer.writeNext(fields.mkString(","))
