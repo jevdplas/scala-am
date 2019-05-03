@@ -39,13 +39,13 @@ object MachineComparison extends App {
     val incMOD = new IncrementalConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val incOPT = new OptimisedIncConcMod[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     
-    val configurations: List[Configuration] = List(("regAAM", regAAM), ("cncMOD", cncMOD), ("incMOD", incMOD), ("incOPT", incOPT))
+    val configurations: List[Configuration] = List(/*("regAAM", regAAM),*/ ("cncMOD", cncMOD), /*("incMOD", incMOD),*/ ("incOPT", incOPT))
     val timeout: Int = 10 * 60 // 10 minutes
     
     /* **** Experimental setup **** */
     
-    val iterations: Int = 10 // todo 30
-    val startup:    Int = 3  // todo 10 // Number of iterations to be dropped.
+    val iterations: Int = 1//10 // todo 30
+    val startup:    Int = 0//3  // todo 10 // Number of iterations to be dropped.
     
     /* **** Experimental output **** */
     
@@ -69,24 +69,6 @@ object MachineComparison extends App {
     
     // List of benchmarks with the required prelude (none means only the standard prelude).
     val benchmarks: List[(String, Prelude)] = List(
-        
-        // Mostly very simple programs (used to test the functioning of the machine).
-        
-        //("./test/Atomlang/atomicInt.scm",                none),
-        //("./test/Atomlang/future-swap.scm",              none),
-        //("./test/Atomlang/futurecomplexbody.scm",        none),
-        //("./test/Atomlang/list-with-length.scm",         none),
-        //("./test/Atomlang/simplefuture.scm",             none),
-        //("./test/Atomlang/treiber-stack.scm",            none),
-    
-        //("./test/Atomlang/Concurrent/simple.scm",        none),
-        //("./test/Atomlang/Concurrent/fact2.scm",         none),
-        //("./test/Atomlang/Concurrent/fact-indep.scm",    none),
-        //("./test/Atomlang/Concurrent/readers2.scm",      none),
-        //("./test/Atomlang/Concurrent/lastzero2.scm",     none),
-        
-        // More complex programs that are more suitable for benchmarking.
-        
         ("./test/Atomlang/Threads/abp.scm",              lock),
         ("./test/Atomlang/Threads/atoms.scm",            none),
         ("./test/Atomlang/Threads/actors.scm",           lock),

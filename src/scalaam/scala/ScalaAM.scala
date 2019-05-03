@@ -43,8 +43,8 @@ object Dot {
             return -1
         }
         import sys.process._
-        val img = dot.substring(0, dot.length - 3) + "png"
-        val base = "dot -Tpng " + dot + " -o " + img
+        val img = dot.substring(0, dot.length - 3) + "svg"
+        val base = "dot -Tsvg " + dot + " -o " + img
         val cmd = if (System.getProperty("os.name").toLowerCase.contains("windows")) "bash -c \"" + base + "\"" else base
         cmd.!
     }
