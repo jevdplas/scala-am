@@ -41,7 +41,11 @@ class OptimisedIncConcModRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t
     
     type TStore = TimestampedStore[A, V]
     
-    override def run[G](program: Exp, timeout: Timeout.T, name: String): Unit = {
+    override def run[G](program: Exp, timeout: Timeout.T, name: String): (Int, Int) = {
+        
+        // Reuse of visited sets.
+        var reuse = 0
+        var size  = 0
         
         /** Class collecting the dependencies of all threads. */
         case class Deps(joined: ExtendedStateJoinDeps, read: ExtendedStateReadDeps, written: ExtendedStateWriteDeps)
@@ -92,6 +96,10 @@ class OptimisedIncConcModRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t
             if (timeout.reached || oState.work.isEmpty) return oState
             outerLoop(oState.work.foldLeft(oState.copy(work = List())){case (oStateAcc, (curState, prevVisisted, version)) =>
                 val stid: TID = curState.tid
+                if (version == oStateAcc.store.version) {
+                    reuse += 1
+                    size  += prevVisisted.size
+                }
                 // Analysis of a single thread. When this thread is actually reanalysed, it may be possible to reuse the visited set given that the store is not changed.
                 val iState = innerLoop(InnerLoopState(List(curState),
                     oStateAcc.store,
@@ -144,5 +152,6 @@ class OptimisedIncConcModRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t
         recorder.reset()
         outerLoop(oState)
         recorder.outputRecorded(name + ".inceffs")
+        (reuse, size)
     }
 }

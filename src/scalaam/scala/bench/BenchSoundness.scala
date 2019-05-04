@@ -5,12 +5,12 @@ import scalaam.core._
 import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
 import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
 import scalaam.lattice.Type
-import sys.process._
 
+import sys.process._
 import scala.machine.{ConcurrentModularRec, OptimisedIncConcModRec}
 
-object SoundnessTest extends App {
-    
+object BenchSoundness extends App {
+
     import scalaam.bench.BenchConfig.Prelude._
     import scalaam.bench.BenchConfig._
     
@@ -22,8 +22,6 @@ object SoundnessTest extends App {
     
     val cncMOD = new ConcurrentModularRec[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val incOPT = new OptimisedIncConcModRec[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
-    
-    val timeout: Int = 10 * 60 // 10 minutes
     
     def forFile(file: String, atPrelude: Prelude): Int = {
         display("\n" ++ file ++ " ")

@@ -21,7 +21,7 @@ import scalaam.bench.BenchConfig.Prelude.Prelude
 import scalaam.bench.BenchConfig._
 
 /**  Contains utilities to compare the different machines. Compares both the runtime and state space size. */
-object TimeComparison extends App {
+object BenchTime extends App {
     
     type Configuration = (String, MachineAbstraction[SchemeExp, address.A, lattice.L, timestamp.T, SchemeExp] with MachineUtil[SchemeExp, address.A, lattice.L])
     type Measurement = (Double, Int) // Runtime, State count
@@ -43,13 +43,7 @@ object TimeComparison extends App {
     val incMOD = new IncrementalConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val incOPT = new OptimisedIncConcMod[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     
-    val configurations: List[Configuration] = List(/*("regAAM", regAAM),*/ ("cncMOD", cncMOD), /*("incMOD", incMOD),*/ ("incOPT", incOPT))
-    val timeout: Int = 10 * 60 // 10 minutes
-    
-    /* **** Experimental setup **** */
-    
-    val iterations: Int = 1//10 // todo 30
-    val startup:    Int = 0//3  // todo 10 // Number of iterations to be dropped.
+    val configurations: List[Configuration] = List(("regAAM", regAAM), ("cncMOD", cncMOD), ("incMOD", incMOD), ("incOPT", incOPT))
     
     /* **** Experimental output **** */
     
