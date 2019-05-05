@@ -19,5 +19,5 @@ class IncrementalConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIden
     type StateReadDeps  = Map[  A, Set[State]]
     type StateWriteDeps = Map[  A, Set[State]]
     
-    override def run[G](program: Exp, timeout: Timeout.T, name: String): (Int, Int) = (-1, -1)
+    override def run[G](program: Exp, timeout: Timeout.T, name: String): (Int, Int, Int) = (-1, -1, -1)
 }

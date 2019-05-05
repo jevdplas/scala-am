@@ -138,7 +138,7 @@ class ConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val
         }
     }
     
-    def run[G](program: Exp, timeout: Timeout.T, name: String): (Int, Int) = {
+    def run[G](program: Exp, timeout: Timeout.T, name: String): (Int, Int, Int) = {
         
         case class InnerLoopState(created: Created, effects: Effects, result: V, edges: UnlabeledEdges) extends SmartHash {
             def add(crea: Created, effs: Effects, res: Option[V], baseState: State, successors: Successors): InnerLoopState =  InnerLoopState(
@@ -232,6 +232,6 @@ class ConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val
         recorder.reset()
         outerLoop(List(state), oState)
         recorder.outputRecorded(name ++ ".modeffs")
-        (-1, -1)
+        (-1, -1, -1)
     }
 }
