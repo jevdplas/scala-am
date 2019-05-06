@@ -13,7 +13,6 @@
 (define thread-return-values-sem (make-semaphore 1))
 (define (thread-set-return-value t v)
   (semaphore-wait thread-return-values-sem)
-  ; (fprintf (current-error-port) "setting return value of ~a~n" t)
   (hash-set! thread-return-values t v)
   (semaphore-post thread-return-values-sem))
 (define (thread-return-value t)

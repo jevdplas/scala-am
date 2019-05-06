@@ -3,13 +3,11 @@
 ITERATIONS=10
 
 run() {
-    #echo === $1 ===
-    echo > $1.conc
-    echo "\n"
+    echo > recordings/$2.conc
     for i in $(seq $ITERATIONS); do
-        echo "$i"
+        printf " $i"
         racket -l racket -r recordings/futures.rkt -f $1 -e "(display-recorded)" | gawk '// { if (logging==1) { print $0 } } /exiting/ { logging=1 }' >> recordings/$2.conc
-        # racket -l racket -r recordings/futures.rkt -f $1 -e "(display-recorded)" >> recordings/$2.conc
+        #racket -l racket -r recordings/futures.rkt -f $1 -e "(display-recorded)" >> recordings/$2.conc
         if [ $? = 130 ]; then
            exit
         fi
