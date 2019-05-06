@@ -37,11 +37,18 @@ object BenchSoundness extends App {
             val name = file.split("/").last.dropRight(4) // DropRight removes ".scm".
             val program: SchemeExp = AtomlangParser.parse(content)
             display("cnc ")
-            cncMOD.run(program, Timeout.seconds(timeout), name)
+            val t1 = Timeout.seconds(timeout)
+            cncMOD.run(program, t1, name)
+            val to1 = t1.reached
+            if (to1) display(" timed out - ")
             display("inc ")
+            val t2 = Timeout.seconds(timeout)
             incOPT.run(program, Timeout.seconds(timeout), name)
+            val to2 = t2.reached
+            if (to2) display("timed out - ")
+            if (to1 && to2) return -3 // Both timed out, so no need to compare with sequential...
             display("\t-> comparing")
-            val base: String = s"./recordings/run.sh ./recordings/$name"
+            val base: String = s"./recordings/run.sh ${file.drop(2)} $name"
             val command: String = if (System.getProperty("os.name").toLowerCase.contains("windows")) "bash -c \"" + base + "\"" else base
             command.!
         } catch {
