@@ -45,7 +45,7 @@
     (reset! turn 0)
     (reset! wants-to-enter-1 #f)))
 
-;; Creates the two threads, which each increase counter
+;; Creates the two thrds, which each increase counter
 (define t0 (future (p0)))
 (define t1 (future (p1)))
 (deref t0)

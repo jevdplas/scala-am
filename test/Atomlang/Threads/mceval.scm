@@ -1,4 +1,4 @@
-;; Meta-circular evaluator with support for threads
+;; Meta-circular evaluator with support for thrds
 (define (range a b)
   (letrec ((loop (lambda (i acc)
                    (if (< i a)
@@ -49,8 +49,8 @@
   (future (eval body env)))
 
 (define (ev-join t env)
-  (let ((thread (eval t env)))
-    (deref thread)))
+  (let ((thrd (eval t env)))
+    (deref thrd)))
 
 (define (eval exp env)
   (if (number? exp)

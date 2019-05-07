@@ -1,6 +1,6 @@
 ;; Conway's game of life with concurrent computations
 (define N (expt 2 4))
-(define MAXTHREADSIZE 10)
+(define MAXthrdSIZE 10)
 
 (define (random-bool)
   (> (random 100) 50))
@@ -122,7 +122,7 @@
     (reset! ref #f)
     (t/release lock)))
 
-(define (game-of-life-thread fromx tox fromy toy)
+(define (game-of-life-thrd fromx tox fromy toy)
   (for-each (lambda (i)
               (for-each
                (lambda (j)
@@ -137,25 +137,25 @@
                (range fromy toy)))
             (range fromx tox)))
 
-(define (split-threads fromx tox fromy toy max)
+(define (split-thrds fromx tox fromy toy max)
   (if (and (<= (- tox fromx) max) (<= (- toy fromy) max))
       (list (list fromx tox fromy toy))
       (let ((halfx (+ fromx (quotient (- tox fromx) 2)))
             (halfy (+ fromy (quotient (- toy fromy) 2))))
         (append
-         (split-threads fromx halfx fromy halfy max)
+         (split-thrds fromx halfx fromy halfy max)
          (append
-          (split-threads fromx halfx (+ halfy 1) toy max)
-          (append (split-threads (+ halfx 1) tox fromy halfy max)
-                  (split-threads (+ halfx 1) tox (+ halfy 1) toy max)))))))
+          (split-thrds fromx halfx (+ halfy 1) toy max)
+          (append (split-thrds (+ halfx 1) tox fromy halfy max)
+                  (split-thrds (+ halfx 1) tox (+ halfy 1) toy max)))))))
 
-(define (game-of-life-threads)
-  (let ((thread-bounds (split-threads 0 N 0 N MAXTHREADSIZE)))
-    (map (lambda (bound) (future (game-of-life-thread (car bound) (cadr bound) (caddr bound) (cadddr bound)))) thread-bounds)))
+(define (game-of-life-thrds)
+  (let ((thrd-bounds (split-thrds 0 N 0 N MAXthrdSIZE)))
+    (map (lambda (bound) (future (game-of-life-thrd (car bound) (cadr bound) (caddr bound) (cadddr bound)))) thrd-bounds)))
 
 (define (game-of-life-whole-step)
-  (let ((threads (game-of-life-threads)))
-    (map (lambda (t) (deref t)) threads)
+  (let ((thrds (game-of-life-thrds)))
+    (map (lambda (t) (deref t)) thrds)
     (game-of-life-new-step)))
 
 (define (game-of-life iterations)

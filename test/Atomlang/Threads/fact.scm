@@ -29,7 +29,7 @@
       from
       (* from (product (+ from 1) to))))
 
-(define (fact-thread from to)
+(define (fact-thrd from to)
   (if (<= (- to from) FragmentSize)
       (product from to)
       (let ((steps (split from to)))
@@ -37,10 +37,10 @@
                (map (lambda (t) (deref t))
                     (map (lambda (bounds)
                            (future
-                            (fact-thread (car bounds) (cdr bounds))))
+                            (fact-thrd (car bounds) (cdr bounds))))
                          steps))))))
 
-(define (fact-thread-ref from to result result-lock)
+(define (fact-thrd-ref from to result result-lock)
   (if (<= (- to from) FragmentSize)
       (let ((partial-fact (product from to)))
         (t/acquire result-lock)
@@ -50,15 +50,15 @@
         (map (lambda (t) (deref t))
              (map (lambda (bounds)
                     (future
-                     (fact-thread-ref (car bounds) (cdr bounds)
+                     (fact-thrd-ref (car bounds) (cdr bounds)
                                       result result-lock)))
                   steps)))))
 
 (define (fact n)
-  (let* ((t1 (future (fact-thread 1 n)))
+  (let* ((t1 (future (fact-thrd 1 n)))
          (result (atom 1))
          (result-lock (t/new-lock))
-         (t2 (future (fact-thread-ref 1 n result result-lock)))
+         (t2 (future (fact-thrd-ref 1 n result result-lock)))
          (res1 (deref t1))
          (res2 (begin (deref t2) (read result))))
     (if (= res1 res2)

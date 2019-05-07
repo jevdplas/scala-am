@@ -1,4 +1,4 @@
-;; Implementation of Clojure's atoms on top of threads and shared variables
+;; Implementation of Clojure's atoms on top of thrds and shared variables
 (define (map f l)
   (if (pair? l)
       (cons (f (car l)) (map f (cdr l)))
@@ -61,7 +61,7 @@
                        (loop (+ i 1) (cons (f i) acc))))))
     (loop 0 '())))
 
-(define threads (do-n N (lambda (i) (future (= (mem-fib i) (mem-fib2 i))))))
+(define thrds (do-n N (lambda (i) (future (= (mem-fib i) (mem-fib2 i))))))
 
 (foldl (lambda (a b) (and a b)) #t
-       (map (lambda (t) (deref t)) threads))
+       (map (lambda (t) (deref t)) thrds))

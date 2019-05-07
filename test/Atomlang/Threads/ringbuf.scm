@@ -58,7 +58,7 @@
 (define buf-pop (cadr buf-struct))
 (define buf-size (caddr buf-struct))
 
-(define wthreads
+(define wthrds
   (do-n NWR (lambda ()
                  (letrec ((loop (lambda (i)
                                   (if (= i Iterations)
@@ -68,7 +68,7 @@
                                         (loop (+ i 1)))))))
                    (future (loop 0))))))
 
-(define rthreads
+(define rthrds
   (do-n NRD (lambda ()
                  (letrec ((loop (lambda (i)
                                   (if (= i Iterations)
@@ -79,8 +79,8 @@
                                         (loop (+ i 1)))))))
                    (future (loop 0))))))
 
-(map (lambda (t) (deref t)) wthreads)
-(map (lambda (t) (deref t)) rthreads)
+(map (lambda (t) (deref t)) wthrds)
+(map (lambda (t) (deref t)) rthrds)
 (if (= NWR NRD)
     (= (buf-size) 0)
     #t)

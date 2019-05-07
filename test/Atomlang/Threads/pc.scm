@@ -34,14 +34,14 @@
         (t/release lock)
         (consumer))))
 
-(define producer-thread (future (producer N)))
+(define producer-thrd (future (producer N)))
 
 (define (do-n n f)
   (if (= n 0)
       '()
       (cons (f) (do-n (- n 1) f))))
 
-(define consumer-threads (do-n NCONS (lambda () (future (consumer)))))
+(define consumer-thrds (do-n NCONS (lambda () (future (consumer)))))
 
-(deref producer-thread)
-(map (lambda (t) (deref t)) consumer-threads)
+(deref producer-thrd)
+(map (lambda (t) (deref t)) consumer-thrds)

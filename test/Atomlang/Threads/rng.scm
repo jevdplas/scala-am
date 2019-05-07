@@ -1,4 +1,4 @@
-;; Random number generate sharing state among multiple threads
+;; Random number generate sharing state among multiple thrds
 (define (map f l)
   (if (pair? l)
       (cons (f (car l)) (map f (cdr l)))

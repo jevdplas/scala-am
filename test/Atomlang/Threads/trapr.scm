@@ -66,8 +66,8 @@
                          (let* ((wl (+ (* range i) l))
                                 (wr (+ wl range)))
                            (loop (+ i 1) (cons (future (worker wl wr h)) acc)))))))
-      (let* ((threads (loop 0 '()))
-             (results (map (lambda (t) (deref t)) threads))
+      (let* ((thrds (loop 0 '()))
+             (results (map (lambda (t) (deref t)) thrds))
              (result (foldl + 0 results)))
         result))))
 

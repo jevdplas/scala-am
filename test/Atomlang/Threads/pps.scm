@@ -1,4 +1,4 @@
-;; Parallel prefix sum with threads
+;; Parallel prefix sum with thrds
 ;; https://stackoverflow.com/questions/10053629/parallel-prefix-sum-fastest-implementation/12874227#12874227
 (define (build-vector n init f)
   (letrec ((v (make-vector n init))

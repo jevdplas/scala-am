@@ -43,6 +43,6 @@
 (define (pick-str n)
   (list-ref strings (modulo n (length strings))))
 
-(define threads (do-n N (lambda (i)
+(define thrds (do-n N (lambda (i)
                           (future (ping 0 (pick-str i) i lck last)))))
-(map (lambda (t) (deref t)) threads)
+(map (lambda (t) (deref t)) thrds)

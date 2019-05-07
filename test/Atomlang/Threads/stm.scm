@@ -134,7 +134,7 @@
                        (loop (- i 1) (cons i acc))))))
     (loop n '())))
 
-(define (test-stm nitems nthreads niters)
+(define (test-stm nitems nthrds niters)
   (let* ((refs (map mc-ref (replicate nitems 0)))
          (tasks (map (lambda (t)
                        (lambda ()
@@ -150,9 +150,9 @@
                                                    ))
                                                 (loop (+ n 1)))))))
                            (loop 0))))
-                     (range nthreads)))
-         (threads (map (lambda (t) (future (t))) tasks)))
-    (map (lambda (t) (deref t)) threads)
+                     (range nthrds)))
+         (thrds (map (lambda (t) (future (t))) tasks)))
+    (map (lambda (t) (deref t)) thrds)
     (map (lambda (r) (mc-deref #f r)) refs)))
 
 (test-stm 10 10 1000)

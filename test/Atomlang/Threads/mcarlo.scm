@@ -1,4 +1,4 @@
-;; Monte-carlo simulation using threads
+;; Monte-carlo simulation using thrds
 (define MAXSIZE 10000)
 
 (define (inside-circle? radius x y)

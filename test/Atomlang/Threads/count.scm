@@ -23,7 +23,7 @@
                   (read state)
                   (error "unknown operation")))))))
 
-(define (thread cnt ops)
+(define (thrd cnt ops)
   (if (= ops 0)
       'done
       (let ((op (random 3)))
@@ -32,20 +32,20 @@
             (if (= op 1)
                 (cnt 'dec)
                 (cnt 'get)))
-        (thread cnt (- ops 1)))))
+        (thrd cnt (- ops 1)))))
 
 (define NOPS 42)
-(define (create-threads cnt n)
+(define (create-thrds cnt n)
   (letrec ((loop (lambda (i acc)
                    (if (= i n)
                        acc
-                       (loop (+ i 1) (cons (future (thread cnt NOPS)) acc))))))
+                       (loop (+ i 1) (cons (future (thrd cnt NOPS)) acc))))))
     (loop 0 '())))
 
 (define N 42)
 (define cnt (counter))
 (map (lambda (t) (deref t))
-     (create-threads cnt N))
+     (create-thrds cnt N))
 (display "result: ")
 (display (cnt 'get))
 (newline)

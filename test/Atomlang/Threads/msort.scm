@@ -1,4 +1,4 @@
-;; Multithreaded merge-sort
+;; Multithrded merge-sort
 (define (merge-lists xs ys)
   (if (null? xs)
       ys
