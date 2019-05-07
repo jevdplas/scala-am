@@ -36,7 +36,7 @@
         ((real? x) 'Num)
         ((string? x) 'Str)
         ((symbol? x) 'Sym)
-;        ((boolean? x) 'Bool)
+        ((boolean? x) 'Bool)
         ((thread? x) (if (hash-has-key? thread-names x) (string->symbol (thread-name x)) "???"))
         ((procedure? x) x)
         ((list? x) "\"#<list>\"")

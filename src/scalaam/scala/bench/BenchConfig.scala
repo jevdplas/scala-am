@@ -4,7 +4,7 @@ object BenchConfig {
     
     /* **** Experimental setup **** */
     
-    val timeout:    Int = 30 * 60 // 30 minutes
+    val timeout:    Int = 20 * 60 // 20 minutes
     val iterations: Int = 20      // todo 30
     val startup:    Int = 3       // todo 10 // Number of iterations to be dropped.
     

@@ -155,7 +155,7 @@ class OptimisedIncConcModRec[Exp <: SchemeExp, A <: Address, V, T, TID <: Thread
         
         recorder.reset()
         outerLoop(oState)
-        recorder.outputRecorded(name + ".inceffs")
+        recorder.outputRecorded(name + ".inceffs", tid)
         (reuse, nonreuse, size)
     }
 }

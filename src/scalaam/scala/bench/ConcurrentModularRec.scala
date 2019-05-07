@@ -232,7 +232,7 @@ class ConcurrentModularRec[Exp <: SchemeExp, A <: Address, V, T, TID <: ThreadId
         
         recorder.reset()
         outerLoop(List(state), oState)
-        recorder.outputRecorded(name ++ ".modeffs")
+        recorder.outputRecorded(name ++ ".modeffs", tid)
         (-1, -1, -1)
     }
 }
