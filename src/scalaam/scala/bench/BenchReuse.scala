@@ -46,10 +46,10 @@ object BenchReuse extends App {
             val name = file.split("/").last.dropRight(4) // DropRight removes ".scm".
             display("\n" + name + "\t")
             val program: SchemeExp = AtomlangParser.parse(content)
-            val to = Timeout.seconds(timeout * 2) // Start timer.
+            val to = Timeout.seconds(timeout) // Start timer.
             val (reuse, nonreuse, sum) = incOPT.run(program, to, name) // Run benchmark.
             val sc = to.time // Seconds passed.
-            val re = if (sc > timeout * 2) 1 else 0 // Check whether timeout has occurred.
+            val re = if (sc > timeout) 1 else 0 // Check whether timeout has occurred.
             val line: List[Any] = List(name, reuse, nonreuse, sum, re)
             display(reuse + " " + nonreuse + " " + sum + " " + re)
             writer.writeNext(line.mkString(","))

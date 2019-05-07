@@ -3,7 +3,6 @@
 ITERATIONS=10
 
 echo > recordings/$2.conc
-echo "\n"
 for i in $(seq $ITERATIONS); do
     printf " $i"
     racket -l racket -t recordings/futures.rkt -f $1 -e "(display-recorded)" | awk '// { if (logging==1) { print $0 } } /RESULTS:/ { logging=1 }' >> recordings/$2.conc

@@ -68,7 +68,7 @@ class MakeSchemeLattice[
   }
   
   case class Future(tid : ThreadIdentifier) extends Value {
-    override def toString: String = s"future#$tid"
+    override def toString: String = tid.toString
   }
 
   case class Pointer(a: A) extends Value {
