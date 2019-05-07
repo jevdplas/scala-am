@@ -6,10 +6,11 @@ import scalaam.core._
 import scalaam.machine.AAM
 import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
+import scalaam.language.scheme.SchemeExp
 
 import scala.core.MachineUtil
 
-class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])(
+class ConcurrentModular[Exp <: SchemeExp, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])(
     implicit val timestamp: Timestamp[T, Exp],
     implicit val lattice: Lattice[V])
     extends MachineAbstraction[Exp, A, V, T, Exp]

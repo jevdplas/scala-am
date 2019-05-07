@@ -4,6 +4,7 @@ import scalaam.core.StoreType.StoreType
 import scalaam.core._
 import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
+import scalaam.language.scheme.SchemeExp
 import scalaam.machine.Strategy.Strategy
 
 import scala.core.MachineUtil
@@ -13,7 +14,7 @@ import scala.core.MachineUtil
   *
   * Based on https://github.com/acieroid/scala-am/blob/744a13a5b957c73a9d0aed6e10f7dae382c9b2e3/src/main/scala/machine/concurrent/ConcurrentAAM.scala
   */
-class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])(
+class ConcurrentAAM[Exp <: SchemeExp, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])(
     implicit val timestamp: Timestamp[T, Exp],
     implicit val lattice: Lattice[V])
     extends MachineAbstraction[Exp, A, V, T, Exp]

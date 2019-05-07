@@ -1,5 +1,7 @@
 package scalaam.core
 
+import scalaam.language.scheme.SchemeExp
+
 /** A trait for thread identifiers. */
 trait ThreadIdentifier extends SmartHash
 
@@ -11,7 +13,7 @@ trait TIDAllocator[TID <: ThreadIdentifier, T, C] {
     implicit val timestamp: Timestamp[T, C]
     
     /** Allocate a TID. */
-    def allocate[E](exp: E, t: T): TID
+    def allocate[E <: SchemeExp](exp: E, t: T): TID
 }
 
 object ConcreteTID {
@@ -19,12 +21,12 @@ object ConcreteTID {
     trait threadID extends ThreadIdentifier
     
     /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
-    case class TID[T, C](exp: C, t: T) extends threadID {
-        override def toString: String = exp.toString //s"*${exp.toString.hashCode}@$t*"
+    case class TID[T, C <: SchemeExp](exp: C, t: T) extends threadID {
+        override def toString: String = exp.pos.toString
     }
     
     case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C]) extends TIDAllocator[threadID, T, C] {
-        def allocate[E](exp: E, t: T): threadID = TID(exp, t)
+        def allocate[E <: SchemeExp](exp: E, t: T): threadID = TID(exp, t)
     }
     
 }

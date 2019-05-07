@@ -5,6 +5,7 @@ import scalaam.core.StoreType.StoreType
 import scalaam.core._
 import scalaam.graph.{BaseTransition, Graph}
 import scalaam.graph.Graph.GraphOps
+import scalaam.language.scheme.SchemeExp
 
 /**
   * Implementation of an optimised version of the IncrementalConcurrentModular machine. Two optimisations are implemented: <br>
@@ -21,7 +22,7 @@ import scalaam.graph.Graph.GraphOps
   *
   * @see scala.machine.IncrementalConcurrentModular
   */
-class OptimisedIncConcMod[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
+class OptimisedIncConcMod[Exp <: SchemeExp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
     override implicit val timestamp: Timestamp[T, Exp],
     override implicit val lattice: Lattice[V])
     extends IncrementalConcurrentModular[Exp, A, V, T, TID](t, sem, allocator) {

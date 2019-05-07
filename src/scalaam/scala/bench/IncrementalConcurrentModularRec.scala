@@ -2,6 +2,8 @@ package scala.bench
 
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
+import scalaam.language.scheme.SchemeExp
+
 import scala.machine.ConcurrentModularRec
 
 /**
@@ -9,7 +11,7 @@ import scala.machine.ConcurrentModularRec
   * This is accomplished by a change in dependency tracking, so that dependencies are to States and not to Threads, i.e., the tracking
   * of dependencies now uses a finer granularity.
   */
-class IncrementalConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
+class IncrementalConcurrentModularRec[Exp <: SchemeExp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
     override implicit val timestamp: Timestamp[T, Exp],
     override implicit val lattice: Lattice[V])
     extends ConcurrentModularRec[Exp, A, V, T, TID](t, sem, allocator) {

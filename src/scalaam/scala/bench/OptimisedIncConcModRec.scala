@@ -3,7 +3,8 @@ package scala.machine
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
-import scalaam.graph.{BaseTransition}
+import scalaam.graph.BaseTransition
+import scalaam.language.scheme.SchemeExp
 
 import scala.bench.IncrementalConcurrentModularRec
 
@@ -22,7 +23,7 @@ import scala.bench.IncrementalConcurrentModularRec
   *
   * @see scala.machine.IncrementalConcurrentModular
   */
-class OptimisedIncConcModRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
+class OptimisedIncConcModRec[Exp <: SchemeExp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
     override implicit val timestamp: Timestamp[T, Exp],
     override implicit val lattice: Lattice[V])
     extends IncrementalConcurrentModularRec[Exp, A, V, T, TID](t, sem, allocator) {
