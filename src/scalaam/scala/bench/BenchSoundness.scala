@@ -56,5 +56,5 @@ object BenchSoundness extends App {
         }
     }
     
-    List(("./test/Atomlang/Threads/count.scm", lock)).foreach(Function.tupled(forFile))
+    benchmarks.foreach(Function.tupled(forFile))
 }

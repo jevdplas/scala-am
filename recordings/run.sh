@@ -12,16 +12,16 @@ run() {
            exit
         fi
     done
-    echo "\nModular Analysis:"
-    racket recordings/compare.rkt recordings/$2.conc recordings/$2.modeffs
-    if [ $? = 130 ]; then
-        exit
-    fi
-    echo "Incremental analysis:"
-    racket recordings/compare.rkt recordings/$2.conc recordings/$2.inceffs
-    if [ $? = 130 ]; then
-        exit
-    fi
+  #  echo "\nModular Analysis:"
+  #  racket recordings/compare.rkt recordings/$2.conc recordings/$2.modeffs
+  #  if [ $? = 130 ]; then
+  #      exit
+  #  fi
+  #  echo "Incremental analysis:"
+  #  racket recordings/compare.rkt recordings/$2.conc recordings/$2.inceffs
+  #  if [ $? = 130 ]; then
+  #      exit
+  #  fi
 }
 
 run "$@"
