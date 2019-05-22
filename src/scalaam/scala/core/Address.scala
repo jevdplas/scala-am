@@ -36,7 +36,7 @@ object NameAddress {
     /** The address of a variable */
     case class Variable(name: Identifier) extends A {
         def printable = true
-        override def toString = s"@${name.name}"
+        override def toString = s"@${name.name}-${name.pos}"
     
         /*
         override def equals(obj: Any): Boolean = obj match {
