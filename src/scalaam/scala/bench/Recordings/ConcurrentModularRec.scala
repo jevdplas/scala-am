@@ -1,17 +1,17 @@
-package scala.machine
+package scala.bench.Recordings
 
-import scalaam.bench.Recorder
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
-import scalaam.machine.AAM
 import scalaam.graph._
+import scalaam.machine.AAM
 
 class ConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])(
     implicit val timestamp: Timestamp[T, Exp],
     implicit val lattice: Lattice[V]) {
     
     import sem.Action.{DerefFuture, Err, Eval, NewFuture, Push, StepIn, Value, A => Act}
+
     import scala.machine.ConcurrentModular.WrappedStore
     
     /** Certain parts of this AAM will be reused. */

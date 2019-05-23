@@ -1,4 +1,4 @@
-package scalaam.bench
+package scala.bench.Recordings
 
 import java.io.FileWriter
 

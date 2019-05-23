@@ -6,8 +6,8 @@ import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
 import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
 import scalaam.lattice.Type
 
+import scala.bench.Recordings.{ConcurrentModularRec, OptimisedIncConcModRec}
 import sys.process._
-import scala.machine.{ConcurrentModularRec, OptimisedIncConcModRec}
 
 object BenchSoundness extends App {
 

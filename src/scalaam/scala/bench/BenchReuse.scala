@@ -13,7 +13,7 @@ import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
 import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
 import scalaam.lattice.Type
 
-import scala.machine.OptimisedIncConcModRec
+import scala.bench.Recordings.OptimisedIncConcModRec
 
 // Benchmarks the number of times a visited set is reused.
 object BenchReuse extends App {

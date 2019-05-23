@@ -1,8 +1,7 @@
-package scala.bench
+package scala.bench.Recordings
 
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
-import scala.machine.ConcurrentModularRec
 
 /**
   * Implementation of a concurrent modular machine that is incremental in the construction of the inner-loop (intra-modular) results.

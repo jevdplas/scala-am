@@ -1,11 +1,11 @@
-package scala.machine
+package scala.bench.Recordings
 
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
-import scalaam.graph.{BaseTransition}
+import scalaam.graph.BaseTransition
 
-import scala.bench.IncrementalConcurrentModularRec
+import scala.machine.TimestampedStore
 
 /**
   * Implementation of an optimised version of the IncrementalConcurrentModular machine. Two optimisations are implemented: <br>
@@ -27,8 +27,8 @@ class OptimisedIncConcModRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t
     override implicit val lattice: Lattice[V])
     extends IncrementalConcurrentModularRec[Exp, A, V, T, TID](t, sem, allocator) {
     
-    import seqAAM._
     import recorder._
+    import seqAAM._
     
     // Dependencies are now tracked on state basis instead of on thread basis.  However, unlike the unoptimised machine,
     // the visited set is now stored along with the state. This set can be used to restart the inner loop with, provided
