@@ -6,11 +6,14 @@ import scalaam.util.{Monoid, MonoidInstances}
 import SchemeOps._
 import UnaryOperator._
 import BinaryOperator._
+import scalaam.core.ConcreteVal._
+
+import scala.core.Exp
 
 /** Defines a Scheme lattice based on other lattices */
 /** TODO[medium]: use Show and ShowStore here */
 class MakeSchemeLattice[
-    Exp,
+    Expr <: Exp,
     A <: Address,
     S: StringLattice,
     B: BoolLattice,
@@ -50,10 +53,10 @@ class MakeSchemeLattice[
 
   /** TODO[medium] find a way not to have a type parametre here */
   case class Prim[Primitive](prim: Primitive) extends Value {
-    override def toString = s"#prim"
+    override def toString = s"#prim<$prim>"
   }
-  case class Clo(lambda: Exp, env: Environment[A]) extends Value {
-    override def toString = "#clo"
+  case class Clo(lambda: Expr, env: Environment[A]) extends Value {
+    override def toString = s"#clo@${lambda.pos}"
   }
 
   case class Cons(car: L, cdr: L) extends Value {
@@ -516,6 +519,25 @@ class MakeSchemeLattice[
       case Int(size) => MayFail.success(Vec(size, Map[I, L](), init))
       case _ => MayFail.failure(TypeError("expected int size when constructing vector", size))
     }
+  
+  
+    def concreteValues(x: Value): Set[ConcreteVal] = x match {
+      case Bot => Set()
+      case Str(s) => StringLattice[S].concreteValues(s)
+      case Bool(b) => BoolLattice[B].concreteValues(b)
+      case Int(i) => IntLattice[I].concreteValues(i)
+      case Real(r) => RealLattice[R].concreteValues(r)
+      case Char(c) => CharLattice[C].concreteValues(c)
+      case Symbol(s) => SymbolLattice[Sym].concreteValues(s)
+      case Prim(prim) => Set(ConcretePrim(prim))
+      case Clo(lambda, env) => Set(ConcreteClosure(lambda, env))
+      case Nil => Set(ConcreteNil)
+      case Pointer(a) => Set(ConcretePointer(a))
+      case Atom(v) => Set(ConcreteAtom(v))
+      case Future(tid) => Set(ConcreteFuture(tid))
+      case _: Cons => ???
+      case _: Vec => ???
+    }
   }
 
   sealed trait L extends SmartHash {
@@ -572,7 +594,7 @@ class MakeSchemeLattice[
   }
   implicit val lMFMonoid: Monoid[MayFail[L, Error]] = MonoidInstances.mayFail[L]
 
-  val schemeLattice: SchemeLattice[L, Exp, A] = new SchemeLattice[L, Exp, A] {
+  val schemeLattice: SchemeLattice[L, Expr, A] = new SchemeLattice[L, Expr, A] {
     def show(x: L)             = x.toString /* TODO[easy]: implement better */
     def isTrue(x: L): Boolean  = x.foldMapL(Value.isTrue(_))(boolOrMonoid)
     def isFalse(x: L): Boolean = x.foldMapL(Value.isFalse(_))(boolOrMonoid)
@@ -620,9 +642,14 @@ class MakeSchemeLattice[
     def nil: L = Element(Value.nil)
 
     def eql[B2: BoolLattice](x: L, y: L): B2 = ??? // TODO[medium] implement
+  
+    override def concreteValues(x: L): Set[ConcreteVal] = {
+      implicit val setMono = setMonoid[ConcreteVal]
+      x.foldMapL(v => Value.concreteValues(v))
+    }
   }
 
   object L {
-    implicit val lattice: SchemeLattice[L, Exp, A] = schemeLattice
+    implicit val lattice: SchemeLattice[L, Expr, A] = schemeLattice
   }
 }

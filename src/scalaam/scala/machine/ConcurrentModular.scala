@@ -43,6 +43,8 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     type GraphEdges     = List[(State, Transition, State)]
     type UnlabeledEdges = Map[State, Set[State]]
     
+    var theStore: VStore = Store.initial[A, V](t, sem.initialStore)(lattice) // This is ugly!
+    
     /** Class used to return all information resulting from stepping this state. */
     case class StepResult(successors: Successors, created: Created, result: Option[V], effects: Effects, store: VStore) {
         // Adds the accumulator. Important: keeps the store of "this".
@@ -320,6 +322,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                                                       Map.empty)
         
         val result: OuterLoopState = outerLoop(List(state), oState)
+        theStore = result.store
         Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toList, result.edges))
     }
 }

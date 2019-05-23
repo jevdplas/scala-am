@@ -104,6 +104,8 @@ trait SchemeLattice[L, Exp, A <: Address] extends Lattice[L] {
   
   /** Changes an element of a vector */
   def vectorSet(vector: L, index: L, newval: L): MayFail[L, Error]
+  
+  def concreteValues(x: L): Set[ConcreteVal]
 
   /* TODO: move this to the tests
   trait SchemeLatticeLaw extends MonoidLaw {

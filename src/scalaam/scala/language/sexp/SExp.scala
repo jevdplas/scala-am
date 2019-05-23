@@ -1,6 +1,8 @@
 package scalaam.language.sexp
 
-import scalaam.core.{Position, Identifier}
+import scalaam.core.{Identifier, Position}
+
+import scala.core.Exp
 
 /**
   * S-expressions and related values
@@ -35,9 +37,7 @@ object ValueNil extends Value {
   * resides in the input file, and as tagging information for the abstract
   * machine.
   */
-trait SExp {
-  val pos: Position
-}
+trait SExp extends Exp
 
 /**
   * An s-expression is made of pairs, e.g., (foo bar) is represented as the pair
