@@ -361,11 +361,11 @@ object StandardPrelude {
 }
 
 object CompareMachines {
-    def compare(file: String): Unit = {
+    def compare(file: String, timeout: Timeout.T = Timeout.seconds(10)): Unit = {
         println("Running concrete")
-        val conc = AtomlangRunConcrete.logValues(file)
+        val conc = AtomlangRunConcrete.logValues(file, timeout)
         println("Running abstract")
-        val abs = AtomlangRunModularIncremental.logValues(file)
+        val abs = AtomlangRunModularIncremental.logValues(file, timeout)
         if (conc.keySet != abs.keySet) {
             if (conc.keySet.subsetOf(abs.keySet)) {
                 println(s"Abstract has observed extra variables: ${abs.keySet.diff(conc.keySet)}")
