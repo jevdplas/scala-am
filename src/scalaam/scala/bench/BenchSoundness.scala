@@ -1,29 +1,17 @@
 package scala.bench
 
-import scalaam.StandardPrelude
+import scalaam._
 import scalaam.core._
-import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
-import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
-import scalaam.lattice.Type
-
-import scala.bench.Recordings.{ConcurrentModularRec, OptimisedIncConcModRec}
-import sys.process._
 
 object BenchSoundness extends App {
 
     import scalaam.bench.BenchConfig.Prelude._
     import scalaam.bench.BenchConfig._
+    import scalaam.language.scheme._
     
-    val address   = NameAddress
-    val tid       = ConcreteTID
-    val timestamp = ZeroCFA[SchemeExp]()
-    val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Type.S,  Type.B, Type.I, Type.R, Type.C, Type.Sym]
-    val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
+    val latt = SchemeLattice[Sem.lattice.L, SchemeExp, Sem.address.A]
     
-    val cncMOD = new ConcurrentModularRec[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
-    val incOPT = new OptimisedIncConcModRec[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
-    
-    def forFile(file: String, atPrelude: Prelude): Int = {
+    def forFile(file: String, atPrelude: Prelude): Unit = {
         display("\n" ++ file ++ " ")
         try {
             val f = scala.io.Source.fromFile(file)
@@ -34,26 +22,49 @@ object BenchSoundness extends App {
                 case Prelude.none => ""
             }) ++ f.getLines.mkString("\n")
             f.close()
-            val name = file.split("/").last.dropRight(4) // DropRight removes ".scm".
-            val program: SchemeExp = AtomlangParser.parse(content)
-            display("cnc ")
-            val t1 = Timeout.seconds(timeout)
-            cncMOD.run(program, t1, name)
-            val to1 = t1.reached
-            if (to1) display(" timed out - ")
-            display("inc ")
-            val t2 = Timeout.seconds(timeout)
-            incOPT.run(program, Timeout.seconds(timeout), name)
-            val to2 = t2.reached
-            if (to2) display("timed out - ")
-            if (to1 && to2) return -3 // Both timed out, so no need to compare with sequential...
-            display("\t-> comparing")
-            val base: String = s"./recordings/run.sh ${file.drop(2)} $name"
-            val command: String = if (System.getProperty("os.name").toLowerCase.contains("windows")) "bash -c \"" + base + "\"" else base
-            command.!
+            compare(content)
         } catch {
-            case e: Throwable => e.printStackTrace(); -1
+            case e: Throwable => e.printStackTrace()
         }
+    }
+    
+    def compare(content: String): Unit = {
+        display("mod ")
+        val t1 = Timeout.seconds(timeout)
+        val mod = AtomlangRunModular.logValues(content, t1)
+        if (t1.reached) {
+            display("timed out\n")
+            return
+        }
+        display(" - inc\n")
+        val t2 = Timeout.seconds(timeout)
+        val inc = AtomlangRunModularIncremental.logValues(content, t2)
+        if (t2.reached) {
+            display("timed out\n")
+            return
+        }
+        if (mod.keySet != inc.keySet) {
+            if (mod.keySet.subsetOf(inc.keySet)) {
+                display(s"Abstract has observed extra variables: ${inc.keySet.diff(mod.keySet)}\n")
+            } else {
+                display("!!!SOUNDNESS PROBLEM!!!\n")
+                /* If the concrete execution observed variables not observed in the abstract, the abstract is not sound! */
+                display(s"Concrete has observed extra variables: ${mod.keySet.diff(inc.keySet)}\n")
+                return /* And we can directly abort */
+            }
+        }
+        
+        mod.keySet.foreach(id => {
+            val modval = mod(id)
+            val incval = inc(id)
+            if (incval == modval) {
+                display(s"$id: full precision! ($incval)\n")
+            } else if (!latt.subsumes(incval, modval)) {
+                display(s"$id: SOUNDNESS PROBLEM, inferred $incval while concrete shows $modval\n")
+            } else {
+                display(s"$id: overapproximative, inferred as $incval while best abstraction is $modval\n")
+            }
+        })
     }
     
     benchmarks.foreach(Function.tupled(forFile))
