@@ -37,7 +37,7 @@ object NameAddress {
     case class Variable(name: Identifier) extends A {
         def printable = true
         
-        override def toString = s"@${name.name}-${name.pos}"
+        override def toString = s"@${name.name}"
     }
     
     /** The address for a pointer */
@@ -70,7 +70,7 @@ object ConcreteAddress {
     case class Variable[Time](name: Identifier, time: Time) extends A {
         def printable = true
         
-        override def toString = s"@${name.name}-${name.pos}"
+        override def toString = s"@${name.name}"
     }
     
     /** Concrete address for a pointer. */
