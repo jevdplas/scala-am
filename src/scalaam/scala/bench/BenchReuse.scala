@@ -72,7 +72,7 @@ object BenchReuse extends App {
     writer.writeNext(fields)
     writer.flush()
     display("Benchmark,tid,(iteration,number)*")
-    List(("./test/simple.scm", none)).foreach(Function.tupled(forFile))
+    benchmarks.foreach(Function.tupled(forFile))
     writer.close()
     display("\n\n***** Finished *****\n")
 }
