@@ -25,6 +25,8 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     type StateReadDeps  = Map[  A, Set[State]]
     type StateWriteDeps = Map[  A, Set[State]]
     
+    var theLabels: List[(Int, Map[Int, Int])] = List()
+    
     override def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
     
         /** Class collecting the dependencies of all threads. */
@@ -101,17 +103,20 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     
         /** Filters out unreachable graph components that may result from invalidating edges. */
         @scala.annotation.tailrec
-        def findConnectedStates(work: List[State], edges: Edges, visited: Set[State] = Set.empty, acc: GraphEdges = List.empty): GraphEdges = {
-            if (timeout.reached || work.isEmpty) return acc
-            if (visited.contains(work.head)) findConnectedStates(work.tail, edges, visited, acc)
+        def findConnectedStates(tid: TID, work: List[State], edges: Edges, visited: Set[State] = Set.empty, acc: GraphEdges = List.empty, labels: Map[Int, Int] = Map().withDefaultValue(0)): (GraphEdges, Map[Int, Int]) = {
+            if (timeout.reached || work.isEmpty) return (acc, labels)
+            if (visited.contains(work.head)) findConnectedStates(tid, work.tail, edges, visited, acc, labels)
             else {
                 val head = work.head
                 val next = edges(head)
+                val lbs = next.foldLeft(labels){(lbs, e) =>
+                    val i = e._1.l.toInt
+                    lbs + (i -> (lbs(i) + 1))}
                 // Prepend the edges and work upfront the respective lists (assume next to be much shorter than work/acc).
-                findConnectedStates(next.map(_._2).toList ++ work.tail, edges, visited + head, next.map(t => (head, t._1, t._2)).toList ++ acc)
+                findConnectedStates(tid, next.map(_._2).toList ++ work.tail, edges, visited + head, next.map(t => (head, t._1, t._2)).toList ++ acc, lbs)
             }
         }
-    
+        
         val cc      :          KAddr = HaltKontAddr
         val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
         val control :        Control = ControlEval(program, env)
@@ -132,8 +137,15 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                                        Map.empty)                                           // Graph edges.
     
         val result: OuterLoopState = outerLoop(oState)
-        // After running the result, possibly unreachable edges may need to be filtered out.
-        Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toList, result.edges))
+        val (edg, labels): (GraphEdges, List[(TID, Map[Int, Int])]) =
+            result.threads.keySet.foldLeft((List[(State, Transition, State)](),
+                                            List[(TID, Map[Int, Int])]()))
+            { case ((edg, lab), td) =>
+                val (e, l): (GraphEdges, Map[Int, Int]) = findConnectedStates(td, result.threads(td).toList, result.edges)
+                (edg ++ e, (td, l) :: lab)
+        }
+        theLabels = labels.foldLeft((List[(Int, Map[Int, Int])](), 0)){case ((acc, n), (_, mp)) => ((n, mp) :: acc, n + 1)}._1
+        Graph[G, State, Transition].empty.addEdges(edg)
     
     }
 }

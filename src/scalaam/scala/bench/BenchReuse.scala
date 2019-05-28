@@ -6,16 +6,16 @@ import java.util.{Calendar, Date}
 
 import au.com.bytecode.opencsv.CSVWriter
 import scalaam.StandardPrelude
-import scalaam.bench.BenchConfig.Prelude.Prelude
+import scalaam.bench.BenchConfig.Prelude._
 import scalaam.bench.BenchConfig._
 import scalaam.core._
 import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
 import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
 import scalaam.lattice.Type
+import scalaam.graph.DotGraph
 
-import scala.bench.Recordings.OptimisedIncConcModRec
+import scala.machine.IncrementalConcurrentModular
 
-// Benchmarks the number of times a visited set is reused.
 object BenchReuse extends App {
     
     val address   = NameAddress
@@ -23,12 +23,13 @@ object BenchReuse extends App {
     val timestamp = ZeroCFA[SchemeExp]()
     val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Type.S,  Type.B, Type.I, Type.R, Type.C, Type.Sym]
     val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
-    val incOPT    = new OptimisedIncConcModRec[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val modInc    = new IncrementalConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val graph     = DotGraph[modInc.State, modInc.Transition]()
     
     val now:                Date =  Calendar.getInstance().getTime
     val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
-    val output:           String = "./Results_Reuse" + format.format(now) + ".csv"
-    val fields:           String = "Benchmark,Reuse,Nonreuse,SumofSizes,Timeout" // Field names for the csv file.
+    val output:           String = "./Results_ReuseInc" + format.format(now) + ".csv"
+    val fields:           String = "Benchmark,tid,(iteration,number)*" // Field names for the csv file.
     
     val    out = new BufferedWriter(new FileWriter(output))
     val writer = new CSVWriter(out)
@@ -44,16 +45,25 @@ object BenchReuse extends App {
             }) ++ f.getLines.mkString("\n")
             f.close()
             val name = file.split("/").last.dropRight(4) // DropRight removes ".scm".
-            display("\n" + name + "\t")
             val program: SchemeExp = AtomlangParser.parse(content)
-            val to = Timeout.seconds(timeout * 2) // Start timer.
-            val (reuse, nonreuse, sum) = incOPT.run(program, to, name) // Run benchmark.
+            val to = Timeout.seconds(timeout) // Start timer.
+            modInc.run[graph.G](program, to) // Run benchmark.
             val sc = to.time // Seconds passed.
-            val re = if (sc > timeout * 2) 1 else 0 // Check whether timeout has occurred.
-            val line: List[Any] = List(name, reuse, nonreuse, sum, re)
-            display(reuse + " " + nonreuse + " " + sum + " " + re)
-            writer.writeNext(line.mkString(","))
-            writer.flush()
+            val re = sc > timeout // Check whether timeout has occurred.
+            if (re) {
+                val line: List[Any] = List(name, "timed out.")
+                display("timeout")
+                writer.writeNext(line.mkString(","))
+                writer.flush()
+            } else {
+                val labels = modInc.theLabels
+                labels.foreach{case (int, mp) =>
+                    val line: List[Any] = name :: int :: mp.toList
+                    display("\n" ++ name ++ "\t" ++ line.tail.mkString(","))
+                    writer.writeNext(line.mkString(","))
+                    writer.flush()
+                }
+            }
         } catch {
             case e: Throwable => e.printStackTrace()
         }
@@ -61,8 +71,8 @@ object BenchReuse extends App {
     
     writer.writeNext(fields)
     writer.flush()
-    display("name, reuse, nonreuse, sum, timeout")
-    benchmarks.foreach(Function.tupled(forFile))
+    display("Benchmark,tid,(iteration,number)*")
+    List(("./test/simple.scm", none)).foreach(Function.tupled(forFile))
     writer.close()
     display("\n\n***** Finished *****\n")
 }
