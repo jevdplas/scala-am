@@ -36,8 +36,14 @@ object NameAddress {
     /** The address of a variable */
     case class Variable(name: Identifier) extends A {
         def printable = true
-        
         override def toString = s"@${name.name}"
+    
+        /*
+        override def equals(obj: Any): Boolean = obj match {
+            case Variable(n) if name.name == n.name => true
+            case _ => false
+        }
+        */
     }
     
     /** The address for a pointer */
