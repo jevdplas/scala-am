@@ -74,7 +74,7 @@ object Graph {
     def removeNode(node: N): G                     = ev.removeNode(g, node)
     def removeEdge(node1: N, edge: E, node2: N): G = ev.removeEdge(g, node1, edge, node2)
     def nodes: Int                                 = ev.nodes(g)
-    def edges: Int                                 = ev.nodes(g)
+    def edges: Int                                 = ??? //ev.nodes(g) <-- Incorrect!
     def findNodes(p: N => Boolean): Set[N]         = ev.findNodes(g, p)
   }
 }
