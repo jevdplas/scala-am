@@ -6,8 +6,6 @@ import scalaam.core._
 import scalaam.graph.{BaseTransition, Graph}
 import scalaam.graph.Graph.GraphOps
 
-import scala.machine.ConcurrentModular.WrappedStore
-
 /**
   * Implementation of a concurrent modular machine that is incremental in the construction of the inner-loop (intra-modular) results.
   * This is accomplished by a change in dependency tracking, so that dependencies are to States and not to Threads, i.e., the tracking
@@ -33,14 +31,14 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
         case class Deps(joined: StateJoinDeps, read: StateReadDeps, written: StateWriteDeps)
     
         /** Class containing bookkeeping information for the inner loop of a thread. All arguments except the first three are optional. */
-        case class InnerLoopState(work: List[State], store: WStore, results: RetVals, visited: Set[State] = Set.empty,
+        case class InnerLoopState(work: List[State], store: VStore, results: RetVals, visited: Set[State] = Set.empty,
                                   result: V = lattice.bottom, created: Created = Set.empty, effects: Effects = Set.empty,
                                   deps: Deps = Deps(Map.empty.withDefaultValue(Set.empty), Map.empty.withDefaultValue(Set.empty),
                                       Map.empty.withDefaultValue(Set.empty)),
                                   edges: UnlabeledEdges = Map.empty) extends SmartHash
         
         /** Class containing bookkeeping information for the outer loop. Contains a.o. the global store. */
-        case class OuterLoopState(threads: Threads, work: List[State], deps: Deps, results: RetVals, store: WStore, edges: Edges) extends SmartHash
+        case class OuterLoopState(threads: Threads, work: List[State], deps: Deps, results: RetVals, store: VStore, edges: Edges) extends SmartHash
     
         /** Innerloop like ConcurrentModular.run.innerLoop, except that now relations between effects and states are tracked. */
         @scala.annotation.tailrec
@@ -49,7 +47,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
             innerLoop(iState.work.foldLeft(iState.copy(work = List())){case (iStateAcc, curState) =>
                 if (iStateAcc.visited.contains(curState)) iStateAcc
                 else {
-                    val StepResult(successors, created, result, effects, store: WStore) = curState.step(iStateAcc.store, iStateAcc.results)
+                    val StepResult(successors, created, result, effects, store: VStore) = curState.step(iStateAcc.store, iStateAcc.results)
                     val (read, written, joined) = effects.foldLeft((iStateAcc.deps.read, iStateAcc.deps.written, iStateAcc.deps.joined))
                         {case (acc@(r, w, j), eff) => eff match {
                             case     JoinEff(tid: TID@unchecked) => (r, w, j + (tid -> (j(tid) + curState)))
@@ -58,8 +56,8 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                             case _ => acc
                             }
                         }
-                    val vis = if (store.updated) Set.empty[State] else iStateAcc.visited + curState
-                    InnerLoopState(iStateAcc.work ++ successors, store.reset, iStateAcc.results, vis,
+                    val vis = if (store.asInstanceOf[DeltaStore[A, V]].updated.nonEmpty) Set.empty[State] else iStateAcc.visited + curState
+                    InnerLoopState(iStateAcc.work ++ successors, store.asInstanceOf[DeltaStore[A, V]].clearUpdated, iStateAcc.results, vis,
                                    lattice.join(iStateAcc.result, result.getOrElse(lattice.bottom)),
                                    iStateAcc.created ++ created, iStateAcc.effects ++ effects,
                                    Deps(joined, read, written),
@@ -88,8 +86,8 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                 val readDeps  = oStateAcc.deps.read    ++ iState.deps.read
                 val writeDeps = oStateAcc.deps.written ++ iState.deps.written
                 val joinDeps  = oStateAcc.deps.joined  ++ iState.deps.joined
-                // Based on R/W and W/W conflicts, decide on the states that need re-evaluation.
-                val todoEffects: List[State] = iState.deps.written.keySet.foldLeft(List[State]())((acc, addr) =>
+              // Based on R/W and W/W conflicts, decide on the states that need re-evaluation.
+              val todoEffects: List[State] = iState.deps.written.keySet.foldLeft(List[State]())((acc, addr) =>
                     if (oStateAcc.store.lookup(addr) == iState.store.lookup(addr)) acc else acc ++ readDeps(addr).filter(_.tid != stid) ++ writeDeps(addr).filter(_.tid != stid))
                 // Calculate the thread's new return value. If it differs, some other threads joining this thread need re-evaluation.
                 val retVal: V = lattice.join(oStateAcc.results(stid), iState.result)
@@ -126,14 +124,13 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
         val state   :          State = State(tid, control, cc, time, kstore)
         val threads :        Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
         val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
-        val wstore  :         WStore = WrappedStore[A, V](vstore)(lattice)
         val oState  : OuterLoopState = OuterLoopState(threads,                              // Threads.
                                        List(state),                                         // Worklist.
                                        Deps(Map.empty.withDefaultValue(Set.empty),          // Join dependencies.
                                             Map.empty.withDefaultValue(Set.empty),          // Read dependencies.
                                             Map.empty.withDefaultValue(Set.empty)),         // Write dependencies.
                                             Map.empty.withDefaultValue(lattice.bottom),     // Return values.
-                                       wstore,                                              // Store.
+                                       vstore,                                              // Store.
                                        Map.empty)                                           // Graph edges.
     
         val result: OuterLoopState = outerLoop(oState)

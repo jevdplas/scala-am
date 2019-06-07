@@ -12,8 +12,6 @@ class ConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val
     
     import sem.Action.{DerefFuture, Err, Eval, NewFuture, Push, StepIn, Value, A => Act}
 
-    import scala.machine.ConcurrentModular.WrappedStore
-    
     /** Certain parts of this AAM will be reused. */
     val seqAAM = new AAM[Exp, A, V, T](t, sem)
     import seqAAM._
@@ -25,7 +23,6 @@ class ConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val
     type KAddr      = KA
     
     type VStore     = Store[A, V]
-    type WStore     = WrappedStore[A, V]
     type KStore     = Store[KAddr, Set[Kont]]
     
     type Created    = Set[State]
@@ -50,7 +47,7 @@ class ConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val
                 created ++ acc.created,
                 Option.empty,
                 effects ++ acc.effects,
-                store) // Important: keeps the store of "this".
+                acc.store.join(store)) // Important: keeps the store of "this".
     }
     
     case class State(tid: TID, control: Control, cc: KAddr, time: T, kstore: KStore) extends GraphElement with SmartHash {
@@ -151,17 +148,17 @@ class ConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val
         }
 
         @scala.annotation.tailrec
-        def innerLoop(work: List[State], results: RetVals, store: WStore, iteration: Int, visited: Set[State] = Set.empty,
-                      iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, lattice.bottom, Map.empty)): (WStore, InnerLoopState) = {
+        def innerLoop(work: List[State], results: RetVals, store: VStore, iteration: Int, visited: Set[State] = Set.empty,
+                      iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, lattice.bottom, Map.empty)): (VStore, InnerLoopState) = {
             if (timeout.reached || work.isEmpty) (store, iState)
             else {
-                val (work_, visited_, store_, iState_): (List[State], Set[State], WStore, InnerLoopState) =
+                val (work_, visited_, store_, iState_): (List[State], Set[State], VStore, InnerLoopState) =
                     work.foldLeft((List.empty[State], visited, store, iState)){case (acc@(workAcc, visitedAcc, storeAcc, iStateAcc), curState) =>
                         if (visitedAcc.contains(curState)) acc // If the state has been explored already, do not take a step.
                         else {                                 // If the state has not been explored yet, take a step.
-                            val StepResult(succs, crea, res, effs, sto: WStore) = curState.step(storeAcc, results)
-                            val vis = if (sto.updated) Set.empty[State] else visitedAcc + curState // Immediately clear the visited set upon a store change.
-                            (workAcc ++ succs, vis, sto.reset, iStateAcc.add(crea, effs, res, curState, succs))
+                            val StepResult(succs, crea, res, effs, sto: VStore) = curState.step(storeAcc, results)
+                            val vis = if (!sto.asInstanceOf[DeltaStore[A, V]].updated.isEmpty) Set.empty[State] else visitedAcc + curState // Immediately clear the visited set upon a store change.
+                            (workAcc ++ succs, vis, sto.asInstanceOf[DeltaStore[A, V]].clearUpdated, iStateAcc.add(crea, effs, res, curState, succs))
                         }
                     }
                 innerLoop(work_, results, store_, iteration, visited_, iState_)
@@ -169,7 +166,7 @@ class ConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val
         }
         
 
-        case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: WStore, edges: Edges) extends SmartHash
+        case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: VStore, edges: Edges) extends SmartHash
 
         @scala.annotation.tailrec
         def outerLoop(work: List[State], oState: OuterLoopState, iteration: Int = 1): OuterLoopState = {
@@ -220,13 +217,12 @@ class ConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val
         val state   :          State = State(tid, control, cc, time, kstore)
         val threads :        Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
         val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
-        val wstore  :         WStore = WrappedStore[A, V](vstore)(lattice)
         val oState  : OuterLoopState = OuterLoopState(threads,
             Map.empty.withDefaultValue(Set.empty),
             Map.empty.withDefaultValue(Set.empty),
             Map.empty.withDefaultValue(Set.empty),
             Map.empty.withDefaultValue(lattice.bottom),
-            wstore,
+            vstore,
             Map.empty)
         
         recorder.reset()

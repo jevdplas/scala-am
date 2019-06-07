@@ -17,7 +17,6 @@ class ConcurrentModularBottom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     
     import sem.Action.{DerefFuture, Err, Eval, NewFuture, Push, StepIn, Value, A => Act}
 
-    import scala.machine.ConcurrentModular.WrappedStore
     
     /** Certain parts of this AAM will be reused. */
     val seqAAM = new AAM[Exp, A, V, T](t, sem)
@@ -27,7 +26,6 @@ class ConcurrentModularBottom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     type KAddr      = KA
     
     type VStore     = Store[A, V]
-    type WStore     = WrappedStore[A, V]
     type KStore     = Store[KAddr, Set[Kont]]
     
     type Created    = Set[State]
@@ -49,7 +47,7 @@ class ConcurrentModularBottom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
                 joined ++ acc.joined,
                 Option.empty,
                 effects ++ acc.effects,
-                store) // Important: keeps the store of "this".
+                acc.store.join(store)) // Important: keeps the store of "this".
     }
     
     /**
@@ -216,17 +214,17 @@ class ConcurrentModularBottom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
           * @return A set of a new global store and an innerloopstate containing extra bookkeeping information for the outer loop.
           */
         @scala.annotation.tailrec
-        def innerLoop(work: List[State], results: RetVals, store: WStore, iteration: Int, visited: Set[State] = Set.empty,
-                      iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, Set.empty, lattice.bottom, List.empty)): (WStore, InnerLoopState) = {
+        def innerLoop(work: List[State], results: RetVals, store: VStore, iteration: Int, visited: Set[State] = Set.empty,
+                      iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, Set.empty, lattice.bottom, List.empty)): (VStore, InnerLoopState) = {
             if (timeout.reached || work.isEmpty) (store, iState)
             else {
-                val (work_, visited_, store_, iState_): (List[State], Set[State], WStore, InnerLoopState) =
+                val (work_, visited_, store_, iState_): (List[State], Set[State], VStore, InnerLoopState) =
                     work.foldLeft((List.empty[State], visited, store, iState)){case (acc@(workAcc, visitedAcc, storeAcc, iStateAcc), curState) =>
                         if (visitedAcc.contains(curState)) acc // If the state has been explored already, do not take a step.
                         else {                                 // If the state has not been explored yet, take a step.
-                            val StepResult(succs, crea, joi, res, effs, sto: WStore) = curState.step(storeAcc, results)
-                            val vis = if (sto.updated) Set.empty[State] else visitedAcc + curState // Immediately clear the visited set upon a store change.
-                            (workAcc ++ succs, vis, sto.reset, iStateAcc.add(crea, joi, effs, res, succs.toList.map((curState, BaseTransition(iteration.toString), _))))
+                            val StepResult(succs, crea, joi, res, effs, sto: VStore) = curState.step(storeAcc, results)
+                            val vis = if (!sto.asInstanceOf[DeltaStore[A, V]].updated.isEmpty) Set.empty[State] else visitedAcc + curState // Immediately clear the visited set upon a store change.
+                            (workAcc ++ succs, vis, sto.asInstanceOf[DeltaStore[A, V]].clearUpdated, iStateAcc.add(crea, joi, effs, res, succs.toList.map((curState, BaseTransition(iteration.toString), _))))
                         }
                     }
                 innerLoop(work_, results, store_, iteration, visited_, iState_)
@@ -242,7 +240,7 @@ class ConcurrentModularBottom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
           * @param results   A map of tids to result values.
           * @param store     The store.
           */
-        case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: WStore, graphs: Graphs) extends SmartHash
+        case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: VStore, graphs: Graphs) extends SmartHash
     
         /**
           * Performs the fixed-point computation for the entire program. Uses the innerLoop method to analyse single threads and uses the results and dependencies returned from this
@@ -298,13 +296,12 @@ class ConcurrentModularBottom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
         val state   :          State = State(tid, control, cc, time, kstore)
         val threads :        Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
         val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
-        val wstore  :         WStore = WrappedStore[A, V](vstore)(lattice)
         val oState  : OuterLoopState = OuterLoopState(threads,
                                                       Map.empty.withDefaultValue(Set.empty),
                                                       Map.empty.withDefaultValue(Set.empty),
                                                       Map.empty.withDefaultValue(Set.empty),
                                                       Map.empty.withDefaultValue(lattice.bottom),
-                                                      wstore, graphs)
+                                                      vstore, graphs)
         
         outerLoop(List(state), oState).toSet[(TID, Edges)].map(_._2).foldLeft(Graph[G, State, Transition].empty)((acc, curModuleGraph) => acc.addEdges(curModuleGraph))
     }

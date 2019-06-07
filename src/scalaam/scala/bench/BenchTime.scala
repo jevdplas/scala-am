@@ -43,7 +43,7 @@ object BenchTime extends App {
     val incMOD = new IncrementalConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val incOPT = new OptimisedIncConcMod[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     
-    val configurations: List[Configuration] = List(("regAAM", regAAM), ("cncMOD", cncMOD), ("incMOD", incMOD), ("incOPT", incOPT))
+    val configurations: List[Configuration] = List(("cncMOD", cncMOD), ("incMOD", incMOD))
     
     /* **** Experimental output **** */
     
