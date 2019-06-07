@@ -150,6 +150,7 @@ class OptimisedIncConcMod[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: S
                                                       Map.empty)                                           // Graph edges.
     
         val result: OuterLoopState = outerLoop(oState)
+        theStore = result.store
         // After running the result, possibly unreachable edges may need to be filtered out.
         Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toList, result.edges))
     }

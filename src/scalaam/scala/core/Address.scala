@@ -1,5 +1,7 @@
 package scalaam.core
 
+import scala.core.Exp
+
 /** An address */
 trait Address extends SmartHash {
     
@@ -19,7 +21,7 @@ trait Allocator[A <: Address, T, C] {
     def variable(name: Identifier, t: T): A
     
     /** Allocate a pointer given some information of type E (usually an expression) */
-    def pointer[E](e: E, t: T): A
+    def pointer[E <: Exp](e: E, t: T): A
     
     /** Allocate a primitive */
     def primitive(name: String): A
@@ -34,12 +36,18 @@ object NameAddress {
     /** The address of a variable */
     case class Variable(name: Identifier) extends A {
         def printable = true
-        
         override def toString = s"@${name.name}"
+    
+        /*
+        override def equals(obj: Any): Boolean = obj match {
+            case Variable(n) if name.name == n.name => true
+            case _ => false
+        }
+        */
     }
     
     /** The address for a pointer */
-    case class Pointer[E](e: E) extends A {
+    case class Pointer[E <: Exp](e: E) extends A {
         def printable = false
     }
     
@@ -52,7 +60,7 @@ object NameAddress {
     case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C]) extends Allocator[A, T, C] {
         def variable(name: Identifier, t: T): A = Variable(name)
         
-        def pointer[E](e: E, t: T): A = Pointer(e)
+        def pointer[E <: Exp](e: E, t: T): A = Pointer(e)
         
         def primitive(name: String) = Primitive(name)
     }
@@ -68,11 +76,11 @@ object ConcreteAddress {
     case class Variable[Time](name: Identifier, time: Time) extends A {
         def printable = true
         
-        override def toString = s"$name@$time"
+        override def toString = s"@${name.name}"
     }
     
     /** Concrete address for a pointer. */
-    case class Pointer[E, Time](exp: E, time: Time) extends A {
+    case class Pointer[E <: Exp, Time](exp: E, time: Time) extends A {
         def printable = false
     }
     
@@ -85,9 +93,24 @@ object ConcreteAddress {
     case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C]) extends Allocator[A, T, C] {
         def variable(name: Identifier, t: T): A = Variable(name, t)
         
-        def pointer[E](exp: E, t: T): A = Pointer(exp, t)
+        def pointer[E <: Exp](exp: E, t: T): A = Pointer(exp, t)
         
         def primitive(name: String) = Primitive(name)
     }
     
+}
+
+case class TimestampAddress[T, C]()(implicit val time: Timestamp[T, C]) {
+    /* A timestamp address just bundles a name address with a timestamp */
+    case class A(nameAddr: NameAddress.A, t: T) extends Address {
+        def printable     = nameAddr.printable
+        override def toString = nameAddr.toString
+    }
+    val nameAlloc = NameAddress.Alloc[T, C]
+    object Alloc extends Allocator[A, T, C] {
+        implicit val timestamp: Timestamp[T, C] = time
+        def variable(name: Identifier, t: T): A = A(nameAlloc.variable(name, t), t)
+        def pointer[E <: Exp](e: E, t: T): A    = A(nameAlloc.pointer[E](e, t), t)
+        def primitive(name: String): A          = A(nameAlloc.primitive(name), timestamp.initial(""))
+    }
 }

@@ -204,6 +204,7 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
     l.foldLeft((env, store))({
       case ((env, store), (id, value)) => {
         val a = allocator.variable(id, t)
+        // if (id.name == "t") println(s"Binding $id to address $a, value $value")
         (env.extend(id.name, a), store.extend(a, value))
       }
     })
@@ -311,10 +312,14 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
                   env,
                   store)
     case SchemeVar(variable) =>
+      // if (variable.name == "t") println(s"Variable lookup: $variable")
       env.lookup(variable.name) match {
         case Some(a) =>
+          // if (variable.name == "t") println(s"Address is $a")
           store.lookup(a) match {
-            case Some(v) => Action.Value(v, store)
+            case Some(v) =>
+              // if (variable.name == "t") println(s"Value is $v")
+              Action.Value(v, store)
             case None    => Action.Err(UnboundAddress(a))
           }
         case None => Action.Err(UnboundVariable(variable))

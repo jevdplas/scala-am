@@ -104,7 +104,7 @@ trait SchemeLattice[L, Exp, A <: Address] extends Lattice[L] {
   
   /** Changes an element of a vector */
   def vectorSet(vector: L, index: L, newval: L): MayFail[L, Error]
-
+  
   /* TODO: move this to the tests
   trait SchemeLatticeLaw extends MonoidLaw {
     import scalaz.std.boolean.conditional

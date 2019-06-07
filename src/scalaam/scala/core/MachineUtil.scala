@@ -3,9 +3,9 @@ package scala.core
 import scalaam.core.{Address, Environment, Error, Frame, MachineAbstraction, SmartHash}
 import scalaam.graph._
 
-trait MachineUtil[Exp, A <: Address, V] {
+trait MachineUtil[Expr, A <: Address, V] {
     // This self type allows using sem.Action.A to type actions in this trait. However, it can be removed if necessary, replacing sem.Action.A by _ .
-    this : MachineAbstraction[Exp, A, V, _, _] =>
+    this : MachineAbstraction[Expr, A, V, _, _] =>
     
     // Graph utilities.
     
@@ -17,7 +17,7 @@ trait MachineUtil[Exp, A <: Address, V] {
     /** Control component */
     trait Control extends SmartHash
     
-    case class ControlEval(exp: Exp, env: Environment[A]) extends Control {
+    case class ControlEval(exp: Expr, env: Environment[A]) extends Control {
         override def toString = s"ev($exp)"
     }
     

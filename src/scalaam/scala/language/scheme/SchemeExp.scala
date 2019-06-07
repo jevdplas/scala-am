@@ -1,14 +1,14 @@
 package scalaam.language.scheme
 
-import scalaam.core.{Position, Identifier}
+import scalaam.core.{Identifier, Position}
 import scalaam.language.sexp._
+
+import scala.core.Exp
 
 /**
   * Abstract syntax of Scheme programs (probably far from complete)
   */
-trait SchemeExp {
-  val pos: Position
-}
+trait SchemeExp extends Exp
 
 /**
   * A lambda expression: (lambda (args...) body...)

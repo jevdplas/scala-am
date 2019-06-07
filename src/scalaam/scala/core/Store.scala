@@ -59,10 +59,10 @@ case class BasicStore[A <: Address, V](val content: Map[A, V])(implicit val lat:
     def update(a: A, v: V) = extend(a, v)
     
     def updateOrExtend(a: A, v: V) = extend(a, v)
-    
+
     def join(that: Store[A, V]) =
         if (that.isInstanceOf[BasicStore[A, V]]) {
-            keys.foldLeft(that)((acc, k) => lookup(k).fold(acc)(v => acc.extend(k, v)))
+          keys.foldLeft(that)((acc, k) => lookup(k).fold(acc)(v => acc.extend(k, v)))
         } else {
             throw new RuntimeException(s"Trying to join incompatible stores: ${this.getClass.getSimpleName} and ${that.getClass.getSimpleName}")
         }
