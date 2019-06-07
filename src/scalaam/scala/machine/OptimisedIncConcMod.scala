@@ -139,8 +139,7 @@ class OptimisedIncConcMod[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: S
         val tid     :            TID = allocator.allocate(program, time)
         val state   :          State = State(tid, control, cc, time, kstore)
         val threads :        Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
-        val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
-        val tstore  :         TStore = TimestampedStore[A, V](vstore)(lattice)
+        val tstore  :         TStore = new TimestampedStore[A, V](sem.initialStore.toMap, Set())(lattice)
         val oState  : OuterLoopState = OuterLoopState(threads,                                             // Threads.
                                                       List((state, Set.empty, tstore.version)),            // Worklist.
                                                       Deps(Map.empty.withDefaultValue(Set.empty),          // Join dependencies.
@@ -162,6 +161,7 @@ class OptimisedIncConcMod[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: S
   * @param version The version number that is associated with the wrapped store.
   * @see scala.machine.ConcurrentModular.WrappedStore for implementation details.
   */
+/*
 case class TimestampedStore[A <: Address, V](store: Store[A, V], version: Int = 0)(implicit val lattice: Lattice[V]) extends Store[A, V] {
     def                       keys: Iterable[A] = store.keys
     def forall(p: ((A, V)) => Boolean): Boolean = store.forall(p)
@@ -201,5 +201,19 @@ case class TimestampedStore[A <: Address, V](store: Store[A, V], version: Int = 
             }
             TimestampedStore(store.join(that), version)
         }
+    }
+}
+*/
+
+class TimestampedStore[A <: Address, V](override val content: Map[A, V], override val updated: Set[A], vs: Int = 0)(override implicit val lat: Lattice[V])
+    extends DeltaStore[A, V](content, updated) {
+    override def toString = content.filterKeys(_.printable).mkString("\n")
+    
+    def version = vs
+
+    override def extend(a: A, v: V) = content.get(a) match {
+        case None => new TimestampedStore[A, V](content + (a -> v), updated + a, vs + 1)
+        case Some(v2) if lat.subsumes(v2, v) => this
+        case Some(v2) => new TimestampedStore[A, V](content + (a -> lat.join(v, v2)), updated + a, vs + 1)
     }
 }
