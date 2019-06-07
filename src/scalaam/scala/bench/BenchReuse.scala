@@ -16,7 +16,7 @@ import scalaam.lattice.Type
 
 import scala.machine.IncrementalConcurrentModular
 
-object BenchReuse extends App {
+object BenchReuse {
     
     val address   = NameAddress
     val tid       = ConcreteTID
@@ -26,13 +26,7 @@ object BenchReuse extends App {
     val modInc    = new IncrementalConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val graph     = DotGraph[modInc.State, modInc.Transition]()
     
-    val now:                Date =  Calendar.getInstance().getTime
-    val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
-    val output:           String = "./Results_ReuseInc" + format.format(now) + ".csv"
-    val fields:           String = "Benchmark,tid,(iteration,number)*" // Field names for the csv file.
-    
-    val    out = new BufferedWriter(new FileWriter(output))
-    val writer = new CSVWriter(out)
+    var writer: CSVWriter = _
     
     def forFile(file: String, atPrelude: Prelude): Unit = {
         try {
@@ -69,10 +63,21 @@ object BenchReuse extends App {
         }
     }
     
-    writer.writeNext(fields)
-    writer.flush()
-    display("Benchmark,tid,(iteration,number)*")
-    benchmarks.foreach(Function.tupled(forFile))
-    writer.close()
-    display("\n\n***** Finished *****\n")
+    def main(args: Array[String]): Unit = {
+    
+        val    now: Date = Calendar.getInstance().getTime
+        val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
+        val output: String = "./Results_ReuseInc" + format.format(now) + ".csv"
+        val fields: String = "Benchmark,tid,(iteration,number)*" // Field names for the csv file.
+    
+        val out = new BufferedWriter(new FileWriter(output))
+        writer  = new CSVWriter(out)
+    
+        writer.writeNext(fields)
+        writer.flush()
+        display("Benchmark,tid,(iteration,number)*")
+        benchmarks.foreach(Function.tupled(forFile))
+        writer.close()
+        display("\n\n***** Finished *****\n")
+    }
 }

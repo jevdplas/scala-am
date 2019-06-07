@@ -8,22 +8,17 @@ import au.com.bytecode.opencsv.CSVWriter
 import scalaam._
 import scalaam.core._
 
-object BenchSoundness extends App {
+object BenchSoundness {
     
     import scalaam.bench.BenchConfig.Prelude._
     import scalaam.bench.BenchConfig._
     import scalaam.language.scheme._
     
     val latt = SchemeLattice[Sem.lattice.L, SchemeExp, Sem.address.A]
-    
-    val now: Date = Calendar.getInstance().getTime
-    val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
-    val output: String = "./Results_Soundness" + format.format(now) + ".txt"
-    
-    val out = new BufferedWriter(new FileWriter(output))
-    val writer = new CSVWriter(out)
+    var writer: CSVWriter = _
     
     def displayf(text: String): Unit = {
+        display(text)
         writer.writeNext(text)
         writer.flush()
     }
@@ -85,6 +80,15 @@ object BenchSoundness extends App {
         })
     }
     
-   benchmarks.foreach(Function.tupled(forFile))
-    writer.close()
+    def main(args: Array[String]): Unit = {
+        val    now: Date = Calendar.getInstance().getTime
+        val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
+        val output: String = "./Results_Soundness" + format.format(now) + ".txt"
+        
+        val out = new BufferedWriter(new FileWriter(output))
+        writer  = new CSVWriter(out)
+        
+        benchmarks.foreach(Function.tupled(forFile))
+        writer.close()
+    }
 }

@@ -21,7 +21,7 @@ import scalaam.bench.BenchConfig.Prelude.Prelude
 import scalaam.bench.BenchConfig._
 
 /**  Contains utilities to compare the different machines. Compares both the runtime and state space size. */
-object BenchTime extends App {
+object BenchTime {
     
     type Configuration = (String, MachineAbstraction[SchemeExp, address.A, lattice.L, timestamp.T, SchemeExp] with MachineUtil[SchemeExp, address.A, lattice.L])
     type Measurement = (Double, Int) // Runtime, State count
@@ -47,14 +47,7 @@ object BenchTime extends App {
     
     /* **** Experimental output **** */
     
-    // Avoid overwriting old results by appending the date and time to the file name.
-    val now:                Date =  Calendar.getInstance().getTime
-    val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
-    val output:           String = "./Results_TimeComparison" + format.format(now) + ".csv"
-    val fields:     List[String] = List("Benchmark", "Machine", "States") ++ ((1 to startup).map("s" + _) ++ (1 to iterations).map("i" + _)).toList // Field names for the csv file.
-    
-    val    out = new BufferedWriter(new FileWriter(output))
-    val writer = new CSVWriter(out)
+    var writer: CSVWriter = _
     
     /* **** Experiment implementation **** */
     
@@ -136,9 +129,20 @@ object BenchTime extends App {
         }
     }
     
-    writer.writeNext(fields.mkString(","))
-    writer.flush()
-    benchmarks.foreach(Function.tupled(forFile))
-    writer.close()
-    display("\n\n***** Finished *****\n")
+    def main(args: Array[String]): Unit = {
+        // Avoid overwriting old results by appending the date and time to the file name.
+        val now:                Date =  Calendar.getInstance().getTime
+        val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
+        val output:           String = "./Results_TimeComparison" + format.format(now) + ".csv"
+        val fields:     List[String] = List("Benchmark", "Machine", "States") ++ ((1 to startup).map("s" + _) ++ (1 to iterations).map("i" + _)).toList // Field names for the csv file.
+    
+        val out = new BufferedWriter(new FileWriter(output))
+        writer  = new CSVWriter(out)
+        
+        writer.writeNext(fields.mkString(","))
+        writer.flush()
+        benchmarks.foreach(Function.tupled(forFile))
+        writer.close()
+        display("\n\n***** Finished *****\n")
+    }
 }
