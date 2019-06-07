@@ -1,4 +1,4 @@
-package scala.bench
+/*package scala.bench
 
 import java.io.{BufferedWriter, FileWriter}
 import java.text.SimpleDateFormat
@@ -66,3 +66,4 @@ object BenchReuse extends App {
     writer.close()
     display("\n\n***** Finished *****\n")
 }
+ */

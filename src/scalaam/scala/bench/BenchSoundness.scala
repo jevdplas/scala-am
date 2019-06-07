@@ -58,7 +58,7 @@ object BenchSoundness extends App {
             val modval = mod(id)
             val incval = inc(id)
             if (incval == modval) {
-                display(s"$id: full precision! ($incval)\n")
+//                display(s"$id: full precision! ($incval)\n")
             } else if (!latt.subsumes(incval, modval)) {
                 display(s"$id: SOUNDNESS PROBLEM, inferred $incval while concrete shows $modval\n")
             } else {
@@ -66,6 +66,8 @@ object BenchSoundness extends App {
             }
         })
     }
-    
-    benchmarks.foreach(Function.tupled(forFile))
+
+
+  benchmarks.foreach(Function.tupled(forFile))
+  // benchmarks.foreach(Function.tupled(forFile))
 }

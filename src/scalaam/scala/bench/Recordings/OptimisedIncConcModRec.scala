@@ -1,4 +1,4 @@
-package scala.bench.Recordings
+/*package scala.bench.Recordings
 
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
@@ -157,4 +157,4 @@ class OptimisedIncConcModRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t
         recorder.outputRecorded(name + ".inceffs")
         (reuse, nonreuse, size)
     }
-}
+}*/

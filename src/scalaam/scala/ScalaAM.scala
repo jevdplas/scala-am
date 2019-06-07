@@ -78,9 +78,11 @@ object AtomlangRunModular {
         val result = machine.run[graph.G](AtomlangParser.parse(content), timeout)
         def evalVar = new PartialFunction[machine.State, (Identifier, Sem.lattice.L)] {
             def apply(s: machine.State): (Identifier, Sem.lattice.L)  = s.control match {
-                case machine.ControlEval(SchemeVar(id), env) =>
+              case machine.ControlEval(SchemeVar(id), env) =>
+                // println(s"env is $env")
+                // println(s"store is ${machine.theStore}")
                     val addr = env.lookup(id.name).getOrElse(throw new Exception(s"Unbound identifier: ${id.name}"))
-                    val v = machine.theStore.lookup(addr).getOrElse(throw new Exception(s"Unbound address: $addr"))
+                    val v = machine.theStore.lookup(addr).getOrElse(throw new Exception(s"Unbound address: $addr from ${id.pos}"))
                     (id, v)
             }
     

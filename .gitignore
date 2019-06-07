@@ -5,6 +5,9 @@
 /target/
 .ensime_cache
 *.dot
+*.csv
 *.log
 *.png
+*.svg
 /.idea
+*.diff

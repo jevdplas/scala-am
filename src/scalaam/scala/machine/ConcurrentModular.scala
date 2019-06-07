@@ -16,7 +16,6 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         with MachineUtil[Exp, A, V] {
     
     import sem.Action.{DerefFuture, Err, Eval, NewFuture, Push, StepIn, Value, A => Act}
-    import scala.machine.ConcurrentModular.WrappedStore
     
     /** Certain parts of this AAM will be reused. */
     val seqAAM = new AAM[Exp, A, V, T](t, sem)
@@ -26,7 +25,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     type KAddr      = KA
     
     type VStore     = Store[A, V]
-    type WStore     = WrappedStore[A, V]
+
     type KStore     = Store[KAddr, Set[Kont]]
     
     type Created    = Set[State]
@@ -48,12 +47,28 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     /** Class used to return all information resulting from stepping this state. */
     case class StepResult(successors: Successors, created: Created, result: Option[V], effects: Effects, store: VStore) {
         // Adds the accumulator. Important: keeps the store of "this".
-        def merge(acc: StepResult): StepResult =
-            StepResult(successors ++ acc.successors,
+      def merge1(acc: StepResult): StepResult = {
+        if (acc.store.keys.find(a => a.toString() == "@t").isDefined &&
+          !store.keys.find(a => a.toString() == "@t").isDefined)
+          println("Error 1 when merging two stores")
+
+        StepResult(successors ++ acc.successors,
                 created ++ acc.created,
                 Option.empty,
                 effects ++ acc.effects,
-                store) // Important: keeps the store of "this".
+              acc.store.join(store)) // Important: keeps the store of "this".
+      }
+      def merge2(acc: StepResult): StepResult = {
+        if (acc.store.keys.find(a => a.toString() == "@t").isDefined &&
+          !store.keys.find(a => a.toString() == "@t").isDefined)
+          println("Error 2 when merging two stores")
+
+        StepResult(successors ++ acc.successors,
+                created ++ acc.created,
+                Option.empty,
+                effects ++ acc.effects,
+          acc.store.join(store)) // Important: keeps the store of "this".
+      }
     }
     
     /**
@@ -143,8 +158,8 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           * @return Returns a stepResult containing all successor states and bookkeeping information, as well as the final store.
           */
         private def next(actions: Set[Act], old: VStore, cc: KAddr, results: RetVals): StepResult = {
-            val init: StepResult = StepResult(Set.empty, Set.empty, Option.empty, Set.empty, old)
-            actions.foldLeft(init)((acc, curAction) => act(curAction, time, acc.store, cc, results).merge(acc))
+          val init: StepResult = StepResult(Set.empty, Set.empty, Option.empty, Set.empty, old)
+            actions.foldLeft(init)((acc, curAction) => act(curAction, time, acc.store, cc, results).merge1(acc))
         }
         
         /**
@@ -169,7 +184,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                 val init: StepResult = StepResult(Set.empty, Set.empty, Option.empty, Set.empty, store)
                 kstore.lookup(cc).foldLeft(init)((acc1, konts) => // Lookup all associated continuation frames.
                     konts.foldLeft(acc1){case (acc2, Kont(frame, cc_)) => // For each frame, generate the next actions and accumulate everything (starting from acc1).
-                        next(sem.stepKont(v, frame, acc2.store, time), store, cc_, results).merge(acc2) // Note that the frame is popped of the stack by passing cc_.
+                        next(sem.stepKont(v, frame, acc2.store, time), acc2.store, cc_, results).merge2(acc2) // Note that the frame is popped of the stack by passing cc_.
                 })
             // Handle an error. This results in no successor states.
             case ControlError(_) => StepResult(Set.empty, Set.empty, None, Set.empty, store)
@@ -217,17 +232,17 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           * @return A set of a new global store and an innerloopstate containing extra bookkeeping information for the outer loop.
           */
         @scala.annotation.tailrec
-        def innerLoop(work: List[State], results: RetVals, store: WStore, iteration: Int, visited: Set[State] = Set.empty,
-                      iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, lattice.bottom, Map.empty)): (WStore, InnerLoopState) = {
+        def innerLoop(work: List[State], results: RetVals, store: VStore, iteration: Int, visited: Set[State] = Set.empty,
+                      iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, lattice.bottom, Map.empty)): (VStore, InnerLoopState) = {
             if (timeout.reached || work.isEmpty) (store, iState)
             else {
-                val (work_, visited_, store_, iState_): (List[State], Set[State], WStore, InnerLoopState) =
+                val (work_, visited_, store_, iState_): (List[State], Set[State], VStore, InnerLoopState) =
                     work.foldLeft((List.empty[State], visited, store, iState)){case (acc@(workAcc, visitedAcc, storeAcc, iStateAcc), curState) =>
                         if (visitedAcc.contains(curState)) acc // If the state has been explored already, do not take a step.
                         else {                                 // If the state has not been explored yet, take a step.
-                            val StepResult(succs, crea, res, effs, sto: WStore) = curState.step(storeAcc, results)
-                            val vis = if (sto.updated) Set.empty[State] else visitedAcc + curState // Immediately clear the visited set upon a store change.
-                            (workAcc ++ succs, vis, sto.reset, iStateAcc.add(crea, effs, res, curState, succs))
+                            val StepResult(succs, crea, res, effs, sto: VStore) = curState.step(storeAcc, results)
+                            val vis = if (!sto.asInstanceOf[DeltaStore[A, V]].updated.isEmpty) Set.empty[State] else visitedAcc + curState // Immediately clear the visited set upon a store change.
+                            (workAcc ++ succs, vis, sto.asInstanceOf[DeltaStore[A, V]].clearUpdated, iStateAcc.add(crea, effs, res, curState, succs))
                         }
                     }
                 innerLoop(work_, results, store_, iteration, visited_, iState_)
@@ -244,7 +259,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           * @param store     The store.
           * @param edges     The edges of the graph.
           */
-        case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: WStore, edges: Edges) extends SmartHash
+        case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: VStore, edges: Edges) extends SmartHash
     
         /**
           * Performs the fixed-point computation for the entire program. Uses the innerLoop method to analyse single threads and uses the results and dependencies returned from this
@@ -312,13 +327,12 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         val state   :          State = State(tid, control, cc, time, kstore)
         val threads :        Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
         val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
-        val wstore  :         WStore = WrappedStore[A, V](vstore)(lattice)
         val oState  : OuterLoopState = OuterLoopState(threads,
                                                       Map.empty.withDefaultValue(Set.empty),
                                                       Map.empty.withDefaultValue(Set.empty),
                                                       Map.empty.withDefaultValue(Set.empty),
                                                       Map.empty.withDefaultValue(lattice.bottom),
-                                                      wstore,
+                                                      vstore,
                                                       Map.empty)
         
         val result: OuterLoopState = outerLoop(List(state), oState)
@@ -327,69 +341,3 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     }
 }
 
-object ConcurrentModular {
-    
-    /**
-      * Wrapper for a store providing change tracking.
-      * @param store    The store to be wrapped.
-      * @param modified Parameter indicating whether the store has been changed.
-      * @param lattice  The lattice corresponding to the value type V.
-      * @tparam A Type of addresses, domain of the store.
-      * @tparam V Type of values, codomain of the store.
-      */
-    case class WrappedStore[A <: Address, V](store: Store[A, V], modified: Boolean = false)(implicit val lattice: Lattice[V]) extends Store[A, V] {
-        def                       keys: Iterable[A] = store.keys
-        def forall(p: ((A, V)) => Boolean): Boolean = store.forall(p)
-        def    subsumes(that: Store[A, V]): Boolean = store.subsumes(that)
-        def                 lookup(a: A): Option[V] = store.lookup(a)
-        def       lookupMF(a: A): MayFail[V, Error] = store.lookupMF(a)
-        def         extend(a: A, v: V): Store[A, V] = verifyChange(a, v, (a, v) => store.extend(a, v))
-        def         update(a: A, v: V): Store[A, V] = verifyChange(a, v, (a, v) => store.update(a, v))
-        def updateOrExtend(a: A, v: V): Store[A, V] = verifyChange(a, v, (a, v) => store.updateOrExtend(a, v))
-        def    join(that: Store[A, V]): Store[A, V] = verifyMerge(that)
-        
-        /** Creates a new and updated wrapped store based on this store and an update function for a specific binding.
-          * The procedure marks whether the new store differs from the original one for the binding under inspection. */
-        private def verifyChange(a: A, v: V, fun: (A, V) => Store[A, V]): Store[A, V] = {
-            // Verify whether the store has been changed by comparing the original and new value.
-            store.lookup(a) match {
-                case None => WrappedStore(fun(a, v), true) // If the entry did not exist yet, the store will change.
-                case Some(v1) => // Otherwise, the store only changes when the new and old results differ.
-                    val store_ : Store[A, V] = fun(a, v)
-                    // Fun must ensure store_ has a mapping for fun's first argument.
-                    val v2 : V = store_.lookup(a).getOrElse(throw new Exception(s"Condition failure: missing required binding of $a in store $store_."))
-                    WrappedStore(store_, higher(v1, v2))
-            }
-        }
-        
-        /** Verifies whether the new value is higher in the lattice hierarchy than the old. If it is, the store is modified. */
-        private def higher(oldv: V, newv: V) = (lattice.lteq(oldv, newv), lattice.lteq(newv, oldv)) match {
-            // (old <= new, new <= old)
-            case (true,  true)  => false // old == new
-            case (true, false)  => true  // old < new
-            case (false, true)  => throw new Exception("Store not monotonous.") // old > new
-            case (false, false) => throw new Exception("No partial order between values.") // old <?> new
-        }
-        
-        /** Joins two stores and returns an updated wrapped store indicating whether the store has changed. */
-        private def verifyMerge(that: Store[A, V]): Store[A, V] = {
-            if (store.keys != that.keys)
-                WrappedStore(store.join(that), true)
-            else {
-                // Check subsumption for every element. If at least one element of that is not subsumed by the corresponding element of this,
-                // the resulting store will differ from this.
-                for (key <- store.keys) {
-                    if (higher(store.lookup(key).get, that.lookup(key).get))
-                        return WrappedStore(store.join(that), true)
-                }
-                WrappedStore(store.join(that))
-            }
-        }
-        
-        /** Get information on whether the store has been updated. */
-        def updated: Boolean = modified
-        
-        /** Reset the updated flag of the store. */
-        def reset: WrappedStore[A, V] = WrappedStore(store)
-    }
-}

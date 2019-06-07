@@ -1,4 +1,4 @@
-package scala.bench.Recordings
+/*package scala.bench.Recordings
 
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
@@ -234,4 +234,4 @@ class ConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val
         recorder.outputRecorded(name ++ ".modeffs")
         (-1, -1, -1)
     }
-}
+}*/

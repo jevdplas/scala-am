@@ -1,4 +1,4 @@
-package scala.bench.Recordings
+/*package scala.bench.Recordings
 
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
@@ -19,4 +19,4 @@ class IncrementalConcurrentModularRec[Exp, A <: Address, V, T, TID <: ThreadIden
     type StateWriteDeps = Map[  A, Set[State]]
     
     override def run[G](program: Exp, timeout: Timeout.T, name: String): (Int, Int, Int) = (-1, -1, -1)
-}
+}*/
