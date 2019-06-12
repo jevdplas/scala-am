@@ -78,7 +78,7 @@
   (t/acquire *blockchain-lock*)
   (if (is-valid-new-block b (get-latest-block))
       (begin
-        (atom-set *blockchain* (cons b (read *blockchain*)))
+        (reset! *blockchain* (cons b (read *blockchain*)))
         (t/release *blockchain-lock*)
         #t)
       (begin
