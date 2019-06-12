@@ -32,12 +32,13 @@ class OptimisedIncConcMod[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: S
     // the visited set is now stored along with the state. This set can be used to restart the inner loop with, provided
     // that the store has not changed (this is why a store version number is stored too). By being able to recover an old
     // visited set, it may be possible to further reduce the number of states to be explored.
-    type WorkItem = (State, Set[State], Int)
+    type WorkItem = (State, Set[State], Int, Int)
     type ExtendedStateJoinDeps  = Map[TID, Set[WorkItem]]
     type ExtendedStateReadDeps  = Map[  A, Set[WorkItem]]
     type ExtendedStateWriteDeps = Map[  A, Set[WorkItem]]
     
-    type TStore = TimestampedStore[A, V]
+  type TStore = TimestampedStore[A, V]
+  type TKStore = TimestampedStore[KAddr, Set[Kont]]
     
     override def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
     
@@ -45,14 +46,14 @@ class OptimisedIncConcMod[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: S
         case class Deps(joined: ExtendedStateJoinDeps, read: ExtendedStateReadDeps, written: ExtendedStateWriteDeps)
     
         /** Class containing bookkeeping information for the inner loop of a thread. All arguments except the first three are optional. */
-        case class InnerLoopState(work: List[State], store: TStore, results: RetVals, visited: Set[State] = Set.empty,
+        case class InnerLoopState(work: List[State], store: TStore, kstore: TKStore, results: RetVals, visited: Set[State] = Set.empty,
                                   result: V = lattice.bottom, created: Created = Set.empty, effects: Effects = Set.empty,
                                   deps: Deps = Deps(Map.empty.withDefaultValue(Set.empty), Map.empty.withDefaultValue(Set.empty),
                                       Map.empty.withDefaultValue(Set.empty)),
                                   edges: UnlabeledEdges = Map.empty) extends SmartHash
     
         /** Class containing bookkeeping information for the outer loop. Contains a.o. the global store. */
-        case class OuterLoopState(threads: Threads, work: List[WorkItem], deps: Deps, results: RetVals, store: TStore, edges: Edges) extends SmartHash
+        case class OuterLoopState(threads: Threads, work: List[WorkItem], deps: Deps, results: RetVals, store: TStore, kstore: TKStore, edges: Edges) extends SmartHash
     
         /** Optimised innerLoop: the loop will not explore paths that have to be reanalysed anyway (i.e. after reading a bottom return value). */
         @scala.annotation.tailrec
@@ -61,21 +62,21 @@ class OptimisedIncConcMod[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: S
             innerLoop(iState.work.foldLeft(iState.copy(work = List())){case (iStateAcc, curState) =>
                 if (iStateAcc.visited.contains(curState)) iStateAcc
                 else {
-                    val StepResult(successors, created, result, effects, store: TStore) = curState.step(iStateAcc.store, iStateAcc.results)
+                    val StepResult(successors, created, result, effects, store: TStore, kstore : TKStore) = curState.step(iStateAcc.store, iStateAcc.kstore, iStateAcc.results)
                     // The bottomRead flag indicates whether a bottom result value was read. The visitedset and store version number are also saved, as
                     // they may be used when analysis is restarted. When the store has been modified already in this step, we immediately remember an
                     // empty visited set.
                     val (read, written, joined) = effects.foldLeft((iStateAcc.deps.read, iStateAcc.deps.written, iStateAcc.deps.joined))
                         {case (acc@(r, w, j), eff) => eff match {
-                            case     JoinEff(tid: TID@unchecked) => (r, w, j + (tid -> (j(tid) + ((curState, iStateAcc.visited, iStateAcc.store.version)))))
-                            case  ReadAddrEff(addr: A@unchecked) => (r + (addr -> (r(addr) + ((curState, iStateAcc.visited, iStateAcc.store.version)))), w, j)
-                            case WriteAddrEff(addr: A@unchecked) => (r, w + (addr -> (w(addr) + ((curState, iStateAcc.visited, iStateAcc.store.version)))), j)
+                            case     JoinEff(tid: TID@unchecked) => (r, w, j + (tid -> (j(tid) + ((curState, iStateAcc.visited, iStateAcc.store.version, iStateAcc.kstore.version)))))
+                            case  ReadAddrEff(addr: A@unchecked) => (r + (addr -> (r(addr) + ((curState, iStateAcc.visited, iStateAcc.store.version, iStateAcc.kstore.version)))), w, j)
+                            case WriteAddrEff(addr: A@unchecked) => (r, w + (addr -> (w(addr) + ((curState, iStateAcc.visited, iStateAcc.store.version, iStateAcc.kstore.version)))), j)
                             case _ => acc
                         }
                     }
                     // Vis cannot be used for caching since it may contain curState. This way, an innerLoop started from curState and vis would stop immediately.
-                    val vis = if (store.version != iStateAcc.store.version) Set.empty[State] else iStateAcc.visited + curState
-                    InnerLoopState(iStateAcc.work ++ successors, store, iStateAcc.results, vis,
+                    val vis = if (store.version != iStateAcc.store.version || kstore.version != iStateAcc.kstore.version) Set.empty[State] else iStateAcc.visited + curState
+                    InnerLoopState(iStateAcc.work ++ successors, store, kstore, iStateAcc.results, vis,
                                    lattice.join(iStateAcc.result, result.getOrElse(lattice.bottom)),
                                    iStateAcc.created ++ created, iStateAcc.effects ++ effects,
                                    Deps(joined, read, written),
@@ -88,18 +89,18 @@ class OptimisedIncConcMod[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: S
         @scala.annotation.tailrec
         def outerLoop(oState: OuterLoopState, iteration: Int = 1): OuterLoopState = {
             if (timeout.reached || oState.work.isEmpty) return oState
-            outerLoop(oState.work.foldLeft(oState.copy(work = List())){case (oStateAcc, (curState, prevVisisted, version)) =>
+            outerLoop(oState.work.foldLeft(oState.copy(work = List())){case (oStateAcc, (curState, prevVisisted, version, kstoreVersion)) =>
                 val stid: TID = curState.tid
                 // Analysis of a single thread. When this thread is actually reanalysed, it may be possible to reuse the visited set given that the store is not changed.
                 val iState = innerLoop(InnerLoopState(List(curState),
-                                                      oStateAcc.store,
+                                                      oStateAcc.store, oStateAcc.kstore,
                                                       oStateAcc.results,
-                                                      if (version == oStateAcc.store.version) prevVisisted else Set.empty))
+                                                      if (version == oStateAcc.store.version || kstoreVersion != oStateAcc.kstore.version) prevVisisted else Set.empty))
                 // Some new threads may have been spawned.
                 val (todoCreated, newThreads): (Set[WorkItem], Threads) = iState.created.foldLeft((Set[WorkItem](), oStateAcc.threads)) {case ((createdAcc, threadsAcc), curState) =>
                     if (threadsAcc(curState.tid).contains(curState)) (createdAcc, threadsAcc) // There already is an identical thread, so do nothing.
                     // A new thread will be evaluated with an empty visited set anyway, so add store version number 0.
-                    else (createdAcc + ((curState, Set.empty, 0)), threadsAcc + (curState.tid -> (threadsAcc(curState.tid) + curState)))
+                    else (createdAcc + ((curState, Set.empty, 0, 0)), threadsAcc + (curState.tid -> (threadsAcc(curState.tid) + curState)))
                 }
                 // Add the newly found dependencies.
                 val readDeps  = oStateAcc.deps.read    ++ iState.deps.read
@@ -114,7 +115,7 @@ class OptimisedIncConcMod[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: S
                 val fromInterference: Set[WorkItem] = todoJoined ++ todoEffects // Use a set to suppress duplicates.
                 OuterLoopState(newThreads, oStateAcc.work ++ todoCreated ++ fromInterference, Deps(joinDeps, readDeps, writeDeps),
                     // All outgoing edges of states that need recomputation (are in fromInterference) are removed. Each edge that is added is annotated with the iteration number.
-                    oStateAcc.results + (stid -> retVal), iState.store, oStateAcc.edges -- fromInterference.map(_._1) ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
+                    oStateAcc.results + (stid -> retVal), iState.store, iState.kstore, oStateAcc.edges -- fromInterference.map(_._1) ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
             }, iteration + 1)
         }
     
@@ -134,19 +135,19 @@ class OptimisedIncConcMod[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: S
         val cc      :          KAddr = HaltKontAddr
         val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
         val control :        Control = ControlEval(program, env)
-        val kstore  :         KStore = Store.empty[KAddr, Set[Kont]](t)
+        val kstore  :        TKStore = new TimestampedStore[KAddr, Set[Kont]](Map(), Set[KAddr]())
         val time    :              T = timestamp.initial("")
         val tid     :            TID = allocator.allocate(program, time)
-        val state   :          State = State(tid, control, cc, time, kstore)
+        val state   :          State = State(tid, control, cc, time)
         val threads :        Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
         val tstore  :         TStore = new TimestampedStore[A, V](sem.initialStore.toMap, Set())(lattice)
         val oState  : OuterLoopState = OuterLoopState(threads,                                             // Threads.
-                                                      List((state, Set.empty, tstore.version)),            // Worklist.
+                                                      List((state, Set.empty, tstore.version, kstore.version)),            // Worklist.
                                                       Deps(Map.empty.withDefaultValue(Set.empty),          // Join dependencies.
                                                            Map.empty.withDefaultValue(Set.empty),          // Read dependencies.
                                                            Map.empty.withDefaultValue(Set.empty)),         // Write dependencies.
                                                       Map.empty.withDefaultValue(lattice.bottom),          // Return values.
-                                                      tstore,                                              // Store.
+                                                      tstore, kstore,                                       // Store.
                                                       Map.empty)                                           // Graph edges.
     
         val result: OuterLoopState = outerLoop(oState)

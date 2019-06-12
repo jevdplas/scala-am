@@ -29,14 +29,14 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
     case class Deps(joined: StateJoinDeps, read: StateReadDeps, written: StateWriteDeps)
     
     /** Class containing bookkeeping information for the inner loop of a thread. All arguments except the first three are optional. */
-    case class InnerLoopState(work: List[State], store: VStore, results: RetVals, visited: Set[State] = Set.empty,
+    case class InnerLoopState(work: List[State], store: VStore, kstore: KStore, results: RetVals, visited: Set[State] = Set.empty,
                               result: V = lattice.bottom, created: Created = Set.empty, effects: Effects = Set.empty,
                               deps: Deps = Deps(Map.empty.withDefaultValue(Set.empty), Map.empty.withDefaultValue(Set.empty),
                                   Map.empty.withDefaultValue(Set.empty)),
                               edges: UnlabeledEdges = Map.empty) extends SmartHash
     
     /** Class containing bookkeeping information for the outer loop. Contains a.o. the global store. */
-    case class OuterLoopState(threads: Threads, work: List[State], deps: Deps, results: RetVals, store: VStore, edges: Edges) extends SmartHash
+    case class OuterLoopState(threads: Threads, work: List[State], deps: Deps, results: RetVals, store: VStore, kstore: KStore, edges: Edges) extends SmartHash
     
     /** Innerloop like ConcurrentModular.run.innerLoop, except that now relations between effects and states are tracked. */
     @scala.annotation.tailrec
@@ -45,7 +45,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
         innerLoop(timeout, iState.work.foldLeft(iState.copy(work = List())){case (iStateAcc, curState) =>
             if (iStateAcc.visited.contains(curState)) iStateAcc
             else {
-                val StepResult(successors, created, result, effects, store: VStore) = curState.step(iStateAcc.store, iStateAcc.results)
+                val StepResult(successors, created, result, effects, store, kstore) = curState.step(iStateAcc.store, iStateAcc.kstore, iStateAcc.results)
                 val (read, written, joined) = effects.foldLeft((iStateAcc.deps.read, iStateAcc.deps.written, iStateAcc.deps.joined))
                 {case (acc@(r, w, j), eff) => eff match {
                     case     JoinEff(tid: TID@unchecked) => (r, w, j + (tid -> (j(tid) + curState)))
@@ -54,8 +54,8 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                     case _ => acc
                 }
                 }
-                val vis = if (store.asInstanceOf[DeltaStore[A, V]].updated.nonEmpty) Set.empty[State] else iStateAcc.visited + curState
-                InnerLoopState(iStateAcc.work ++ successors, store.asInstanceOf[DeltaStore[A, V]].clearUpdated, iStateAcc.results, vis,
+                val vis = if (store.asInstanceOf[DeltaStore[A, V]].updated.nonEmpty || kstore.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].updated.nonEmpty) Set.empty[State] else iStateAcc.visited + curState
+                InnerLoopState(iStateAcc.work ++ successors, store.asInstanceOf[DeltaStore[A, V]].clearUpdated, kstore.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].clearUpdated, iStateAcc.results, vis,
                     lattice.join(iStateAcc.result, result.getOrElse(lattice.bottom)),
                     iStateAcc.created ++ created, iStateAcc.effects ++ effects,
                     Deps(joined, read, written),
@@ -74,7 +74,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
         if (timeout.reached || oState.work.isEmpty) return oState
         outerLoop(timeout, oState.work.foldLeft(oState.copy(work = List())){case (oStateAcc, curState) =>
             val stid: TID = curState.tid
-            val iState = innerLoop(timeout, InnerLoopState(List(curState), oStateAcc.store, oStateAcc.results))
+            val iState = innerLoop(timeout, InnerLoopState(List(curState), oStateAcc.store, oStateAcc.kstore, oStateAcc.results))
             // Some new threads may have been spawned.
             val (todoCreated, newThreads): (Set[State], Threads) = iState.created.foldLeft((Set[State](), oStateAcc.threads)) {case ((createdAcc, threadsAcc), curState) =>
                 if (threadsAcc(curState.tid).contains(curState)) (createdAcc, threadsAcc) // There already is an identical thread, so do nothing.
@@ -93,7 +93,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
             val fromInterference: Set[State] = todoJoined ++ todoEffects // Use a set to suppress duplicates.
             OuterLoopState(newThreads, oStateAcc.work ++ todoCreated ++ fromInterference, Deps(joinDeps, readDeps, writeDeps),
                 // All outgoing edges of states that need recomputation (are in fromInterference) are removed. Each edge that is added is annotated with the iteration number.
-                oStateAcc.results + (stid -> retVal), iState.store, oStateAcc.edges -- fromInterference ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
+                oStateAcc.results + (stid -> retVal), iState.store, iState.kstore, oStateAcc.edges -- fromInterference ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
         }, iteration + 1)
     }
     
@@ -115,10 +115,10 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
         val cc      :          KAddr = HaltKontAddr
         val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
         val control :        Control = ControlEval(program, env)
-        val kstore  :         KStore = Store.empty[KAddr, Set[Kont]](t)
+        val kstore  :         KStore = Store.initial[KAddr, Set[Kont]](t, Set())
         val time    :              T = timestamp.initial("")
         val tid     :            TID = allocator.allocate(program, time)
-        val state   :          State = State(tid, control, cc, time, kstore)
+        val state   :          State = State(tid, control, cc, time)
         val threads :        Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
         val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
         val oState  : OuterLoopState = OuterLoopState(threads,                              // Threads.
@@ -127,7 +127,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                                             Map.empty.withDefaultValue(Set.empty),          // Read dependencies.
                                             Map.empty.withDefaultValue(Set.empty)),         // Write dependencies.
                                             Map.empty.withDefaultValue(lattice.bottom),     // Return values.
-                                       vstore,                                              // Store.
+                                       vstore, kstore,                                       // Store.
                                        Map.empty)                                           // Graph edges.
     
         val result: OuterLoopState = outerLoop(timeout, oState)
@@ -158,10 +158,10 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
         val cc      :          KAddr = HaltKontAddr
         val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
         val control :        Control = ControlEval(program, env)
-        val kstore  :         KStore = Store.empty[KAddr, Set[Kont]](t)
+        val kstore  :         KStore = Store.initial[KAddr, Set[Kont]](t, Set())
         val time    :              T = timestamp.initial("")
         val tid     :            TID = allocator.allocate(program, time)
-        val state   :          State = State(tid, control, cc, time, kstore)
+        val state   :          State = State(tid, control, cc, time)
         val threads :        Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
         val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
         val oState  : OuterLoopState = OuterLoopState(threads,                              // Threads.
@@ -170,7 +170,7 @@ class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentif
                 Map.empty.withDefaultValue(Set.empty),          // Read dependencies.
                 Map.empty.withDefaultValue(Set.empty)),         // Write dependencies.
             Map.empty.withDefaultValue(lattice.bottom),     // Return values.
-            vstore,                                              // Store.
+            vstore, kstore,                                              // Store.
             Map.empty)                                           // Graph edges.
     
         val result: OuterLoopState = outerLoop(timeout, oState)

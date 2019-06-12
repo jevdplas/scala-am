@@ -44,14 +44,15 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
     var theStore: VStore = Store.initial[A, V](t, sem.initialStore)(lattice) // This is ugly!
     
     /** Class used to return all information resulting from stepping this state. */
-    case class StepResult(successors: Successors, created: Created, result: Option[V], effects: Effects, store: VStore) {
+    case class StepResult(successors: Successors, created: Created, result: Option[V], effects: Effects, store: VStore, kstore: KStore) {
         // Adds the accumulator. Important: keeps the store of "this".
         def merge(acc: StepResult): StepResult =
             StepResult(successors ++ acc.successors,
                 created ++ acc.created,
                 Option.empty,
                 effects ++ acc.effects,
-                acc.store.join(store))
+              acc.store.join(store),
+              acc.kstore.join(kstore))
     }
     
     /**
@@ -64,7 +65,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
       * @param time    A timestamp.
       * @param kstore  A continuation store.
       */
-    case class State(tid: TID, control: Control, cc: KAddr, time: T, kstore: KStore) extends GraphElement with SmartHash {
+    case class State(tid: TID, control: Control, cc: KAddr, time: T) extends GraphElement with SmartHash {
         override def toString: String = control.toString
     
         override def label: String = toString
@@ -92,9 +93,9 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         }
         
         /** Helper function to create new results easily without having to write all fields explicitly. */
-        private def newResult(successor: State, effects: Effects, store: VStore,
+        private def newResult(successor: State, effects: Effects, store: VStore, kstore: KStore,
                               created: Created = Set.empty, result: Option[V] = Option.empty): StepResult = {
-            StepResult(Set(successor), created, result, effects, store)
+            StepResult(Set(successor), created, result, effects, store, kstore)
         }
         
         /**
@@ -106,28 +107,30 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           * @return Returns a stepResult containing all successor states of this states after performing the actions
           *         as well as bookkeeping information and the resulting store.
           */
-        private def act(action: Act, time: T, old: VStore, cc: KAddr, results: RetVals): StepResult = action match {
+        private def act(action: Act, time: T, old: VStore, kstore: KStore, cc: KAddr, results: RetVals): StepResult = action match {
             // The semantics reached a value => continue with this value.
-            case Value(v, store, effs) => newResult(State(tid, ControlKont(v), cc, timestamp.tick(time), kstore), effs, store)
+            case Value(v, store, effs) => newResult(State(tid, ControlKont(v), cc, timestamp.tick(time)), effs, store, kstore)
             // A frame needs to be pushed on the stack and the evaluation needs to continue by evaluating 'e'.
             case Push(frame, e, env, store, effs) =>
                 val cc_ = KontAddr(e, time)
-                newResult(State(tid, ControlEval(e, env), cc_, timestamp.tick(time), kstore.extend(cc_, Set(Kont(frame, cc)))), effs, store)
+                newResult(State(tid, ControlEval(e, env), cc_, timestamp.tick(time)), effs, store, kstore.extend(cc_, Set(Kont(frame, cc))))
             // The expression 'e' needs to be evaluated in the given environment.
-            case Eval(e, env, store, effs) => newResult(State(tid, ControlEval(e, env), cc, timestamp.tick(time), kstore), effs, store)
+            case Eval(e, env, store, effs) => newResult(State(tid, ControlEval(e, env), cc, timestamp.tick(time)), effs, store, kstore)
             // The evaluation steps into a function body. Same than Eval, except that the function is used to tick the timestamp.
-            case StepIn(f, _, e, env, store, effs) => newResult(State(tid, ControlEval(e, env), cc, timestamp.tick(time, f), kstore), effs, store)
+            case StepIn(f, _, e, env, store, effs) => newResult(State(tid, ControlEval(e, env), cc, timestamp.tick(time, f)), effs, store, kstore)
             // The semantics reached an error, which needs to be returned.
-            case Err(e) => newResult(State(tid, ControlError(e), cc, timestamp.tick(time), kstore), Set.empty, old)
+          case Err(e) =>
+            // println(s"Error state: $e")
+            newResult(State(tid, ControlError(e), cc, timestamp.tick(time)), Set.empty, old, kstore)
             // A new process is spawn by the semantics. The machine allocates a new TID and records the state of the new process.
             case NewFuture(ftid: TID@unchecked, tidv, fst, frame: Frame@unchecked, env, store, effs) =>
                 val cc_ = KontAddr(fst, time)
-                val newPState = State(ftid, ControlEval(fst, env), cc_, timestamp.initial(ftid.toString), Store.empty[KA, Set[Kont]](t).extend(cc_, Set(Kont(frame, HaltKontAddr))))
-                val curPState = State(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
-                StepResult(Set(curPState), Set(newPState), Option.empty, effs ++ Effects.spawn(ftid), store)
+                val newPState = State(ftid, ControlEval(fst, env), cc_, timestamp.initial(ftid.toString))
+                val curPState = State(tid, ControlKont(tidv), cc, timestamp.tick(time))
+                StepResult(Set(curPState), Set(newPState), Option.empty, effs ++ Effects.spawn(ftid), store, kstore.extend(cc_, Set(Kont(frame, HaltKontAddr))))
             // The semantics wants to read a value from another thread, which needs to be looked up in the 'results' map.
             case DerefFuture(ftid: TID@unchecked, store, effs) =>
-                StepResult(results.get(ftid).map(v => State(tid, ControlKont(v), cc, timestamp.tick(time), kstore)).toSet, Set.empty, Option.empty, effs ++ Effects.join(ftid), store)
+                StepResult(results.get(ftid).map(v => State(tid, ControlKont(v), cc, timestamp.tick(time))).toSet, Set.empty, Option.empty, effs ++ Effects.join(ftid), store, kstore)
             // An unknown action has been returned. Should not happen, therefore this is an error.
             case a => throw new Exception(s"Unsupported action: $a.\n")
         }
@@ -140,9 +143,9 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           * @param results A map of TIDs to values, used to retrieve the return values of other processes.
           * @return Returns a stepResult containing all successor states and bookkeeping information, as well as the final store.
           */
-        private def next(actions: Set[Act], old: VStore, cc: KAddr, results: RetVals): StepResult = {
-            val init: StepResult = StepResult(Set.empty, Set.empty, Option.empty, Set.empty, old)
-            actions.foldLeft(init)((acc, curAction) => act(curAction, time, acc.store, cc, results).merge(acc))
+        private def next(actions: Set[Act], old: VStore, kstore: KStore, cc: KAddr, results: RetVals): StepResult = {
+            val init: StepResult = StepResult(Set.empty, Set.empty, Option.empty, Set.empty, old, kstore)
+            actions.foldLeft(init)((acc, curAction) => act(curAction, time, acc.store, acc.kstore, cc, results).merge(acc))
         }
         
         /**
@@ -157,20 +160,20 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           *         * the effects generated during this step of execution;
           *         * the resulting store.
           */
-        def step(store: VStore, results: RetVals): StepResult = control match {
+        def step(store: VStore, kstore: KStore, results: RetVals): StepResult = control match {
             // Evaluate the given expression in the given environment.
-            case ControlEval(exp, env) => next(sem.stepEval(exp, env, store, time), store, cc, results)
+            case ControlEval(exp, env) => next(sem.stepEval(exp, env, store, time), store, kstore, cc, results)
             // The end of evaluation has been reached. Return the final result.
-            case ControlKont(v) if cc == HaltKontAddr => StepResult(Set.empty, Set.empty, Some(v), Set.empty, store)
+            case ControlKont(v) if cc == HaltKontAddr => StepResult(Set.empty, Set.empty, Some(v), Set.empty, store, kstore)
             // Continue with a given value, given the continuation frame in this state. Pops this frame of the stack.
             case ControlKont(v) =>
-                val init: StepResult = StepResult(Set.empty, Set.empty, Option.empty, Set.empty, store)
+                val init: StepResult = StepResult(Set.empty, Set.empty, Option.empty, Set.empty, store, kstore)
                 kstore.lookup(cc).foldLeft(init)((acc1, konts) => // Lookup all associated continuation frames.
                     konts.foldLeft(acc1){case (acc2, Kont(frame, cc_)) => // For each frame, generate the next actions and accumulate everything (starting from acc1).
-                        next(sem.stepKont(v, frame, acc2.store, time), acc2.store, cc_, results).merge(acc2) // Note that the frame is popped of the stack by passing cc_.
+                        next(sem.stepKont(v, frame, acc2.store, time), acc2.store, acc2.kstore, cc_, results).merge(acc2) // Note that the frame is popped of the stack by passing cc_.
                 })
             // Handle an error. This results in no successor states.
-            case ControlError(_) => StepResult(Set.empty, Set.empty, None, Set.empty, store)
+            case ControlError(_) => StepResult(Set.empty, Set.empty, None, Set.empty, store, kstore)
             // An unknown control component has been reached. Should not happen so throw an error.
             case e => throw new Exception(s"Unsupported control sequence: $e.\n")
         }
@@ -215,20 +218,20 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           * @return A set of a new global store and an innerloopstate containing extra bookkeeping information for the outer loop.
           */
         @scala.annotation.tailrec
-        def innerLoop(work: List[State], results: RetVals, store: VStore, iteration: Int, visited: Set[State] = Set.empty,
-                      iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, lattice.bottom, Map.empty)): (VStore, InnerLoopState) = {
-            if (timeout.reached || work.isEmpty) (store, iState)
+        def innerLoop(work: List[State], results: RetVals, store: VStore, kstore: KStore, iteration: Int, visited: Set[State] = Set.empty,
+                      iState: InnerLoopState = InnerLoopState(Set.empty, Set.empty, lattice.bottom, Map.empty)): (VStore, KStore, InnerLoopState) = {
+            if (timeout.reached || work.isEmpty) (store, kstore, iState)
             else {
-                val (work_, visited_, store_, iState_): (List[State], Set[State], VStore, InnerLoopState) =
-                    work.foldLeft((List.empty[State], visited, store, iState)){case (acc@(workAcc, visitedAcc, storeAcc, iStateAcc), curState) =>
+                val (work_, visited_, store_, kstore_, iState_): (List[State], Set[State], VStore, KStore, InnerLoopState) =
+                    work.foldLeft((List.empty[State], visited, store, kstore, iState)){case (acc@(workAcc, visitedAcc, storeAcc, kstoreAcc, iStateAcc), curState) =>
                         if (visitedAcc.contains(curState)) acc // If the state has been explored already, do not take a step.
                         else {                                 // If the state has not been explored yet, take a step.
-                            val StepResult(succs, crea, res, effs, sto: VStore) = curState.step(storeAcc, results)
-                            val vis = if (!sto.asInstanceOf[DeltaStore[A, V]].updated.isEmpty) Set.empty[State] else visitedAcc + curState // Immediately clear the visited set upon a store change.
-                            (workAcc ++ succs, vis, sto.asInstanceOf[DeltaStore[A, V]].clearUpdated, iStateAcc.add(crea, effs, res, curState, succs))
+                            val StepResult(succs, crea, res, effs, sto, ksto) = curState.step(storeAcc, kstoreAcc, results)
+                            val vis = if (!sto.asInstanceOf[DeltaStore[A, V]].updated.isEmpty || !ksto.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].updated.isEmpty) Set.empty[State] else visitedAcc + curState // Immediately clear the visited set upon a store change.
+                            (workAcc ++ succs, vis, sto.asInstanceOf[DeltaStore[A, V]].clearUpdated, ksto.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].clearUpdated, iStateAcc.add(crea, effs, res, curState, succs))
                         }
                     }
-                innerLoop(work_, results, store_, iteration, visited_, iState_)
+                innerLoop(work_, results, store_, kstore_, iteration, visited_, iState_)
             }
         }
     
@@ -242,7 +245,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
           * @param store     The store.
           * @param edges     The edges of the graph.
           */
-        case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: VStore, edges: Edges) extends SmartHash
+        case class OuterLoopState(threads: Threads, readDeps: ReadDeps, writeDeps: WriteDeps, joinDeps: JoinDeps, results: RetVals, store: VStore, kstore: KStore, edges: Edges) extends SmartHash
     
         /**
           * Performs the fixed-point computation for the entire program. Uses the innerLoop method to analyse single threads and uses the results and dependencies returned from this
@@ -258,7 +261,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
             else {
                 val next: (List[State], OuterLoopState) = work.foldLeft((List[State](), oState)){case ((workAcc, oStateAcc), curState) =>
                     val stid: TID = curState.tid
-                    val (store, InnerLoopState(created, effects, result, graph)) = innerLoop(List(curState), oStateAcc.results, oStateAcc.store, iteration)
+                    val (store, kstore, InnerLoopState(created, effects, result, graph)) = innerLoop(List(curState), oStateAcc.results, oStateAcc.store, oStateAcc.kstore, iteration)
                     // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
                     val (todoCreated, newThreads): (Set[State], Threads) = created.foldLeft((Set[State](), oStateAcc.threads)) {case ((createdAcc, threadsAcc), curState) =>
                         if (threadsAcc(curState.tid).contains(curState)) (createdAcc, threadsAcc) // There already is an identical thread, so do nothing.
@@ -282,7 +285,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                     val retVal: V = lattice.join(oStateAcc.results(stid), result)
                     val todoJoined: List[State] = if (oStateAcc.results(stid) == retVal) List.empty else joinDeps(stid).flatMap(newThreads).toList
                     (workAcc ++ todoCreated ++ todoEffects ++ todoJoined,
-                     OuterLoopState(newThreads, readDeps, writeDeps, joinDeps, oStateAcc.results + (stid -> retVal), store, oStateAcc.edges ++ graph.mapValues(set => set.map((BaseTransition(iteration.toString), _)))))
+                     OuterLoopState(newThreads, readDeps, writeDeps, joinDeps, oStateAcc.results + (stid -> retVal), store, kstore, oStateAcc.edges ++ graph.mapValues(set => set.map((BaseTransition(iteration.toString), _)))))
                 }
                 outerLoop(next._1, next._2, iteration + 1)
             }
@@ -304,10 +307,10 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
         val cc      :          KAddr = HaltKontAddr
         val env     : Environment[A] = Environment.initial[A](sem.initialEnv)
         val control :        Control = ControlEval(program, env)
-        val kstore  :         KStore = Store.empty[KAddr, Set[Kont]](t)
+        val kstore  :         KStore = Store.initial[KAddr, Set[Kont]](t, Set.empty)
         val time    :              T = timestamp.initial("")
         val tid     :            TID = allocator.allocate(program, time)
-        val state   :          State = State(tid, control, cc, time, kstore)
+        val state   :          State = State(tid, control, cc, time)
         val threads :        Threads = Map(tid -> Set(state)).withDefaultValue(Set.empty)
         val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
         val oState  : OuterLoopState = OuterLoopState(threads,
@@ -315,7 +318,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
                                                       Map.empty.withDefaultValue(Set.empty),
                                                       Map.empty.withDefaultValue(Set.empty),
                                                       Map.empty.withDefaultValue(lattice.bottom),
-                                                      vstore,
+                                                      vstore, kstore,
                                                       Map.empty)
         
         val result: OuterLoopState = outerLoop(List(state), oState)
