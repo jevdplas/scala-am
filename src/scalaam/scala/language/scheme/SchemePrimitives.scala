@@ -968,7 +968,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
               consv  = cons(v, restv)
               consa  = allocator.pointer(exp, t)
               store3 = store2.extend(consa, consv)
-            } yield (pointer(consa), store3, effs++ Effects.wAddr(consa))
+            } yield (pointer(consa), store3, effs ++ Effects.wAddr(consa))
         }
     }
 

@@ -16,8 +16,7 @@ import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date}
 
-import scalaam.bench.BenchConfig.Prelude
-import scalaam.bench.BenchConfig.Prelude.Prelude
+import scalaam.bench.BenchConfig.Prelude._
 import scalaam.bench.BenchConfig._
 
 /**  Contains utilities to compare the different machines. Compares both the runtime and state space size. */

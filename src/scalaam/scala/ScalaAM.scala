@@ -2,9 +2,11 @@ package scalaam
 
 import scalaam.core._
 import scalaam.graph.{DotGraph, Graph}
-import scalaam.language.atomlang.AtomlangParser
+import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
 import scalaam.language.scheme.{SchemeExp, SchemeLattice, SchemeVar}
 import scalaam.lattice.Type
+import scalaam.machine.{ConcurrentAAM, Strategy}
+import scalaam.machine.Strategy.Strategy
 
 import scala.machine._
 
@@ -42,6 +44,38 @@ object Sem {
     val timestamp = ZeroCFA[SchemeExp]()
     val lattice = new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
     val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
+}
+
+object AtomlangRunAAM {
+    
+    import scalaam.graph._
+    import Sem._
+    
+    val sem = new AtomlangSemantics[address.A, Sem.lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
+    val machine = new ConcurrentAAM[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val graph = DotGraph[machine.State, machine.Transition]()
+    
+    def run(file: String, out: String = "AtomlangRunAAMResult.dot", timeout: Timeout.T = Timeout.seconds(10), strategy: Strategy = Strategy.AllInterleavings): AtomlangRunAAM.graph.G = {
+        val f = scala.io.Source.fromFile(file)
+        val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
+        val t0 = System.nanoTime
+        val result = machine.run[graph.G](
+            AtomlangParser.parse(content),
+            timeout,
+            strategy)
+        val t1 = System.nanoTime
+        if (timeout.reached) {
+            println("Time out!")
+        } else {
+            println(s"Time: ${(t1 - t0) / 1000000}ms")
+        }
+        f.close()
+        result.toFile(out)
+        import Graph.GraphOps
+        println(s"States: ${result.nodes}")
+        Dot.toImage(out)
+        result
+    }
 }
 
 /* To be used with the console: `sbt console`, then scalaam.AtomlangRunModular.run(file) */
