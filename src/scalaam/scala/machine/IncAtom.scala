@@ -14,10 +14,10 @@ import scalaam.graph.Graph.GraphOps
   * This is accomplished by a change in dependency tracking, so that dependencies are to States and not to Threads, i.e., the tracking
   * of dependencies now uses a finer granularity.
   */
-class IncrementalConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
-    override implicit val timestamp: Timestamp[T, Exp],
+class IncAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
+    override implicit val timestamp: Timestamp[T, Exp], // TODO: avoid overrides (seem unnecessary).
     override implicit val lattice: Lattice[V])
-    extends ConcurrentModular[Exp, A, V, T, TID](t, sem, allocator) {
+    extends ModAtom[Exp, A, V, T, TID](t, sem, allocator) {
     
     import seqAAM._
 

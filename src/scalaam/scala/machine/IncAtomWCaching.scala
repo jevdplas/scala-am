@@ -9,7 +9,7 @@ import scalaam.graph.Graph.GraphOps
 /**
   * Implementation of an optimised version of the IncrementalConcurrentModular machine. Two optimisations are implemented: <br>
   * <ul>
-  *     <li><s> InnerLoop abortion when it is known that the next states will need to be reanalysed. his is the case when a bottom
+  *     <li><s> InnerLoop abortion when it is known that the next states will need to be reanalysed. This is the case when a bottom
   *          return value of another thread is read. Note that in the current implementation, all successors are thrown away, which
   *          may cause more iterations of OuterLoop.</s><br< Implemented in all modular machines. </li>
   *     <li> Caching of the visited set. Instead of restarting the inner loop just from a specific state with an empty visited
@@ -21,10 +21,10 @@ import scalaam.graph.Graph.GraphOps
   *
   * @see scala.machine.IncrementalConcurrentModular
   */
-class OptimisedIncConcMod[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
+class IncAtomWCaching[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])(
     override implicit val timestamp: Timestamp[T, Exp],
     override implicit val lattice: Lattice[V])
-    extends IncrementalConcurrentModular[Exp, A, V, T, TID](t, sem, allocator) {
+    extends IncAtom[Exp, A, V, T, TID](t, sem, allocator) {
     
     import seqAAM._
     

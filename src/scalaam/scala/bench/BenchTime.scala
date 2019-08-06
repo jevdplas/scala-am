@@ -36,13 +36,13 @@ object BenchTime {
     
     // Machines
     
-    val regAAM = new ConcurrentAAM[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
-    val cncMOD = new ConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val regAAM  = new ConcurrentAAM[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val modAtom = new ModAtom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     //val botMOD = new ConcurrentModularBottom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
-    val incMOD = new IncrementalConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
-  val incOPT = new OptimisedIncConcMod[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val incAtom = new IncAtom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val incCach = new IncAtomWCaching[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     
-    val configurations: List[Configuration] = /* List(("incOPT", incOPT)) */ List(("cncMOD", cncMOD), ("incMOD", incMOD), ("incOPT", incOPT))
+    val configurations: List[Configuration] = /* List(("incOPT", incOPT)) */ List(("modAtom", modAtom), ("incAtom", incAtom), ("incCach", incCach))
     
     /* **** Experimental output **** */
     

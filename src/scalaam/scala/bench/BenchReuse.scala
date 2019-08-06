@@ -14,7 +14,7 @@ import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
 import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
 import scalaam.lattice.Type
 
-import scala.machine.IncrementalConcurrentModular
+import scala.machine.IncAtom
 
 object BenchReuse {
     
@@ -23,8 +23,8 @@ object BenchReuse {
     val timestamp = ZeroCFA[SchemeExp]()
     val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Type.S,  Type.B, Type.I, Type.R, Type.C, Type.Sym]
     val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
-    val modInc    = new IncrementalConcurrentModular[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
-    val graph     = DotGraph[modInc.State, modInc.Transition]()
+    val incAtom   = new IncAtom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val graph     = DotGraph[incAtom.State, incAtom.Transition]()
     
     var writer: CSVWriter = _
     
@@ -41,7 +41,7 @@ object BenchReuse {
             val name = file.split("/").last.dropRight(4) // DropRight removes ".scm".
             val program: SchemeExp = AtomlangParser.parse(content)
             val to = Timeout.seconds(timeout) // Start timer.
-            modInc.runWithLabels[graph.G](program, to) // Run benchmark.
+            incAtom.runWithLabels[graph.G](program, to) // Run benchmark.
             val sc = to.time // Seconds passed.
             val re = sc > timeout // Check whether timeout has occurred.
             if (re) {
@@ -50,7 +50,7 @@ object BenchReuse {
                 writer.writeNext(line.mkString(","))
                 writer.flush()
             } else {
-                val labels = modInc.theLabels
+                val labels = incAtom.theLabels
                 labels.foreach{case (int, mp) =>
                     val line: List[Any] = name :: int :: mp.toList
                     display("\n" ++ name ++ "\t" ++ line.tail.mkString(","))

@@ -9,7 +9,7 @@ import scalaam.graph._
 
 import scala.core.MachineUtil
 
-class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])(
+class ModAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])(
     implicit val timestamp: Timestamp[T, Exp],
     implicit val lattice: Lattice[V])
     extends MachineAbstraction[Exp, A, V, T, Exp]
@@ -63,7 +63,7 @@ class ConcurrentModular[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t:
       * @param control The control component of the thread.
       * @param cc      The address of the current continuation.
       * @param time    A timestamp.
-      * @param kstore  A continuation store.
+      * //@param kstore  A continuation store.
       */
     case class State(tid: TID, control: Control, cc: KAddr, time: T) extends GraphElement with SmartHash {
         override def toString: String = control.toString

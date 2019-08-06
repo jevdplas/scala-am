@@ -44,14 +44,14 @@ object BenchSoundness {
     def compare(content: String): Unit = {
         display("mod ")
         val t1 = Timeout.seconds(timeout)
-        val mod = AtomlangRunModular.logValues(content, t1)
+        val mod = ModAtomRun.logValues(content, t1)
         if (t1.reached) {
             display("timed out\n")
             return
         }
         display(" - inc\n")
         val t2 = Timeout.seconds(timeout)
-        val inc = AtomlangRunModularIncremental.logValues(content, t2)
+        val inc = IncAtomRun.logValues(content, t2)
         if (t2.reached) {
             display("timed out\n")
             return

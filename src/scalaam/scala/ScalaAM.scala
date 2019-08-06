@@ -46,7 +46,7 @@ object Sem {
     val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
 }
 
-object AtomlangRunAAM {
+object AAMRun {
     
     import scalaam.graph._
     import Sem._
@@ -55,7 +55,7 @@ object AtomlangRunAAM {
     val machine = new ConcurrentAAM[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]()
     
-    def run(file: String, out: String = "AtomlangRunAAMResult.dot", timeout: Timeout.T = Timeout.seconds(10), strategy: Strategy = Strategy.AllInterleavings): AtomlangRunAAM.graph.G = {
+    def run(file: String, out: String = "AAMRunResult.dot", timeout: Timeout.T = Timeout.seconds(10), strategy: Strategy = Strategy.AllInterleavings): AAMRun.graph.G = {
         val f = scala.io.Source.fromFile(file)
         val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
         val t0 = System.nanoTime
@@ -78,16 +78,16 @@ object AtomlangRunAAM {
     }
 }
 
-/* To be used with the console: `sbt console`, then scalaam.AtomlangRunModular.run(file) */
-object AtomlangRunModular {
+/* To be used with the console: `sbt console`, then scalaam.ModAtomRun.run(file) */
+object ModAtomRun {
     
     import scalaam.graph._
     import Sem._
     
-    val machine = new ConcurrentModular[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val machine = new ModAtom[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]()
     
-    def run(file: String, out: String = "AtomlangRunModularResult.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunModular.graph.G = {
+    def run(file: String, out: String = "ModAtomRunResult.dot", timeout: Timeout.T = Timeout.seconds(10)): ModAtomRun.graph.G = {
         val f = scala.io.Source.fromFile(file)
         val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
         val t0 = System.nanoTime
@@ -147,15 +147,15 @@ object AtomlangRunModular {
     }
 }
 
-/* To be used with the console: `sbt console`, then scalaam.AtomlangRunModularIncremental.run(file) */
-object AtomlangRunModularIncremental {
+/* To be used with the console: `sbt console`, then scalaam.IncAtomRun.run(file) */
+object IncAtomRun {
     
     import Sem._
     
-    val machine = new IncrementalConcurrentModular[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val machine = new IncAtom[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]()
     
-    def run(file: String, out: String = "AtomlangRunModularIncrementalResult.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunModularIncremental.graph.G = {
+    def run(file: String, out: String = "IncAtomRunResult.dot", timeout: Timeout.T = Timeout.seconds(10)): IncAtomRun.graph.G = {
         val f = scala.io.Source.fromFile(file)
         val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
         val t0 = System.nanoTime
@@ -213,8 +213,8 @@ object AtomlangRunModularIncremental {
     }
 }
 
-/* To be used with the console: `sbt console`, then scalaam.AtomlangRunModularIncrementalOptimised.run(file) */
-object AtomlangRunModularIncrementalOptimised {
+/* To be used with the console: `sbt console`, then scalaam.IncAtomWCachingRun.run(file) */
+object IncAtomWCachingRun {
     
     import scalaam.core._
     import scalaam.graph._
@@ -222,10 +222,10 @@ object AtomlangRunModularIncrementalOptimised {
     import scalaam.language.scheme._
     import Sem._
     
-    val machine = new OptimisedIncConcMod[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val machine = new IncAtomWCaching[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]()
     
-    def run(file: String, out: String = "AtomlangRunModularIncrementalResultOptimised.dot", timeout: Timeout.T = Timeout.seconds(10)): AtomlangRunModularIncrementalOptimised.graph.G = {
+    def run(file: String, out: String = "IncAtomWCachingRunResult.dot", timeout: Timeout.T = Timeout.seconds(10)): IncAtomWCachingRun.graph.G = {
         val f = scala.io.Source.fromFile(file)
         val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
         val t0 = System.nanoTime

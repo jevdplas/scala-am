@@ -9,7 +9,21 @@ import scalaam.machine.AAM
 
 import scala.core.MachineUtil
 
-class ConcurrentModularBottom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])(
+// TODO verify that bottom is returned - at least add comment (?).
+/**
+  * Like ModAtom, but does not abort an intra-process analysis when bottom is read as the return value of a thread.
+  * @param t
+  * @param sem
+  * @param allocator
+  * @param timestamp
+  * @param lattice
+  * @tparam Exp
+  * @tparam A
+  * @tparam V
+  * @tparam T
+  * @tparam TID
+  */
+class ModAtomWOIntraAbortion[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])(
     implicit val timestamp: Timestamp[T, Exp],
     implicit val lattice: Lattice[V])
     extends MachineAbstraction[Exp, A, V, T, Exp]
