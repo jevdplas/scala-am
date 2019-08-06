@@ -134,6 +134,19 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
             }).getOrElse(Set())
         }
         
+        /** Step the context(s) corresponding to a single, random TID. Returns a set of tuples containing the tid that was stepped and a resulting state. */
+        def stepRandom(): Set[(TID, State)] = {
+            val zero: Option[Set[(TID, State)]] = None
+            scala.util.Random.shuffle(threads.threadsBusy()).foldLeft(zero)((acc, tid) => acc match {
+                case Some(_) => acc
+                case None =>
+                    val next = stepOne(tid)
+                    if (next.isEmpty)
+                        None
+                    else Some(next)
+            }).getOrElse(Set())
+        }
+        
         /**
           * Steps the machine from one state to the next. Different strategies may be used. <br><br>
           *
@@ -144,11 +157,13 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         def step(strategy: Strategy): Set[(TID, State)] = strategy match {
             case Strategy.AllInterleavings => stepMultiple()
             case Strategy.OneInterleaving  => stepAny()
+            case Strategy.RandomInterleaving => stepRandom()
+            case _ => throw new Exception("Unsupported analysis strategy.")
         }
     }
     
     def run[G](program: Exp, timeout: Timeout.T, strategy: Strategy)(implicit ev: Graph[G, State, Transition]): G = {
-    
+        
         /** Fixed-point computation to explore the entire state graph. */
         @scala.annotation.tailrec
         def loop(work: List[State], visited: Set[State] = Set.empty, graph: G = Graph[G, State, Transition].empty): G = {
@@ -191,5 +206,5 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
 /** Enumeration listing strategies for the exploration of the concurrent state space. */
 object Strategy extends Enumeration {
     type Strategy = Value
-    val AllInterleavings, OneInterleaving = Value
+    val AllInterleavings, OneInterleaving, RandomInterleaving = Value
 }

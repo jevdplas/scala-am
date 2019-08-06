@@ -55,8 +55,6 @@ object AAMRun {
     val machine = new ConcurrentAAM[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]()
     
-    import machine._
-    
     def run(file: String, out: String = "AAMRunResult.dot", timeout: Timeout.T = Timeout.seconds(10), strategy: Strategy = Strategy.AllInterleavings): AAMRun.graph.G = {
         val f = scala.io.Source.fromFile(file)
         val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
@@ -77,28 +75,6 @@ object AAMRun {
         println(s"States: ${result.nodes}")
         Dot.toImage(out)
         result
-    }
-    
-    def logValues(content: String, timeout: Timeout.T = Timeout.seconds(10)): Map[Identifier, Sem.lattice.L] = {
-        val result = machine.run[graph.G](AtomlangParser.parse(content), timeout)
-        val states = result._nodes
-        states.foldLeft(Map[Identifier, Sem.lattice.L]().withDefaultValue(machine.lattice.bottom))((curr, state) => {
-            val store = state.store
-            val busy = state.threads.busy // Threads that do not yet have finished.
-            val contexts = busy.values.flatten
-            contexts.foldLeft(curr)((curr, context) => {
-                val control = context.control
-                control match {
-                    // Only look at states that evaluate an identifier.
-                    case ControlEval(SchemeVar(id), env) =>
-                        val addr = env.lookup(id.name).get
-                        val value = store.lookup(addr).getOrElse(machine.lattice.bottom)
-                        val stored = curr(id)
-                        curr + (id -> machine.lattice.join(value, stored)) // Merge all values corresponding to the identifier.
-                    case _ => curr
-                }
-            })
-        })
     }
 }
 
