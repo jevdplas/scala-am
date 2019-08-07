@@ -15,4 +15,5 @@ object ConcreteVal {
   case class ConcreteClosure[E <: Exp, A <: Address](e: E, env: Environment[A]) extends ConcreteVal
   case object ConcreteNil extends ConcreteVal
   case class ConcretePointer[A <: Address](ptr: A) extends ConcreteVal
+  case class ConcreteFuture[TID <: ThreadIdentifier](tid: TID) extends ConcreteVal
 }

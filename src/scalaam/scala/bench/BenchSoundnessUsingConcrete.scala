@@ -6,45 +6,58 @@ import java.util.{Calendar, Date}
 
 import scala.util.control.Breaks._
 import au.com.bytecode.opencsv.CSVWriter
-import scalaam.{IncAtomRun, Sem, StandardPrelude}
+import scalaam.StandardPrelude
 import scalaam.bench.BenchConfig._
 import scalaam.core.ConcreteAddress.Pointer
 import scalaam.core.ConcreteVal._
-import scalaam.lattice.Concrete
+import scalaam.lattice.{Concrete, Type}
 import scalaam.machine.{ConcurrentAAM, Strategy}
 import scalaam.core._
 import scalaam.language.atomlang._
 import scalaam.language.scheme._
 import scalaam.graph.DotGraph
 
+import scala.machine.IncAtom
+
 object BenchSoundnessUsingConcrete {
     
+    object ASem {
+        val address = NameAddress
+        val tid = ConcreteTID
+        val timestamp = ZeroCFA[SchemeExp]()
+        val lattice = new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
+        val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
+    }
+    
+    object CSem {
+        val address   = ConcreteAddress
+        val tid       = ConcreteTID
+        val timestamp = ConcreteTimestamp[SchemeExp]()
+        val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Concrete.S, Concrete.B, Concrete.I, Concrete.R, Concrete.C, Concrete.Sym]
+        val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
+    }
+    
     // Setup.
-    val address   = ConcreteAddress
-    val tid       = ConcreteTID
-    val timestamp = ConcreteTimestamp[SchemeExp]()
-    val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Concrete.S, Concrete.B, Concrete.I, Concrete.R, Concrete.C, Concrete.Sym]
-    val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
-    val concrete  = new ConcurrentAAM[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
-    val graph     = DotGraph[concrete.State, concrete.Transition]()
+    val concrete  = new ConcurrentAAM[SchemeExp, CSem.address.A, CSem.lattice.L, CSem.timestamp.T, CSem.tid.threadID](StoreType.BasicStore, CSem.sem, CSem.tid.Alloc())
+    val cGraph    = DotGraph[concrete.State, concrete.Transition]()
+    val clat      = SchemeLattice[CSem.lattice.L, SchemeExp, CSem.address.A]
     
-    import concrete._
-    
-    val clat = SchemeLattice[lattice.L, SchemeExp, address.A]
-    val alat = SchemeLattice[Sem.lattice.L, SchemeExp, Sem.address.A]
+    val incAtom   = new IncAtom[SchemeExp, ASem.address.A, ASem.lattice.L, ASem.timestamp.T, ASem.tid.threadID](StoreType.BasicStore, ASem.sem, ASem.tid.Alloc())
+    val aGraph    = DotGraph[incAtom.State, incAtom.Transition]()
+    val alat      = SchemeLattice[ASem.lattice.L, SchemeExp, ASem.address.A]
     
     // Experimental setup.
-    val repetitions = 1//100 // Number of concrete experiments to run.
+    val repetitions = 25//500 // Number of concrete experiments to run.
     var writer: CSVWriter = _
     
     def displayf(text: String): Unit = {
-        display(text)
-       // writer.writeNext(text)
-       // writer.flush()
+        writer.writeNext(text)
+        writer.flush()
     }
     
     def forFile(file: String): Unit = {
-        displayf("\n" ++ file ++ " ")
+        display(file ++ "\n")
+        displayf(file ++ "\n")
         try {
             val f = scala.io.Source.fromFile(file)
             // Add the necessary preludes to the file contents.
@@ -56,8 +69,9 @@ object BenchSoundnessUsingConcrete {
         }
     }
     
-    def compare(content: String): Unit = {
-        display("Concrete")
+    def compare(content: String): Unit =
+    try {
+        display("\nConcrete")
         val (concrete, success) = loopConcrete(content)
         if (success < repetitions) { // This threshold can be modified.
             display(" -> timed out.")
@@ -71,14 +85,17 @@ object BenchSoundnessUsingConcrete {
             case Some(map) => map
         }
 
+        display("\nStarting comparison.")
+        
         if (concrete.keySet != abs.keySet) {
-            if (concrete.keySet.subsetOf(abs.keySet))
-                displayf(s"Abstract has observed extra variables: ${abs.keySet.diff(concrete.keySet)}\n")
+            if (concrete.keySet.subsetOf(abs.keySet)) {
+                display (s"\nAbstract has observed extra variables: ${abs.keySet.diff(concrete.keySet)}")
+                displayf(s"Abstract has observed extra variables: ${abs.keySet.diff(concrete.keySet)}")
+            }
             else {
-                displayf("!!!SOUNDNESS PROBLEM!!!\n")
-                /* If the concrete execution observed variables not observed in the abstract, the abstract is not sound! */
-                displayf(s"Concrete has observed extra variables: ${concrete.keySet.diff(abs.keySet)}\n")
-                return /* And we can directly abort */
+                display (s"\nUNSOUND: concrete has observed extra variables: ${concrete.keySet.diff(abs.keySet)}")
+                displayf(s"UNSOUND: concrete has observed extra variables: ${concrete.keySet.diff(abs.keySet)}")
+                return
             }
         }
         
@@ -88,16 +105,24 @@ object BenchSoundnessUsingConcrete {
             val concr = abstracted(id)
             val absv = abs(id)
             if (concr == absv)
-                displayf(s"$id - OK: $concr\n")
-            else if (!alat.subsumes(absv, concr))
-                displayf(s"$id - UNSOUND: inferred $absv where required $concr.\n")
-            else
-                displayf(s"$id - Precision loss: inferred $absv where $concr suffices.\n")
+                displayf(s"$id - OK: $concr")
+            else if (!alat.subsumes(absv, concr)) {
+                display(s"\n$id - UNSOUND: inferred $absv where required $concr.")
+                displayf(s"$id - UNSOUND: inferred $absv where required $concr.")
+            }
+            else {
+                display (s"\n$id - Precision loss: inferred $absv where $concr suffices.")
+                displayf(s"$id - Precision loss: inferred $absv where $concr suffices.")
+            }
         })
+    } catch {
+        case e: Throwable =>
+            e.printStackTrace()
+            displayf(e.getStackTrace().toString)
     }
     
-    def loopConcrete(content: String): (Map[Identifier, lattice.L], Int) = {
-        var acc: Map[Identifier, lattice.L] = Map.empty.withDefaultValue(concrete.lattice.bottom)
+    def loopConcrete(content: String): (Map[Identifier, CSem.lattice.L], Int) = {
+        var acc: Map[Identifier, CSem.lattice.L] = Map.empty.withDefaultValue(concrete.lattice.bottom)
         var successes = 0
         // Run the concrete machine "repetitions" times.
         for (i <- 1 to repetitions) {
@@ -117,12 +142,12 @@ object BenchSoundnessUsingConcrete {
     }
     
     // Logging for the concrete machine.
-    def logConcrete(content: String): Option[Map[Identifier, lattice.L]] = {
+    def logConcrete(content: String): Option[Map[Identifier, CSem.lattice.L]] = {
         val t = Timeout.seconds(timeout)
-        val result = concrete.run[graph.G](AtomlangParser.parse(content), t, Strategy.RandomInterleaving) // Important: random interleavings!
+        val result = concrete.run[cGraph.G](AtomlangParser.parse(content), t, Strategy.RandomInterleaving) // Important: random interleavings!
         if (t.reached) return None
         val states = result._nodes
-        val map = states.foldLeft(Map[Identifier, lattice.L]().withDefaultValue(concrete.lattice.bottom))((curr, state) => {
+        val map = states.foldLeft(Map[Identifier, CSem.lattice.L]().withDefaultValue(concrete.lattice.bottom))((curr, state) => {
             val store = state.store
             val busy = state.threads.busy // Threads that do not yet have finished.
             val contexts = busy.values.flatten
@@ -130,7 +155,7 @@ object BenchSoundnessUsingConcrete {
                 val control = context.control
                 control match {
                     // Only look at states that evaluate an identifier.
-                    case ControlEval(SchemeVar(id), env) =>
+                    case concrete.ControlEval(SchemeVar(id), env) =>
                         env.lookup(id.name) match {
                             case None       => curr // Unbound variable. TODO: can we ignore this? (We do this also in logValues ~> ScalaAM.scala.)
                             case Some(addr) =>
@@ -146,44 +171,76 @@ object BenchSoundnessUsingConcrete {
     }
     
     // Logging for the abstract machine.
-    def logAbstract(content: String): Option[Map[Identifier, Sem.lattice.L]] = {
+    def logAbstract(content: String): Option[Map[Identifier, ASem.lattice.L]] = {
         val t = Timeout.seconds(timeout)
-        val result = IncAtomRun.logValues(content, t)
+        val result = incAtom.run[aGraph.G](AtomlangParser.parse(content), t)
         if (t.reached) return None
-        //result.foreach(v => println(s"${v._1} => ${v._2}"))
-        Some(result)
+        def evalVar = new PartialFunction[incAtom.State, (Identifier, ASem.lattice.L)] {
+            def apply(s: incAtom.State): (Identifier, ASem.lattice.L)  = s.control match {
+                case incAtom.ControlEval(SchemeVar(id), env) =>
+                    val addr = env.lookup(id.name).getOrElse(throw new Exception(s"Unbound identifier: ${id.name}"))
+                    val v = incAtom.theStore.lookup(addr).getOrElse(throw new Exception(s"Unbound address: $addr"))
+                    (id, v)
+            }
+        
+            def isDefinedAt(s: incAtom.State): Boolean = s.control match {
+                case incAtom.ControlEval(SchemeVar(_), _) => true
+                case _ => false
+            }
+        }
+        val res = result
+            /* Let's collect all nodes that evaluate a variable */
+            .findNodes((s: incAtom.State) => s.control match {
+            case incAtom.ControlEval(SchemeVar(id), env) =>
+                env.lookup(id.name) match {
+                    case Some(_) => true
+                    case None =>
+                        // println(s"Identifier is unbound: $id")
+                        false
+                }
+            case _ => false
+        })
+            /* And evaluate the value of each variable */
+            .collect(evalVar)
+            /* We now have a list of pairs (variable, value).
+               Let's join all of them by variable in a single map */
+            .foldLeft(Map.empty[Identifier, ASem.lattice.L].withDefaultValue(SchemeLattice[ASem.lattice.L, SchemeExp, ASem.address.A].bottom))((map, pair) => pair match {
+            case (id, value) => map + (id -> SchemeLattice[ASem.lattice.L, SchemeExp, ASem.address.A].join(map(id), value))
+        })
+        Some(res)
     }
     
     // Convert the map outputted by the concrete machine so it uses the same lattice than the map outputted by the abstract machine.
-    def convertMap(map: Map[Identifier, lattice.L]): Map[Identifier, Sem.lattice.L] = {
+    def convertMap(map: Map[Identifier, CSem.lattice.L]): Map[Identifier, ASem.lattice.L] = {
         map.mapValues(convertLattice)
     }
     
-    def convertLattice(lat: lattice.L): Sem.lattice.L = {
+    def convertLattice(lat: CSem.lattice.L): ASem.lattice.L = {
         clat.concreteValues(lat).map(convertValue).fold(alat.bottom)(alat.join(_,_))
     }
     
-    def convertValue(value: ConcreteVal): Sem.lattice.L = value match {
+    def convertValue(value: ConcreteVal): ASem.lattice.L = value match {
         case ConcreteNumber(x) => alat.number(x)
         case ConcreteReal(x) => alat.real(x)
         case ConcreteString(x) => alat.string(x)
         case ConcreteBool(x) => alat.bool(x)
         case ConcreteChar(x) => alat.char(x)
         case ConcreteSymbol(x) => alat.symbol(x)
-        case ConcretePrim(p: sem.Primitive) => alat.primitive(Sem.sem.allPrimitives.find(_.name == p.name).get)
+        case ConcretePrim(p: CSem.sem.Primitive) => alat.primitive(ASem.sem.allPrimitives.find(_.name == p.name).get)
         case ConcreteNil => alat.nil
         case ConcreteClosure(exp, env) =>
-            val env2 = env.keys.foldLeft(Environment.empty[Sem.address.A])((env2, k) =>
+            val env2 = env.keys.foldLeft(Environment.empty[ASem.address.A])((env2, k) =>
                 env2.extend(k, env.lookup(k).get match {
-                    case address.Variable(nameAddr, _) => Sem.address.Variable(nameAddr)
-                    case address.Pointer(e, _) => Sem.address.Pointer(e)
-                    case address.Primitive(n) => Sem.address.Primitive(n)
+                    case CSem.address.Variable(nameAddr, _) => ASem.address.Variable(nameAddr)
+                    case CSem.address.Pointer(e, _) => ASem.address.Pointer(e)
+                    case CSem.address.Primitive(n) => ASem.address.Primitive(n)
                 }))
             alat.closure((exp.asInstanceOf[SchemeExp], env2))
-        case ConcretePointer(address.Variable(nameAddr, _)) =>
-            alat.pointer(Sem.address.Variable(nameAddr))
+        case ConcretePointer(CSem.address.Variable(nameAddr, _)) =>
+            alat.pointer(ASem.address.Variable(nameAddr))
         case ConcretePointer(Pointer(name, _)) =>
-            alat.pointer(Sem.address.Pointer(name))
+            alat.pointer(ASem.address.Pointer(name))
+        case ConcreteFuture(ASem.tid.TID(exp, time)) => alat.future(ASem.tid.TID(exp, time))
     }
     
     def main(args: Array[String]): Unit = {
@@ -192,9 +249,9 @@ object BenchSoundnessUsingConcrete {
         val output: String = "./Results_Soundness_Concrete" + format.format(now) + ".txt"
         
         val out = new BufferedWriter(new FileWriter(output))
-        writer  = new CSVWriter(out)
+        writer  = new CSVWriter(out, ',', CSVWriter.NO_QUOTE_CHARACTER)
     
-        List("./test/Atomlang/Threads/abp.scm").foreach(forFile)
+        List("./test/Atomlang/Threads/mceval.scm").foreach(forFile)
         writer.close()
     }
 }
