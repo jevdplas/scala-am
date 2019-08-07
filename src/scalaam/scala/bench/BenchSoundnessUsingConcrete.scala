@@ -8,6 +8,7 @@ import scala.util.control.Breaks._
 import au.com.bytecode.opencsv.CSVWriter
 import scalaam.{IncAtomRun, Sem, StandardPrelude}
 import scalaam.bench.BenchConfig._
+import scalaam.core.ConcreteVal._
 import scalaam.lattice.Concrete
 import scalaam.machine.{ConcurrentAAM, Strategy}
 import scalaam.core._
@@ -141,15 +142,30 @@ object BenchSoundnessUsingConcrete {
         map.mapValues(convertLattice)
     }
     
-    def convertLattice(value: lattice.L): Sem.lattice.L = value match {
-        case lattice.Element(_) => ???
-        case lattice.Elements(_) => ???
+    val clat = SchemeLattice[lattice.L, SchemeExp, address.A]
+    val alat = SchemeLattice[Sem.lattice.L, SchemeExp, Sem.address.A]
+    
+    def convertLattice(lat: lattice.L): Sem.lattice.L = {
+        clat.concreteValues(lat).map(convertValue).fold(alat.bottom)(alat.join(_,_))
     }
     
-    def convertValue(value: lattice.Value): Sem.lattice.Value = value match {
-        case lattice.Bool(_: Concrete.L[Boolean]) => ???
-        case _ => ???
-        
+    def convertValue(value: ConcreteVal): Sem.lattice.L = value match {
+        case ConcreteNumber(x) => alat.number(x)
+        case ConcreteReal(x) => alat.real(x)
+        case ConcreteString(x) => alat.string(x)
+        case ConcreteBool(x) => alat.bool(x)
+        case ConcreteChar(x) => alat.char(x)
+        case ConcreteSymbol(x) => alat.symbol(x)
+        case ConcretePrim(p) => alat.primitive(p)
+        case ConcreteNil => alat.nil
+        case ConcreteClosure(exp, env) =>
+            val env2 = env.keys.foldLeft(Environment.empty[Sem.address.A])((env2, k) =>
+                env2.extend(k, env.lookup(k).get match {
+                    case address.Variable(nameAddr, _) => Sem.address.Variable(nameAddr)
+                }))
+            alat.closure((exp.asInstanceOf[SchemeExp], env2))
+        case ConcretePointer(address.Variable(nameAddr, _)) =>
+            alat.pointer(Sem.address.Variable(nameAddr))
     }
     
     def main(args: Array[String]): Unit = {
