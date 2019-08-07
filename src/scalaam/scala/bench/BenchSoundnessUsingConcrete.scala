@@ -142,12 +142,12 @@ object BenchSoundnessUsingConcrete {
     }
     
     def convertLattice(value: lattice.L): Sem.lattice.L = value match {
-        case lattice.Element(v) => ???
-        case lattice.Elements(vs) => ???
+        case lattice.Element(_) => ???
+        case lattice.Elements(_) => ???
     }
     
     def convertValue(value: lattice.Value): Sem.lattice.Value = value match {
-        case lattice.Bool(b: Concrete.L[Boolean]) => ???
+        case lattice.Bool(_: Concrete.L[Boolean]) => ???
         case _ => ???
         
     }
