@@ -290,6 +290,8 @@ object StandardPrelude {
           |    (if (not (compare-and-set! at vl (fn vl)))
           |      (swap! at fn))))""".stripMargin
 }
+
+/*
 object CompareMachines {
   def compare(file: String): Unit = {
     println("Running concrete")
@@ -341,3 +343,4 @@ object CompareMachines {
     })
   }
 }
+*/

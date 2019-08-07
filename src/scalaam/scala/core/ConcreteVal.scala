@@ -1,5 +1,7 @@
 package scalaam.core
 
+import scala.core.Exp
+
 trait ConcreteVal
 
 object ConcreteVal {

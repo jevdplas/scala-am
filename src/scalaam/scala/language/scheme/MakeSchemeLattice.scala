@@ -535,6 +535,8 @@ class MakeSchemeLattice[
       case Pointer(a) => Set(ConcretePointer(a))
       case _: Cons => ???
       case _: Vec => ???
+      case _: Future => ???
+      case _: Atom => ???
     }
 
   }
