@@ -51,6 +51,24 @@ object BenchConfig {
         ("./test/Atomlang/Threads/tsp.scm",              none),
     )
     
+    val benchmarksVMCAI: List[String] = List(
+        "./test/Atomlang/VMCAI2020/actors.scm",
+        "./test/Atomlang/VMCAI2020/atomicInt.scm",
+        "./test/Atomlang/VMCAI2020/atoms.scm",
+        "./test/Atomlang/VMCAI2020/bchain.scm",
+        "./test/Atomlang/VMCAI2020/count.scm",
+        "./test/Atomlang/VMCAI2020/dekker.scm",
+        "./test/Atomlang/VMCAI2020/fact.scm",
+        "./test/Atomlang/VMCAI2020/life.scm",
+        "./test/Atomlang/VMCAI2020/matmul.scm",
+        "./test/Atomlang/VMCAI2020/mcarlo.scm",
+        "./test/Atomlang/VMCAI2020/mceval.scm",
+        "./test/Atomlang/VMCAI2020/minimax.scm",
+        "./test/Atomlang/VMCAI2020/msort.scm",
+        "./test/Atomlang/VMCAI2020/pc.scm",
+        "./test/Atomlang/VMCAI2020/treiber-stack.scm",
+    )
+    
     // Lock implementation by means of atoms.
     val lockPrelude: String =
         """(define (t/new-lock)

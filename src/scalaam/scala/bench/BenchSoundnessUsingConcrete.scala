@@ -4,9 +4,9 @@ import java.io.{BufferedWriter, FileWriter}
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date}
 
+import scala.util.control.Breaks._
 import au.com.bytecode.opencsv.CSVWriter
-import scalaam.StandardPrelude
-import scalaam.bench.BenchConfig.Prelude.Prelude
+import scalaam.{IncAtomRun, Sem, StandardPrelude}
 import scalaam.bench.BenchConfig._
 import scalaam.lattice.Concrete
 import scalaam.machine.{ConcurrentAAM, Strategy}
@@ -34,21 +34,16 @@ object BenchSoundnessUsingConcrete {
     
     def displayf(text: String): Unit = {
         display(text)
-        writer.writeNext(text)
-        writer.flush()
+       // writer.writeNext(text)
+       // writer.flush()
     }
     
-    def forFile(file: String, atPrelude: Prelude): Unit = {
-        display("\n" ++ file ++ " ")
+    def forFile(file: String): Unit = {
         displayf("\n" ++ file ++ " ")
         try {
             val f = scala.io.Source.fromFile(file)
             // Add the necessary preludes to the file contents.
-            val content: String = StandardPrelude.atomlangPrelude ++ (atPrelude match {
-                case Prelude.lock => lockPrelude
-                case Prelude.list => listPrelude
-                case Prelude.none => ""
-            }) ++ f.getLines.mkString("\n")
+            val content: String = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
             f.close()
             compare(content)
         } catch {
@@ -57,21 +52,47 @@ object BenchSoundnessUsingConcrete {
     }
     
     def compare(content: String): Unit = {
+        display("Concrete")
+        val (_, success) = loopConcrete(content)
+        if (success < repetitions) { // This threshold can be modified.
+            display(" -> timed out.")
+            return
+        }
+        display("\nAbstract")
+        val abs = logAbstract(content)
+        if (abs.isEmpty) {
+            display(" -> timed out.")
+            return
+        }
+    }
+    
+    def loopConcrete(content: String): (Map[Identifier, lattice.L], Int) = {
         var acc: Map[Identifier, lattice.L] = Map.empty.withDefaultValue(concrete.lattice.bottom)
+        var successes = 0
         // Run the concrete machine "repetitions" times.
-        for (_ <- 1 to repetitions) {
-            logValues(content, Timeout.seconds(timeout)).foreach { case (id, vl) =>
-                acc = acc + (id -> concrete.lattice.join(vl, acc(id)))
+        for (i <- 1 to repetitions) {
+            display(s" $i")
+            logConcrete(content) match {
+                case None => break
+                case Some(map) =>
+                    map.foreach { case (id, vl) =>
+                        acc = acc + (id -> concrete.lattice.join(vl, acc(id)))
+                    }
+                    successes += 1
             }
         }
-        acc.foreach(v => println(s"${v._1} => ${v._2}"))
+        //println(s"Succeeded $successes times.")
+        //acc.foreach(v => println(s"${v._1} => ${v._2}"))
+        (acc, successes)
     }
     
     // Logging for the concrete machine.
-    def logValues(content: String, timeout: Timeout.T = Timeout.seconds(10)): Map[Identifier, lattice.L] = {
-        val result = concrete.run[graph.G](AtomlangParser.parse(content), timeout, Strategy.RandomInterleaving) // Important: random interleavings!
+    def logConcrete(content: String): Option[Map[Identifier, lattice.L]] = {
+        val t = Timeout.seconds(timeout)
+        val result = concrete.run[graph.G](AtomlangParser.parse(content), t, Strategy.RandomInterleaving) // Important: random interleavings!
+        if (t.reached) return None
         val states = result._nodes
-        states.foldLeft(Map[Identifier, lattice.L]().withDefaultValue(concrete.lattice.bottom))((curr, state) => {
+        val map = states.foldLeft(Map[Identifier, lattice.L]().withDefaultValue(concrete.lattice.bottom))((curr, state) => {
             val store = state.store
             val busy = state.threads.busy // Threads that do not yet have finished.
             val contexts = busy.values.flatten
@@ -80,14 +101,36 @@ object BenchSoundnessUsingConcrete {
                 control match {
                     // Only look at states that evaluate an identifier.
                     case ControlEval(SchemeVar(id), env) =>
-                        val addr = env.lookup(id.name).get
-                        val value = store.lookup(addr).getOrElse(concrete.lattice.bottom)
-                        val stored = curr(id)
-                        curr + (id -> concrete.lattice.join(value, stored)) // Merge all values corresponding to the identifier.
+                        env.lookup(id.name) match {
+                            case None       => curr // Unbound variable. TODO can we ignore this? (We do this also in logvalues ~> ScalaAM.scala.)
+                            case Some(addr) =>
+                                val value = store.lookup(addr).getOrElse(concrete.lattice.bottom)
+                                val stored = curr(id)
+                                curr + (id -> concrete.lattice.join(value, stored)) // Merge all values corresponding to the identifier.
+                        }
                     case _ => curr
                 }
             })
         })
+        Some(map)
+    }
+    
+    // Logging for the abstract machine.
+    def logAbstract(content: String): Option[Map[Identifier, Sem.lattice.L]] = {
+        val t = Timeout.seconds(timeout)
+        val result = IncAtomRun.logValues(content, t)
+        if (t.reached) return None
+        result.foreach(v => println(s"${v._1} => ${v._2}"))
+        Some(result)
+    }
+    
+    // Convert the map outputted by the concrete machine so it uses the same lattice than the map outputted by the abstract machine.
+    def convertMap(map: Map[Identifier, lattice.L]): Map[Identifier, Sem.lattice.L] = {
+        map.mapValues(convertLattice)
+    }
+    
+    def convertLattice(value: lattice.L): Sem.lattice.L = {
+        ???
     }
     
     def main(args: Array[String]): Unit = {
@@ -97,8 +140,8 @@ object BenchSoundnessUsingConcrete {
         
         val out = new BufferedWriter(new FileWriter(output))
         writer  = new CSVWriter(out)
-        
-        benchmarks.foreach(Function.tupled(forFile))
+    
+        List("./test/Atomlang/Threads/abp.scm").foreach(forFile)
         writer.close()
     }
 }
