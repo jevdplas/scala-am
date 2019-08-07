@@ -8,6 +8,7 @@ import scala.util.control.Breaks._
 import au.com.bytecode.opencsv.CSVWriter
 import scalaam.{IncAtomRun, Sem, StandardPrelude}
 import scalaam.bench.BenchConfig._
+import scalaam.core.ConcreteAddress.Pointer
 import scalaam.core.ConcreteVal._
 import scalaam.lattice.Concrete
 import scalaam.machine.{ConcurrentAAM, Strategy}
@@ -18,7 +19,7 @@ import scalaam.graph.DotGraph
 
 object BenchSoundnessUsingConcrete {
     
-    // Concrete setup.
+    // Setup.
     val address   = ConcreteAddress
     val tid       = ConcreteTID
     val timestamp = ConcreteTimestamp[SchemeExp]()
@@ -28,6 +29,9 @@ object BenchSoundnessUsingConcrete {
     val graph     = DotGraph[concrete.State, concrete.Transition]()
     
     import concrete._
+    
+    val clat = SchemeLattice[lattice.L, SchemeExp, address.A]
+    val alat = SchemeLattice[Sem.lattice.L, SchemeExp, Sem.address.A]
     
     // Experimental setup.
     val repetitions = 1//100 // Number of concrete experiments to run.
@@ -77,6 +81,19 @@ object BenchSoundnessUsingConcrete {
                 return /* And we can directly abort */
             }
         }
+        
+        val abstracted = convertMap(concrete)
+        
+        concrete.keySet.foreach(id => {
+            val concr = abstracted(id)
+            val absv = abs(id)
+            if (concr == absv)
+                displayf(s"$id - OK: $concr\n")
+            else if (!alat.subsumes(absv, concr))
+                displayf(s"$id - UNSOUND: inferred $absv where required $concr.\n")
+            else
+                displayf(s"$id - Precision loss: inferred $absv where $concr suffices.\n")
+        })
     }
     
     def loopConcrete(content: String): (Map[Identifier, lattice.L], Int) = {
@@ -133,7 +150,7 @@ object BenchSoundnessUsingConcrete {
         val t = Timeout.seconds(timeout)
         val result = IncAtomRun.logValues(content, t)
         if (t.reached) return None
-        result.foreach(v => println(s"${v._1} => ${v._2}"))
+        //result.foreach(v => println(s"${v._1} => ${v._2}"))
         Some(result)
     }
     
@@ -141,9 +158,6 @@ object BenchSoundnessUsingConcrete {
     def convertMap(map: Map[Identifier, lattice.L]): Map[Identifier, Sem.lattice.L] = {
         map.mapValues(convertLattice)
     }
-    
-    val clat = SchemeLattice[lattice.L, SchemeExp, address.A]
-    val alat = SchemeLattice[Sem.lattice.L, SchemeExp, Sem.address.A]
     
     def convertLattice(lat: lattice.L): Sem.lattice.L = {
         clat.concreteValues(lat).map(convertValue).fold(alat.bottom)(alat.join(_,_))
@@ -162,10 +176,14 @@ object BenchSoundnessUsingConcrete {
             val env2 = env.keys.foldLeft(Environment.empty[Sem.address.A])((env2, k) =>
                 env2.extend(k, env.lookup(k).get match {
                     case address.Variable(nameAddr, _) => Sem.address.Variable(nameAddr)
+                    case address.Pointer(e, _) => Sem.address.Pointer(e)
+                    case address.Primitive(n) => Sem.address.Primitive(n)
                 }))
             alat.closure((exp.asInstanceOf[SchemeExp], env2))
         case ConcretePointer(address.Variable(nameAddr, _)) =>
             alat.pointer(Sem.address.Variable(nameAddr))
+        case ConcretePointer(Pointer(name, _)) =>
+            alat.pointer(Sem.address.Pointer(name))
     }
     
     def main(args: Array[String]): Unit = {
