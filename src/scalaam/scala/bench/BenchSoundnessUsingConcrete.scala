@@ -53,16 +53,28 @@ object BenchSoundnessUsingConcrete {
     
     def compare(content: String): Unit = {
         display("Concrete")
-        val (_, success) = loopConcrete(content)
+        val (concrete, success) = loopConcrete(content)
         if (success < repetitions) { // This threshold can be modified.
             display(" -> timed out.")
             return
         }
         display("\nAbstract")
-        val abs = logAbstract(content)
-        if (abs.isEmpty) {
-            display(" -> timed out.")
-            return
+        val abs = logAbstract(content) match {
+            case None =>
+                display(" -> timed out.")
+                return
+            case Some(map) => map
+        }
+
+        if (concrete.keySet != abs.keySet) {
+            if (concrete.keySet.subsetOf(abs.keySet))
+                displayf(s"Abstract has observed extra variables: ${abs.keySet.diff(concrete.keySet)}\n")
+            else {
+                displayf("!!!SOUNDNESS PROBLEM!!!\n")
+                /* If the concrete execution observed variables not observed in the abstract, the abstract is not sound! */
+                displayf(s"Concrete has observed extra variables: ${concrete.keySet.diff(abs.keySet)}\n")
+                return /* And we can directly abort */
+            }
         }
     }
     
@@ -102,7 +114,7 @@ object BenchSoundnessUsingConcrete {
                     // Only look at states that evaluate an identifier.
                     case ControlEval(SchemeVar(id), env) =>
                         env.lookup(id.name) match {
-                            case None       => curr // Unbound variable. TODO can we ignore this? (We do this also in logvalues ~> ScalaAM.scala.)
+                            case None       => curr // Unbound variable. TODO: can we ignore this? (We do this also in logValues ~> ScalaAM.scala.)
                             case Some(addr) =>
                                 val value = store.lookup(addr).getOrElse(concrete.lattice.bottom)
                                 val stored = curr(id)
@@ -129,8 +141,15 @@ object BenchSoundnessUsingConcrete {
         map.mapValues(convertLattice)
     }
     
-    def convertLattice(value: lattice.L): Sem.lattice.L = {
-        ???
+    def convertLattice(value: lattice.L): Sem.lattice.L = value match {
+        case lattice.Element(v) => ???
+        case lattice.Elements(vs) => ???
+    }
+    
+    def convertValue(value: lattice.Value): Sem.lattice.Value = value match {
+        case lattice.Bool(b: Concrete.L[Boolean]) => ???
+        case _ => ???
+        
     }
     
     def main(args: Array[String]): Unit = {
