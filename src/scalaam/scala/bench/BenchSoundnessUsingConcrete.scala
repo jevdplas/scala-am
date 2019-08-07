@@ -170,7 +170,7 @@ object BenchSoundnessUsingConcrete {
         case ConcreteBool(x) => alat.bool(x)
         case ConcreteChar(x) => alat.char(x)
         case ConcreteSymbol(x) => alat.symbol(x)
-        case ConcretePrim(p) => alat.primitive(p)
+        case ConcretePrim(p: sem.Primitive) => alat.primitive(Sem.sem.allPrimitives.find(_.name == p.name).get)
         case ConcreteNil => alat.nil
         case ConcreteClosure(exp, env) =>
             val env2 = env.keys.foldLeft(Environment.empty[Sem.address.A])((env2, k) =>
