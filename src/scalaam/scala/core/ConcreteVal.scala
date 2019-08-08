@@ -16,4 +16,6 @@ object ConcreteVal {
   case object ConcreteNil extends ConcreteVal
   case class ConcretePointer[A <: Address](ptr: A) extends ConcreteVal
   case class ConcreteFuture[TID <: ThreadIdentifier](tid: TID) extends ConcreteVal
+  case class ConcreteCons(car: Set[ConcreteVal], cdr: Set[ConcreteVal]) extends ConcreteVal
+  case class ConcreteAtom(data: Set[ConcreteVal]) extends ConcreteVal
 }

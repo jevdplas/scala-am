@@ -240,7 +240,14 @@ object BenchSoundnessUsingConcrete {
             alat.pointer(ASem.address.Variable(nameAddr))
         case ConcretePointer(Pointer(name, _)) =>
             alat.pointer(ASem.address.Pointer(name))
-        case ConcreteFuture(ASem.tid.TID(exp, time)) => alat.future(ASem.tid.TID(exp, time))
+        case ConcreteFuture(ASem.tid.TID(exp, _)) => alat.future(ASem.tid.TID(exp, ASem.timestamp.T.typeclass.initial(""))) // Mimick ZeroCFA timestamp.
+        case ConcreteCons(car, cdr) =>
+            val ccar = car.map(convertValue).fold(alat.bottom)((x, y) => alat.join(x, y))
+            val ccdr = cdr.map(convertValue).fold(alat.bottom)((x, y) => alat.join(x, y))
+            alat.cons(ccar, ccdr)
+        case ConcreteAtom(data) =>
+            val cdata = data.map(convertValue).fold(alat.bottom)((x, y) => alat.join(x, y))
+            alat.atom(cdata)
     }
     
     def main(args: Array[String]): Unit = {
@@ -251,7 +258,7 @@ object BenchSoundnessUsingConcrete {
         val out = new BufferedWriter(new FileWriter(output))
         writer  = new CSVWriter(out, ',', CSVWriter.NO_QUOTE_CHARACTER)
     
-        List("./test/Atomlang/Threads/mceval.scm").foreach(forFile)
+        List("./test/Atomlang/reset.scm").foreach(forFile)
         writer.close()
     }
 }

@@ -533,10 +533,15 @@ class MakeSchemeLattice[
       case Clo(lambda, env) => Set(ConcreteClosure(lambda, env))
       case Nil => Set(ConcreteNil)
       case Pointer(a) => Set(ConcretePointer(a))
-      case _: Cons => ???
+      case Cons(car, cdr) =>
+          val ccar: Set[ConcreteVal] = car.foldMapL(concreteValues)(scalaam.util.MonoidInstances.setMonoid)
+          val ccdr: Set[ConcreteVal] = cdr.foldMapL(concreteValues)(scalaam.util.MonoidInstances.setMonoid)
+          Set(ConcreteCons(ccar, ccdr))
       case _: Vec => ???
       case Future(tid) => Set(ConcreteFuture(tid))
-      case _: Atom => ???
+      case Atom(data) =>
+          val cdata: Set[ConcreteVal] = data.foldMapL(concreteValues)(scalaam.util.MonoidInstances.setMonoid)
+          Set(ConcreteAtom(cdata))
     }
 
   }
