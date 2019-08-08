@@ -137,7 +137,7 @@ object BenchSoundnessUsingConcrete {
             }
         }
         //println(s"Succeeded $successes times.")
-        //acc.foreach(v => println(s"${v._1} => ${v._2}"))
+        acc.foreach(v => println(s"${v._1} => ${v._2}"))
         (acc, successes)
     }
     
@@ -258,7 +258,7 @@ object BenchSoundnessUsingConcrete {
         val out = new BufferedWriter(new FileWriter(output))
         writer  = new CSVWriter(out, ',', CSVWriter.NO_QUOTE_CHARACTER)
     
-        List("./test/Atomlang/reset.scm").foreach(forFile)
+        List("./test/Atomlang/VMCAI2020/msort.scm").foreach(forFile)
         writer.close()
     }
 }

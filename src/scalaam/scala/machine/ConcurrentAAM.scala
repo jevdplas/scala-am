@@ -51,27 +51,26 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         }
         
         /** Executes one action on a state corresponding to a given tid and returns the result. */
-        def act(threads: Threads, action: Act, cc: KAddr, time: T, old: VStore, kstore: KStore): (Threads, VStore) =
-            action match {
-                case Value(v, store, _) => (threads.set(tid, Context(tid, ControlKont(v), cc, timestamp.tick(time), kstore)), store)
-                case Push(frame, e, env, store, _) =>
-                    val cc_ = KontAddr(e, time)
-                    (threads.set(tid, Context(tid, ControlEval(e, env), cc_, timestamp.tick(time), kstore.extend(cc_, Set(Kont(frame, cc))))), store)
-                case Eval(e, env, store, _) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time), kstore)), store)
-                case StepIn(f, _, e, env, store, _) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time, f), kstore)), store)
-                case Err(e) => (threads.set(tid, Context(tid, ControlError(e), cc, timestamp.tick(time), kstore)), old)
-                case NewFuture(tid_ : TID@unchecked, tidv, fst, frame: Frame@unchecked, env, store, _) =>
-                    val cc_ = KontAddr(fst, time)
-                    val newPState = Context(tid_, ControlEval(fst, env), cc_, timestamp.initial(tid_.toString), Store.empty[KA, Set[Kont]](t).extend(cc_, Set(Kont(frame, HaltKontAddr))))
-                    val curPState = Context(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
-                    (threads.set(tid, curPState).add(tid_, newPState), store)
-                case DerefFuture(tid_ : TID@unchecked, store, _) =>
-                    if (threads.hasFinished(tid_)) {
-                        (threads.set(tid, Context(tid, ControlKont(threads.getResult(tid_)), cc, timestamp.tick(time), kstore)), store)
-                    } else {
-                        (threads, store)
-                    }
-            }
+        def act(threads: Threads, action: Act, cc: KAddr, time: T, old: VStore, kstore: KStore): (Threads, VStore) = action match {
+            case Value(v, store, _) => (threads.set(tid, Context(tid, ControlKont(v), cc, timestamp.tick(time), kstore)), store)
+            case Push(frame, e, env, store, _) =>
+                val cc_ = KontAddr(e, time)
+                (threads.set(tid, Context(tid, ControlEval(e, env), cc_, timestamp.tick(time), kstore.extend(cc_, Set(Kont(frame, cc))))), store)
+            case Eval(e, env, store, _) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time), kstore)), store)
+            case StepIn(f, _, e, env, store, _) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time, f), kstore)), store)
+            case Err(e) => (threads.set(tid, Context(tid, ControlError(e), cc, timestamp.tick(time), kstore)), old)
+            case NewFuture(tid_ : TID@unchecked, tidv, fst, frame: Frame@unchecked, env, store, _) =>
+                val cc_ = KontAddr(fst, time)
+                val newPState = Context(tid_, ControlEval(fst, env), cc_, timestamp.initial(tid_.toString), Store.empty[KA, Set[Kont]](t).extend(cc_, Set(Kont(frame, HaltKontAddr))))
+                val curPState = Context(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
+                (threads.set(tid, curPState).add(tid_, newPState), store)
+            case DerefFuture(tid_ : TID@unchecked, store, _) =>
+                if (threads.hasFinished(tid_))
+                    (threads.set(tid, Context(tid, ControlKont(threads.getResult(tid_)), cc, timestamp.tick(time), kstore)), store)
+                else
+                    (threads, store)
+            case a => throw new Exception(s"Unsupported action: $a.\n")
+        }
         
         /** Produces the states following this state by applying the given actions. */
         def next(actions: Set[Act], threads: Threads, store: VStore, cc: KAddr): Set[State] = {
@@ -128,8 +127,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
                 case Some(_) => acc
                 case None =>
                     val next = stepOne(tid)
-                    if (next.isEmpty)
-                        None
+                    if (next.isEmpty) None
                     else Some(next)
             }).getOrElse(Set())
         }
@@ -141,8 +139,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
                 case Some(_) => acc
                 case None =>
                     val next = stepOne(tid)
-                    if (next.isEmpty)
-                        None
+                    if (next.isEmpty) None
                     else Some(next)
             }).getOrElse(Set())
         }

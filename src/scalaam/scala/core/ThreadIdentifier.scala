@@ -20,7 +20,7 @@ object ConcreteTID {
     
     /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
     case class TID[T, C](exp: C, t: T) extends threadID {
-        override def toString: String = exp.toString //s"*${exp.toString.hashCode}@$t*"
+        override def toString: String = exp.hashCode().toString//exp.toString //s"*${exp.toString.hashCode}@$t*"
     }
     
     case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C]) extends TIDAllocator[threadID, T, C] {
@@ -86,8 +86,8 @@ case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID
     def allDone(): Boolean = busy.isEmpty
     
     override def toString: String = {
-        "Threads: (" + busy.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + get(key).toString + "]") + ")\n" +
-            "Results: (" + finished.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + getResult(key).toString + "]") + ")\n" +
-            "Errors:  (" + errored.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + getError(key).toString + "]") + ")"
+        "Threads: (" + busy.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + get(key).toString + "]") + ")\n" //+
+            //"Results: (" + finished.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + getResult(key).toString + "]") + ")\n" +
+            //"Errors:  (" + errored.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + getError(key).toString + "]") + ")"
     }
 }
