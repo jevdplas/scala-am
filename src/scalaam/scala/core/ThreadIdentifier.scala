@@ -50,7 +50,7 @@ case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID
     
     def set(tid: TID, newContext: Context): TMap[TID, Context, V] = {
         val associatedContexts = get(tid)
-        if (associatedContexts.nonEmpty)
+        if (associatedContexts.size == 1)
             TMap(busy + (tid -> Set(newContext)), finished, errored)
         else
             TMap(busy + (tid -> (associatedContexts + newContext)), finished, errored)
