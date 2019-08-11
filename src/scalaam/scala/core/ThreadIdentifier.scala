@@ -1,5 +1,7 @@
 package scalaam.core
 
+import scalaam.core.Annotations._
+
 /** A trait for thread identifiers. */
 trait ThreadIdentifier extends SmartHash
 
@@ -59,6 +61,7 @@ case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID
     def add(tid: TID, newContext: Context): TMap[TID, Context, V] =
         TMap(busy + (tid -> (get(tid) + newContext)), finished, errored)
     
+    @unsound("Multiple contexts may be associated to TID.")
     def finish(tid: TID, v: V): TMap[TID, Context, V] = {
         if (get(tid).isEmpty) {
             throw new Exception(s"Invalid state: trying to terminate non-existing process $tid with value $v.")
@@ -66,6 +69,7 @@ case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID
         TMap(busy - tid, finished + (tid -> lat.join(getResult(tid), v)), errored)
     }
     
+    @unsound
     def fail(tid: TID, e: Error): TMap[TID, Context, V] = {
         if (get(tid).isEmpty) {
             throw new Exception(s"Invalid state: trying to terminate non-existing process $tid with error $e.")
@@ -90,4 +94,74 @@ case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID
             //"Results: (" + finished.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + getResult(key).toString + "]") + ")\n" +
             //"Errors:  (" + errored.keys.foldLeft("")((acc, key) => acc + "[" + key.toString + " -> " + getError(key).toString + "]") + ")"
     }
+}
+
+case class BlockableTMap[TID, Context, V](runnable: Map[TID, Set[Context]], blocked: Map[TID, Set[(TID, Context)]],
+                                          finished: Map[TID, V], errored: Map[TID, Set[Error]])
+                                         (implicit val lat: Lattice[V]) {
+    
+    def getRunnable(tid: TID): Set[Context] = runnable.getOrElse(tid, Set())
+    
+    def getBlocked(tid: TID): Set[(TID, Context)] = blocked.getOrElse(tid, Set())
+    
+    def getResult(tid: TID): V = finished.getOrElse(tid, lat.bottom)
+    
+    def getError(tid: TID): Set[Error] = errored.getOrElse(tid, Set())
+    
+    def newThread(tid: TID, newContext: Context): TMap[TID, Context, V] =
+        TMap(runnable + (tid -> (getRunnable(tid) + newContext)), finished, errored)
+    
+    @maybeUnsound("Verify that it is sound to remove oldContext.")
+    def updateThread(tid: TID, oldContext: Context, newContext: Context): BlockableTMap[TID, Context, V] = {
+        val associatedContexts = getRunnable(tid)
+        if (associatedContexts.isEmpty) throw new Exception(s"Updating non-runnable TID: $tid.") // Can be omitted: indicates machine error.
+        else if (associatedContexts.size == 1)
+            this.copy(runnable = runnable + (tid -> Set(newContext)))
+        else {
+            this.copy(runnable = runnable + (tid -> (associatedContexts - oldContext + newContext))) // TODO: verify that it is sound to remove oldContext.
+        }
+    }
+    
+    def finishThread(tid: TID, context: Context, result: V): BlockableTMap[TID, Context, V] = {
+        val associatedContexts = getRunnable(tid)
+        val canRun = getBlocked(tid).map{case (tid, ctx) => tid -> (getRunnable(tid) + ctx)}
+        if (associatedContexts.isEmpty) throw new Exception(s"Finishing non-runnable TID: $tid.") // Can be omitted: indicates machine error.
+        else if (associatedContexts.size == 1)
+            this.copy(runnable = runnable - tid ++ canRun, finished = finished + (tid -> lat.join(getResult(tid), result)))
+        else
+            this.copy(runnable = runnable + (tid -> (associatedContexts - context)) ++ canRun, finished = finished + (tid -> lat.join(getResult(tid), result)))
+    }
+    
+    def failThread(tid: TID, context: Context, error: Error): BlockableTMap[TID, Context, V] = {
+        val associatedContexts = getRunnable(tid)
+        if (associatedContexts.isEmpty) throw new Exception(s"Failing non-runnable TID: $tid.") // Can be omitted: indicates machine error.
+        else if (associatedContexts.size == 1)
+            this.copy(runnable = runnable - tid, errored = errored + (tid -> (getError(tid) + error)))
+        else
+            this.copy(runnable = runnable + (tid -> (associatedContexts - context)), errored = errored + (tid -> (getError(tid) + error)))
+    }
+    
+    def blockThread(tid: TID, context: Context, waitFor: TID): BlockableTMap[TID, Context, V] = {
+        val associatedContexts = getRunnable(tid)
+        if (associatedContexts.isEmpty) throw new Exception(s"Blocking non-runnable TID: $tid.") // Can be omitted: indicates machine error.
+        else if (associatedContexts.size == 1)
+            this.copy(runnable = runnable - tid, blocked = blocked + (tid -> (getBlocked(tid) + ((tid, context)))))
+        else
+            this.copy(runnable = runnable + (tid -> (associatedContexts - context)), blocked = blocked + (waitFor -> (getBlocked(tid) + ((tid, context)))))
+    }
+    
+    def threadFinished(tid: TID): Boolean = {
+        if(finished.contains(tid) || errored.contains(tid))
+            return true
+        if(getRunnable(tid).isEmpty)
+            throw new Exception(s"Trying to get information about non-existing TID: $tid.")
+        false
+    }
+    
+    def threadsRunnable = runnable.keySet
+    
+    def allDone: Boolean = runnable.isEmpty && blocked.isEmpty
+    def  canRun: Boolean = runnable.isEmpty
+    
+    override def toString: String = runnable.keys.foldLeft("")((acc, tid) => acc ++ s"($tid -> " ++ getRunnable(tid).foldLeft("")((acc2, context) => acc ++ ", " ++ context.toString) ++ ")")
 }
