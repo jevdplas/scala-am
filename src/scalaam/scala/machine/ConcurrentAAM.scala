@@ -1,5 +1,6 @@
 package scalaam.machine
 
+import scalaam.core.Annotations.unsound
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
 import scalaam.graph.Graph.GraphOps
@@ -121,6 +122,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         def stepMultiple(): Set[(TID, State)] = threads.threadsBusy().flatMap(tid => stepOne(tid))
         
         /** Step the context(s) corresponding to a single TID. Returns a set of tuples containing the tid that was stepped and a resulting state. */
+        @unsound
         def stepAny(): Set[(TID, State)] = {
             val zero: Option[Set[(TID, State)]] = None
             threads.threadsBusy().foldLeft(zero)((acc, tid) => acc match {
@@ -133,6 +135,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         }
         
         /** Step the context(s) corresponding to a single, random TID. Returns a set of tuples containing the tid that was stepped and a resulting state. */
+        @unsound
         def stepRandom(): Set[(TID, State)] = {
             val zero: Option[Set[(TID, State)]] = None
             scala.util.Random.shuffle(threads.threadsBusy()).foldLeft(zero)((acc, tid) => acc match {
