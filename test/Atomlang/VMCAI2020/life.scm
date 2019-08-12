@@ -48,7 +48,7 @@
    ;; New content of the cell
    (atom #f)
    ;; Current cell content
-   (atom (random-bool)))
+   (atom (random-bool))))
 (define *field*
   (build-vector N (make-vector N (new-cell))
                 (lambda (i)
@@ -71,9 +71,9 @@
   (vector-ref (vector-ref *field* i) j))
 
 (define (update-to-new cell)
-  (let (old (cadr cell))
+  (let ((old (cadr cell))
         (new (car cell)))
-    (reset! old (read new)))
+    (reset! old (read new))))
 
 (define (game-of-life-new-step)
   (for-each (lambda (i)
