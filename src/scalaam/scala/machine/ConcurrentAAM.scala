@@ -124,27 +124,21 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         /** Step the context(s) corresponding to a single TID. Returns a set of tuples containing the tid that was stepped and a resulting state. */
         @unsound
         def stepAny(): Set[(TID, State)] = {
-            val zero: Option[Set[(TID, State)]] = None
-            threads.threadsRunnable.foldLeft(zero)((acc, tid) => acc match {
-                case Some(_) => acc
-                case None =>
-                    val next = stepOne(tid)
-                    if (next.isEmpty) None
-                    else Some(next)
-            }).getOrElse(Set())
+            for (tid <- threads.threadsRunnable) {
+                val next = stepOne(tid)
+                if (next.nonEmpty) return next
+            }
+            Set()
         }
         
         /** Step the context(s) corresponding to a single, random TID. Returns a set of tuples containing the tid that was stepped and a resulting state. */
         @unsound
         def stepRandom(): Set[(TID, State)] = {
-            val zero: Option[Set[(TID, State)]] = None
-            scala.util.Random.shuffle(threads.threadsRunnable).foldLeft(zero)((acc, tid) => acc match {
-                case Some(_) => acc
-                case None =>
-                    val next = stepOne(tid)
-                    if (next.isEmpty) None
-                    else Some(next)
-            }).getOrElse(Set())
+            for (tid <- scala.util.Random.shuffle(threads.threadsRunnable)) {
+                val next = stepOne(tid)
+                if (next.nonEmpty) return next
+            }
+            Set()
         }
         
         /**

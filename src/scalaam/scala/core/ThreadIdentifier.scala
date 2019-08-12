@@ -97,6 +97,7 @@ case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID
 }
 
 case class BlockableTMap[TID, Context, V](runnable: Map[TID, Set[Context]], blocked: Map[TID, Set[(TID, Context)]] = Map[TID, Set[(TID, Context)]](),
+                                          blockLog: Set[TID] = Set[TID](),
                                           finished: Map[TID, V] = Map[TID, V](), errored: Map[TID, Set[Error]] = Map[TID, Set[Error]]())
                                          (implicit val lat: Lattice[V]) {
     
@@ -109,7 +110,7 @@ case class BlockableTMap[TID, Context, V](runnable: Map[TID, Set[Context]], bloc
     def getError(tid: TID): Set[Error] = errored.getOrElse(tid, Set())
     
     def newThread(tid: TID, newContext: Context): BlockableTMap[TID, Context, V] =
-        BlockableTMap(runnable + (tid -> (getRunnable(tid) + newContext)), blocked, finished, errored)
+        BlockableTMap(runnable + (tid -> (getRunnable(tid) + newContext)), blocked, blockLog, finished, errored)
     
     @maybeUnsound("Verify that it is sound to remove oldContext.")
     def updateThread(tid: TID, oldContext: Context, newContext: Context): BlockableTMap[TID, Context, V] = {
@@ -122,38 +123,41 @@ case class BlockableTMap[TID, Context, V](runnable: Map[TID, Set[Context]], bloc
         }
     }
     
+    @unsound
     def finishThread(tid: TID, context: Context, result: V): BlockableTMap[TID, Context, V] = {
         val associatedContexts = getRunnable(tid)
         val canRun = getBlocked(tid).map{case (tid, ctx) => tid -> (getRunnable(tid) + ctx)}
         if (associatedContexts.isEmpty) throw new Exception(s"Finishing non-runnable TID: $tid.") // Can be omitted: indicates machine error.
-        else if (associatedContexts.size == 1)
-            this.copy(runnable = runnable - tid ++ canRun, finished = finished + (tid -> lat.join(getResult(tid), result)))
-        else
-            this.copy(runnable = runnable + (tid -> (associatedContexts - context)) ++ canRun, finished = finished + (tid -> lat.join(getResult(tid), result)))
+       // else if (associatedContexts.size == 1)
+            this.copy(runnable = runnable - tid ++ canRun, finished = finished + (tid -> lat.join(getResult(tid), result)), blocked = blocked - tid, blockLog = blockLog - tid)
+       // else
+       //     this.copy(runnable = runnable + (tid -> (associatedContexts - context)) ++ canRun, finished = finished + (tid -> lat.join(getResult(tid), result)), blocked = blocked - tid, blockLog = blockLog - tid)
     }
     
+    @unsound
     def failThread(tid: TID, context: Context, error: Error): BlockableTMap[TID, Context, V] = {
         val associatedContexts = getRunnable(tid)
         if (associatedContexts.isEmpty) throw new Exception(s"Failing non-runnable TID: $tid.") // Can be omitted: indicates machine error.
-        else if (associatedContexts.size == 1)
+       // else if (associatedContexts.size == 1)
             this.copy(runnable = runnable - tid, errored = errored + (tid -> (getError(tid) + error)))
-        else
-            this.copy(runnable = runnable + (tid -> (associatedContexts - context)), errored = errored + (tid -> (getError(tid) + error)))
+       // else
+       //     this.copy(runnable = runnable + (tid -> (associatedContexts - context)), errored = errored + (tid -> (getError(tid) + error)))
     }
     
+    @unsound
     def blockThread(tid: TID, context: Context, waitFor: TID): BlockableTMap[TID, Context, V] = {
         val associatedContexts = getRunnable(tid)
         if (associatedContexts.isEmpty) throw new Exception(s"Blocking non-runnable TID: $tid.") // Can be omitted: indicates machine error.
-        else if (associatedContexts.size == 1)
-            this.copy(runnable = runnable - tid, blocked = blocked + (tid -> (getBlocked(tid) + ((tid, context)))))
-        else
-            this.copy(runnable = runnable + (tid -> (associatedContexts - context)), blocked = blocked + (waitFor -> (getBlocked(tid) + ((tid, context)))))
+       // else if (associatedContexts.size == 1)
+            this.copy(runnable = runnable - tid, blocked = blocked + (waitFor -> (getBlocked(tid) + ((tid, context)))), blockLog = blockLog + tid)
+       // else
+       //     this.copy(runnable = runnable + (tid -> (associatedContexts - context)), blocked = blocked + (waitFor -> (getBlocked(tid) + ((tid, context)))), blockLog = blockLog + tid)
     }
     
     def threadFinished(tid: TID): Boolean = {
         if(finished.contains(tid) || errored.contains(tid))
             return true
-        if(getRunnable(tid).isEmpty)
+        if(getRunnable(tid).isEmpty && !blockLog.contains(tid))
             throw new Exception(s"Trying to get information about non-existing TID: $tid.")
         false
     }

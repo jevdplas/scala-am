@@ -21,6 +21,8 @@ import scala.machine.IncAtom
 
 object BenchSoundnessUsingConcrete {
     
+    // Setup.
+    
     object ASem {
         val address = NameAddress
         val tid = ConcreteTID
@@ -37,7 +39,6 @@ object BenchSoundnessUsingConcrete {
         val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
     }
     
-    // Setup.
     val concrete  = new ConcurrentAAM[SchemeExp, CSem.address.A, CSem.lattice.L, CSem.timestamp.T, CSem.tid.threadID](StoreType.BasicStore, CSem.sem, CSem.tid.Alloc())
     val cGraph    = DotGraph[concrete.State, concrete.Transition]()
     val clat      = SchemeLattice[CSem.lattice.L, SchemeExp, CSem.address.A]
@@ -46,8 +47,30 @@ object BenchSoundnessUsingConcrete {
     val aGraph    = DotGraph[incAtom.State, incAtom.Transition]()
     val alat      = SchemeLattice[ASem.lattice.L, SchemeExp, ASem.address.A]
     
-    // Experimental setup.
-    val repetitions = 25//500 // Number of concrete experiments to run.
+    // Configuration.
+    val repetitions  = 25//500 // Number of concrete experiments to run.
+    val timeout: Int = 10 * 60 // 10 minutes
+    val benchmarks: List[String] = List(
+      //  "./test/Atomlang/VMCAI2020/actors.scm",
+      //  "./test/Atomlang/VMCAI2020/atomicInt.scm",
+      //  "./test/Atomlang/VMCAI2020/atoms.scm",
+      //  "./test/Atomlang/VMCAI2020/bchain.scm",
+      //  "./test/Atomlang/VMCAI2020/count.scm",
+      //  "./test/Atomlang/VMCAI2020/dekker.scm",
+      //  "./test/Atomlang/VMCAI2020/fact.scm",
+      //  "./test/Atomlang/VMCAI2020/life.scm",
+      //  "./test/Atomlang/VMCAI2020/matmul.scm",
+      //  "./test/Atomlang/VMCAI2020/mcarlo.scm",
+        "./test/Atomlang/VMCAI2020/mceval.scm",
+      //  "./test/Atomlang/VMCAI2020/minimax.scm",
+      //  "./test/Atomlang/VMCAI2020/msort.scm",
+      //  "./test/Atomlang/VMCAI2020/pc.scm",
+      //  "./test/Atomlang/VMCAI2020/treiber-stack.scm",
+    )
+    
+    
+    
+    // Setup.
     var writer: CSVWriter = _
     
     def displayf(text: String): Unit = {
@@ -56,8 +79,8 @@ object BenchSoundnessUsingConcrete {
     }
     
     def forFile(file: String): Unit = {
-        display(file ++ "\n")
-        displayf(file ++ "\n")
+        display("\n" ++ file)
+        displayf("\n" ++ file)
         try {
             val f = scala.io.Source.fromFile(file)
             // Add the necessary preludes to the file contents.
@@ -74,13 +97,13 @@ object BenchSoundnessUsingConcrete {
         display("\nConcrete")
         val (concrete, success) = loopConcrete(content)
         if (success < repetitions) { // This threshold can be modified.
-            display(" -> timed out.")
+            display(" -> timed out.\n")
             return
         }
         display("\nAbstract")
         val abs = logAbstract(content) match {
             case None =>
-                display(" -> timed out.")
+                display(" -> timed out.\n")
                 return
             case Some(map) => map
         }
@@ -115,29 +138,34 @@ object BenchSoundnessUsingConcrete {
                 displayf(s"$id - Precision loss: inferred $absv where $concr suffices.")
             }
         })
+
+        display("\nComparison finished.")
+        
     } catch {
         case e: Throwable =>
             e.printStackTrace()
-            displayf(e.getStackTrace().toString)
+            displayf(e.getStackTrace.toString)
     }
     
     def loopConcrete(content: String): (Map[Identifier, CSem.lattice.L], Int) = {
         var acc: Map[Identifier, CSem.lattice.L] = Map.empty.withDefaultValue(concrete.lattice.bottom)
         var successes = 0
         // Run the concrete machine "repetitions" times.
-        for (i <- 1 to repetitions) {
-            display(s" $i")
-            logConcrete(content) match {
-                case None => break
-                case Some(map) =>
-                    map.foreach { case (id, vl) =>
-                        acc = acc + (id -> concrete.lattice.join(vl, acc(id)))
-                    }
-                    successes += 1
+        breakable {
+            for (_ <- 1 to repetitions) {
+                display(" *")
+                logConcrete(content) match {
+                    case None => break
+                    case Some(map) =>
+                        map.foreach { case (id, vl) =>
+                            acc = acc + (id -> concrete.lattice.join(vl, acc(id)))
+                        }
+                        successes += 1
+                }
             }
         }
-        //println(s"Succeeded $successes times.")
-        acc.foreach(v => println(s"${v._1} => ${v._2}"))
+        display(s" ~> Succeeded $successes/$repetitions times.\n")
+        //acc.foreach(v => println(s"${v._1} => ${v._2}"))
         (acc, successes)
     }
     
@@ -258,7 +286,7 @@ object BenchSoundnessUsingConcrete {
         val out = new BufferedWriter(new FileWriter(output))
         writer  = new CSVWriter(out, ',', CSVWriter.NO_QUOTE_CHARACTER)
     
-        List("./test/Atomlang/VMCAI2020/msort.scm").foreach(forFile)
+        benchmarks.foreach(forFile)
         writer.close()
     }
 }
