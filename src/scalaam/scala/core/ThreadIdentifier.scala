@@ -96,8 +96,8 @@ case class TMap[TID, Context, V](busy: Map[TID, Set[Context]], finished: Map[TID
     }
 }
 
-case class BlockableTMap[TID, Context, V](runnable: Map[TID, Set[Context]], blocked: Map[TID, Set[(TID, Context)]],
-                                          finished: Map[TID, V], errored: Map[TID, Set[Error]])
+case class BlockableTMap[TID, Context, V](runnable: Map[TID, Set[Context]], blocked: Map[TID, Set[(TID, Context)]] = Map[TID, Set[(TID, Context)]](),
+                                          finished: Map[TID, V] = Map[TID, V](), errored: Map[TID, Set[Error]] = Map[TID, Set[Error]]())
                                          (implicit val lat: Lattice[V]) {
     
     def getRunnable(tid: TID): Set[Context] = runnable.getOrElse(tid, Set())
@@ -108,8 +108,8 @@ case class BlockableTMap[TID, Context, V](runnable: Map[TID, Set[Context]], bloc
     
     def getError(tid: TID): Set[Error] = errored.getOrElse(tid, Set())
     
-    def newThread(tid: TID, newContext: Context): TMap[TID, Context, V] =
-        TMap(runnable + (tid -> (getRunnable(tid) + newContext)), finished, errored)
+    def newThread(tid: TID, newContext: Context): BlockableTMap[TID, Context, V] =
+        BlockableTMap(runnable + (tid -> (getRunnable(tid) + newContext)), blocked, finished, errored)
     
     @maybeUnsound("Verify that it is sound to remove oldContext.")
     def updateThread(tid: TID, oldContext: Context, newContext: Context): BlockableTMap[TID, Context, V] = {

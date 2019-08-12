@@ -149,7 +149,7 @@ object BenchSoundnessUsingConcrete {
         val states = result._nodes
         val map = states.foldLeft(Map[Identifier, CSem.lattice.L]().withDefaultValue(concrete.lattice.bottom))((curr, state) => {
             val store = state.store
-            val busy = state.threads.busy // Threads that do not yet have finished.
+            val busy = state.threads.runnable ++ state.threads.blocked.mapValues(_.map(_._2)) // Threads that do not yet have finished. // TODO: should this really include the threads that are blocked?
             val contexts = busy.values.flatten
             contexts.foldLeft(curr)((curr, context) => {
                 val control = context.control

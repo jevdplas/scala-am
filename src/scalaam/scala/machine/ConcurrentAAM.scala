@@ -31,7 +31,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
     type KAddr   = KA
     type VStore  = Store[A, V]
     type KStore  = Store[KAddr, Set[Kont]]
-    type Threads = TMap[TID, Context, V]
+    type Threads = BlockableTMap[TID, Context, V]
     
     /**
       * The state of one thread.
@@ -53,23 +53,23 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         
         /** Executes one action on a state corresponding to a given tid and returns the result. */
         def act(threads: Threads, action: Act, cc: KAddr, time: T, old: VStore, kstore: KStore): (Threads, VStore) = action match {
-            case Value(v, store, _) => (threads.set(tid, Context(tid, ControlKont(v), cc, timestamp.tick(time), kstore)), store)
+            case Value(v, store, _) => (threads.updateThread(tid, this, Context(tid, ControlKont(v), cc, timestamp.tick(time), kstore)), store)
             case Push(frame, e, env, store, _) =>
                 val cc_ = KontAddr(e, time)
-                (threads.set(tid, Context(tid, ControlEval(e, env), cc_, timestamp.tick(time), kstore.extend(cc_, Set(Kont(frame, cc))))), store)
-            case Eval(e, env, store, _) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time), kstore)), store)
-            case StepIn(f, _, e, env, store, _) => (threads.set(tid, Context(tid, ControlEval(e, env), cc, timestamp.tick(time, f), kstore)), store)
-            case Err(e) => (threads.set(tid, Context(tid, ControlError(e), cc, timestamp.tick(time), kstore)), old)
+                (threads.updateThread(tid, this, Context(tid, ControlEval(e, env), cc_, timestamp.tick(time), kstore.extend(cc_, Set(Kont(frame, cc))))), store)
+            case Eval(e, env, store, _) => (threads.updateThread(tid, this, Context(tid, ControlEval(e, env), cc, timestamp.tick(time), kstore)), store)
+            case StepIn(f, _, e, env, store, _) => (threads.updateThread(tid, this, Context(tid, ControlEval(e, env), cc, timestamp.tick(time, f), kstore)), store)
+            case Err(e) => (threads.updateThread(tid, this, Context(tid, ControlError(e), cc, timestamp.tick(time), kstore)), old)
             case NewFuture(tid_ : TID@unchecked, tidv, fst, frame: Frame@unchecked, env, store, _) =>
                 val cc_ = KontAddr(fst, time)
                 val newPState = Context(tid_, ControlEval(fst, env), cc_, timestamp.initial(tid_.toString), Store.empty[KA, Set[Kont]](t).extend(cc_, Set(Kont(frame, HaltKontAddr))))
                 val curPState = Context(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
-                (threads.set(tid, curPState).add(tid_, newPState), store)
+                (threads.updateThread(tid, this, curPState).newThread(tid_, newPState), store)
             case DerefFuture(tid_ : TID@unchecked, store, _) =>
-                if (threads.hasFinished(tid_))
-                    (threads.set(tid, Context(tid, ControlKont(threads.getResult(tid_)), cc, timestamp.tick(time), kstore)), store)
+                if (threads.threadFinished(tid_))
+                    (threads.updateThread(tid, this, Context(tid, ControlKont(threads.getResult(tid_)), cc, timestamp.tick(time), kstore)), store)
                 else
-                    (threads, store)
+                    (threads.blockThread(tid, this, tid_), store)
             case a => throw new Exception(s"Unsupported action: $a.\n")
         }
         
@@ -84,14 +84,14 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         def step(threads: Threads, store: VStore): Set[State] =
             control match {
                 case ControlEval(exp, env) => next(sem.stepEval(exp, env, store, time), threads, store, cc)
-                case ControlKont(v) if cc == HaltKontAddr => Set(State(threads.finish(tid, v), store))
+                case ControlKont(v) if cc == HaltKontAddr => Set(State(threads.finishThread(tid, this, v), store))
                 case ControlKont(v) => kstore.lookup(cc) match {
                     case Some(konts) => konts.flatMap({
                         case Kont(frame, cc_) => next(sem.stepKont(v, frame, store, time), threads, store, cc_)
                     })
                     case None => Set()
                 }
-                case ControlError(e) => Set(State(threads.fail(tid, e), store))
+                case ControlError(e) => Set(State(threads.failThread(tid, this, e), store))
                 case e => throw new Exception(s"Unsupported control sequence: $e.\n")
             }
     }
@@ -102,7 +102,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
       * @param threads Threadmap mapping thread identifiers to contexts or to values.
       * @param store   A store shared by all threads in a state.
       */
-    case class State(threads: TMap[TID, Context, V], store: VStore) extends GraphElement with SmartHash {
+    case class State(threads: Threads, store: VStore) extends GraphElement with SmartHash {
         override def toString: String = threads.toString
         
         override def label: String = toString
@@ -111,21 +111,21 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         
         override def metadata = GraphMetadataMap(Map("halted" -> GraphMetadataBool(halted), "type" -> GraphMetadataString("conc")))
         
-        def halted: Boolean = threads.allDone()
+        def halted: Boolean = threads.allDone
         
         /** Step the context(s) corresponding to a TID. Returns a set of tuples consisting out of the tid that was stepped and a resulting state. */
         def stepOne(tid: TID): Set[(TID, State)] = { // TODO: Just return a set of states?
-            threads.get(tid).flatMap(state => state.step(threads, store).map((tid, _)))
+            threads.getRunnable(tid).flatMap(state => state.step(threads, store).map((tid, _)))
         }
         
         /** Step the context(s) corresponding to multiple TIDs. Returns a set of tuples containing the tid that was stepped and a resulting state. */
-        def stepMultiple(): Set[(TID, State)] = threads.threadsBusy().flatMap(tid => stepOne(tid))
+        def stepMultiple(): Set[(TID, State)] = threads.threadsRunnable.flatMap(tid => stepOne(tid))
         
         /** Step the context(s) corresponding to a single TID. Returns a set of tuples containing the tid that was stepped and a resulting state. */
         @unsound
         def stepAny(): Set[(TID, State)] = {
             val zero: Option[Set[(TID, State)]] = None
-            threads.threadsBusy().foldLeft(zero)((acc, tid) => acc match {
+            threads.threadsRunnable.foldLeft(zero)((acc, tid) => acc match {
                 case Some(_) => acc
                 case None =>
                     val next = stepOne(tid)
@@ -138,7 +138,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         @unsound
         def stepRandom(): Set[(TID, State)] = {
             val zero: Option[Set[(TID, State)]] = None
-            scala.util.Random.shuffle(threads.threadsBusy()).foldLeft(zero)((acc, tid) => acc match {
+            scala.util.Random.shuffle(threads.threadsRunnable).foldLeft(zero)((acc, tid) => acc match {
                 case Some(_) => acc
                 case None =>
                     val next = stepOne(tid)
@@ -191,7 +191,7 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
         val time    :              T = timestamp.initial("")
         val tid     :            TID = allocator.allocate(program, time)
         val context :        Context = Context(tid, control, cc, time, kstore)
-        val threads :        Threads = TMap(Map(tid -> Set(context)), Map[TID, V](), Map[TID, Set[Error]]())(lattice)
+        val threads :        Threads = BlockableTMap[TID, Context, V](Map(tid -> Set(context)))(lattice)
         val vstore  :         VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
         val state   :          State = State(threads, vstore)
         
