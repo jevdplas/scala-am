@@ -49,26 +49,24 @@ object BenchSoundnessUsingConcrete {
     
     // Configuration.
     val repetitions  = 25//500 // Number of concrete experiments to run.
-    val timeout: Int = 10 * 60 // 10 minutes
+    val timeout: Int = 30 * 60 // 10 minutes
     val benchmarks: List[String] = List(
-      //  "./test/Atomlang/VMCAI2020/actors.scm",
-      //  "./test/Atomlang/VMCAI2020/atomicInt.scm",
-      //  "./test/Atomlang/VMCAI2020/atoms.scm",
-      //  "./test/Atomlang/VMCAI2020/bchain.scm",
-      //  "./test/Atomlang/VMCAI2020/count.scm",
-      //  "./test/Atomlang/VMCAI2020/dekker.scm",
-      //  "./test/Atomlang/VMCAI2020/fact.scm",
-      //  "./test/Atomlang/VMCAI2020/life.scm",
-      //  "./test/Atomlang/VMCAI2020/matmul.scm",
-      //  "./test/Atomlang/VMCAI2020/mcarlo.scm",
+        "./test/Atomlang/VMCAI2020/actors.scm",
+        "./test/Atomlang/VMCAI2020/atomicInt.scm",
+        "./test/Atomlang/VMCAI2020/atoms.scm",
+        "./test/Atomlang/VMCAI2020/bchain.scm",
+        "./test/Atomlang/VMCAI2020/count.scm",
+        "./test/Atomlang/VMCAI2020/dekker.scm",
+        "./test/Atomlang/VMCAI2020/fact.scm",
+        "./test/Atomlang/VMCAI2020/life.scm",
+        "./test/Atomlang/VMCAI2020/matmul.scm",
+        "./test/Atomlang/VMCAI2020/mcarlo.scm",
         "./test/Atomlang/VMCAI2020/mceval.scm",
-      //  "./test/Atomlang/VMCAI2020/minimax.scm",
-      //  "./test/Atomlang/VMCAI2020/msort.scm",
-      //  "./test/Atomlang/VMCAI2020/pc.scm",
-      //  "./test/Atomlang/VMCAI2020/treiber-stack.scm",
+        "./test/Atomlang/VMCAI2020/minimax.scm",
+        "./test/Atomlang/VMCAI2020/msort.scm",
+        "./test/Atomlang/VMCAI2020/pc.scm",
+        "./test/Atomlang/VMCAI2020/treiber-stack.scm",
     )
-    
-    
     
     // Setup.
     var writer: CSVWriter = _
