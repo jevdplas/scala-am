@@ -52,7 +52,7 @@ object AAMRun {
     import Sem._
     
     val sem = new AtomlangSemantics[address.A, Sem.lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
-    val machine = new ConcurrentAAM[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val machine = new ConcurrentAAM[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.DeltaStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]()
     
     def run(file: String, out: String = "AAMRunResult.dot", timeout: Timeout.T = Timeout.seconds(10), strategy: Strategy = Strategy.AllInterleavings): AAMRun.graph.G = {
@@ -84,7 +84,7 @@ object ModAtomRun {
     import scalaam.graph._
     import Sem._
     
-    val machine = new ModAtom[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val machine = new ModAtom[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.DeltaStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]()
     
     def run(file: String, out: String = "ModAtomRunResult.dot", timeout: Timeout.T = Timeout.seconds(10)): ModAtomRun.graph.G = {
@@ -152,7 +152,7 @@ object IncAtomRun {
     
     import Sem._
     
-    val machine = new IncAtom[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val machine = new IncAtom[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.DeltaStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]()
     
     def run(file: String, out: String = "IncAtomRunResult.dot", timeout: Timeout.T = Timeout.seconds(10)): IncAtomRun.graph.G = {
@@ -222,7 +222,7 @@ object IncAtomWCachingRun {
     import scalaam.language.scheme._
     import Sem._
     
-    val machine = new IncAtomWCaching[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val machine = new IncAtomWCaching[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.DeltaStore, sem, tid.Alloc())
     val graph = DotGraph[machine.State, machine.Transition]()
     
     def run(file: String, out: String = "IncAtomWCachingRunResult.dot", timeout: Timeout.T = Timeout.seconds(10)): IncAtomWCachingRun.graph.G = {

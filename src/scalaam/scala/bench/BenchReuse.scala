@@ -23,7 +23,7 @@ object BenchReuse {
     val timestamp = ZeroCFA[SchemeExp]()
     val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Type.S,  Type.B, Type.I, Type.R, Type.C, Type.Sym]
     val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
-    val incAtom   = new IncAtom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
+    val incAtom   = new IncAtom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.DeltaStore, sem, tid.Alloc())
     val graph     = DotGraph[incAtom.State, incAtom.Transition]()
     
     var writer: CSVWriter = _

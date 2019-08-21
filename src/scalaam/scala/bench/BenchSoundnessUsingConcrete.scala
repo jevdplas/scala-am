@@ -6,7 +6,7 @@ import java.util.{Calendar, Date}
 
 import scala.util.control.Breaks._
 import au.com.bytecode.opencsv.CSVWriter
-import scalaam.StandardPrelude
+import scalaam.{Dot, StandardPrelude}
 import scalaam.bench.BenchConfig._
 import scalaam.core.ConcreteAddress.Pointer
 import scalaam.core.ConcreteVal._
@@ -24,11 +24,11 @@ object BenchSoundnessUsingConcrete {
     // Setup.
     
     object ASem {
-        val address = NameAddress
-        val tid = ConcreteTID
+        val address   = NameAddress
+        val tid       = ConcreteTID
         val timestamp = ZeroCFA[SchemeExp]()
-        val lattice = new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
-        val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
+        val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
+        val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
     }
     
     object CSem {
@@ -39,11 +39,11 @@ object BenchSoundnessUsingConcrete {
         val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
     }
     
-    val concrete  = new ConcurrentAAM[SchemeExp, CSem.address.A, CSem.lattice.L, CSem.timestamp.T, CSem.tid.threadID](StoreType.BasicStore, CSem.sem, CSem.tid.Alloc())
+    val concrete  = new ConcurrentAAM[SchemeExp, CSem.address.A, CSem.lattice.L, CSem.timestamp.T, CSem.tid.threadID](StoreType.ConcreteStore, CSem.sem, CSem.tid.Alloc())
     val cGraph    = DotGraph[concrete.State, concrete.Transition]()
     val clat      = SchemeLattice[CSem.lattice.L, SchemeExp, CSem.address.A]
     
-    val incAtom   = new IncAtom[SchemeExp, ASem.address.A, ASem.lattice.L, ASem.timestamp.T, ASem.tid.threadID](StoreType.BasicStore, ASem.sem, ASem.tid.Alloc())
+    val incAtom   = new IncAtom[SchemeExp, ASem.address.A, ASem.lattice.L, ASem.timestamp.T, ASem.tid.threadID](StoreType.DeltaStore, ASem.sem, ASem.tid.Alloc())
     val aGraph    = DotGraph[incAtom.State, incAtom.Transition]()
     val alat      = SchemeLattice[ASem.lattice.L, SchemeExp, ASem.address.A]
     

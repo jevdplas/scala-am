@@ -166,12 +166,14 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
                 work match {
                     case Nil => graph
                     case state :: work =>
-                        if (visited contains state)
+                        if (visited contains state) {
+                            throw new Exception("Found state that was already visited - execution is not concrete.")
                             loop(work, visited, graph)
-                        else if (state.halted)
+                        } else if (state.halted)
                             loop(work, visited + state, graph)
                         else {
                             val next = state.step(strategy).map(_._2)
+                            if (next.size > 1) throw new Exception("Execution was not concrete!")
                             val graph_ = next.foldLeft(graph)((g, state_) => g.addEdge(state, empty, state_))
                             loop(work ++ next, visited + state, graph_)
                         }

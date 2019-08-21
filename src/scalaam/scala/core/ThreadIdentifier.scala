@@ -167,5 +167,5 @@ case class BlockableTMap[TID, Context, V](runnable: Map[TID, Set[Context]], bloc
     def allDone: Boolean = runnable.isEmpty && blocked.isEmpty
     def  canRun: Boolean = runnable.isEmpty
     
-    override def toString: String = runnable.keys.foldLeft("")((acc, tid) => acc ++ s"($tid -> " ++ getRunnable(tid).foldLeft("")((acc2, context) => acc ++ ", " ++ context.toString) ++ ")")
+    override def toString: String = runnable.keys.foldLeft("")((acc, tid) => acc ++ s"($tid -> " ++ getRunnable(tid).foldLeft("")((acc2, context) => acc2 ++ " " ++ context.toString) ++ ")")
 }

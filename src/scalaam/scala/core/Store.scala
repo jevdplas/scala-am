@@ -72,6 +72,43 @@ case class BasicStore[A <: Address, V](val content: Map[A, V])(implicit val lat:
             content.get(binding._1).exists(v => lat.subsumes(v, binding._2)))
 }
 
+case class ConcreteStore[A <: Address, V](content: Map[A, V])(implicit val lat: Lattice[V])
+    extends Store[A, V] {
+
+    /* Copied from BasicStore. */
+
+    override def toString = content.filterKeys(_.printable).mkString("\n")
+
+    def keys = content.keys
+
+    def forall(p: ((A, V)) => Boolean) = content.forall({ case (a, v) => p((a, v)) })
+
+    def lookup(a: A) = content.get(a)
+
+    def lookupMF(a: A) = content.get(a) match {
+      case Some(a) => MayFail.success(a)
+      case None => MayFail.failure(UnboundAddress(a))
+    }
+
+    def subsumes(that: Store[A, V]) =
+      that.forall((binding: (A, V)) =>
+        content.get(binding._1).exists(v => lat.subsumes(v, binding._2)))
+
+    /* Specific to ConcreteStore. */
+
+    override def extend(a: A, v: V): ConcreteStore[A, V] = ConcreteStore(content + (a -> v))
+
+    override def update(a: A, v: V): ConcreteStore[A, V] = ConcreteStore(content + (a -> v))
+
+    override def updateOrExtend(a: A, v: V): ConcreteStore[A, V] = content.get(a) match {
+      case None => extend(a, v)
+      case Some(_) => update(a, v)
+    }
+
+    override def join(that: Store[A, V]) = throw new Exception("Attempting to join concrete stores.")
+
+}
+
 trait Count
 
 case object COne extends Count
@@ -164,18 +201,22 @@ case class DeltaStore[A <: Address, V](val content: Map[A, V], val updated: Set[
 /** An enumeration of the store types. */
 object StoreType extends Enumeration {
     type StoreType = Value
-    val BasicStore, CountingStore = Value
+    val BasicStore, ConcreteStore, CountingStore, DeltaStore = Value
 }
 
 object Store {
     def empty[A <: Address, V: Lattice](t: StoreType): Store[A, V] = t match {
-        case StoreType.BasicStore => new DeltaStore(Map(), Set())
+        case StoreType.BasicStore => BasicStore(Map())
+        case StoreType.ConcreteStore => ConcreteStore(Map())
         case StoreType.CountingStore => new CountingStore(Map())
+        case StoreType.DeltaStore => new DeltaStore(Map(), Set())
     }
-    
+
     def initial[A <: Address, V: Lattice](t: StoreType, values: Iterable[(A, V)]): Store[A, V] = t match {
-        case StoreType.BasicStore => new DeltaStore(values.toMap, Set())
+        case StoreType.BasicStore => BasicStore(values.toMap)
+        case StoreType.ConcreteStore => ConcreteStore(values.toMap)
         case StoreType.CountingStore =>
             values.foldLeft(empty[A, V](StoreType.CountingStore))({ case (acc, (a, v)) => acc.updateOrExtend(a, v) })
+        case StoreType.DeltaStore => new DeltaStore(values.toMap, Set())
     }
 }

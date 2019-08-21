@@ -1,5 +1,6 @@
 package scalaam.language.atomlang
 
+import scalaam.core.Annotations.unsound
 import scalaam.core.Effects.Effects
 import scalaam.core.{Address, Effects, Error, MayFail, Store}
 import scalaam.language.scheme.{SchemeExp, SchemeOps, SchemePrimitives}
@@ -64,14 +65,16 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
         object Atomp extends NoStoreOperation("atom?", Some(1)) {
             override def call(v: V): MayFail[V, Error] = isAtom(v)
         }
-        
+
+        @unsound("Does not return an error when there is no atom at the given address in the store.")
         /** Implementation of the "deref" primitive. */
         object Deref extends StoreOperation("read", Some(1)) { // Fixme: Change name to deref, but make distinction from futures in semantics. => Need store there.
             override def call(v: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
                 for {(res, effs) <- dereferencePointer(v, store)(deref)} yield (res, store, effs)
             }
         }
-    
+
+        @unsound("Does not return an error when there is no atom at the given address in the store.")
         /** Implementation of the "compare-and-set!" primitive. */
         object CompareAndSet extends Primitive {
             val name = "compare-and-set!"
@@ -89,7 +92,8 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
                 case _ => MayFail.failure(PrimitiveArityError(name, 3, args.length))
             }
         }
-        
+
+        @unsound("Does not return an error when there is no atom at the given address in the store.")
         /** Implementation of the "reset!" primitive. */
         object Reset extends StoreOperation("reset!", Some(2)) {
             override def call(v: V, value: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
