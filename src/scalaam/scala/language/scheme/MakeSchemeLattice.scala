@@ -22,7 +22,7 @@ class MakeSchemeLattice[
     R: RealLattice,
     C: CharLattice,
     Sym: SymbolLattice
-] {
+](concreteOP: Boolean = false) { // ConcreteOP changes a.o. the way how pointers are compared. In the abstract, Top is returned but this is not suitable for the concrete.
   case class TypeError(message: String, on: Value)                           extends Error
   case class OperatorNotApplicable(operator: String, arguments: List[Value]) extends Error
 
@@ -337,76 +337,64 @@ class MakeSchemeLattice[
         op match {
           case Plus =>
             (x, y) match {
-              case (Int(n1), Int(n2)) => MayFail.success(Int(IntLattice[I].plus(n1, n2)))
-              case (Int(n1), Real(n2)) =>
-                MayFail.success(Real(RealLattice[R].plus(IntLattice[I].toReal(n1), n2)))
-              case (Real(n1), Int(n2)) =>
-                MayFail.success(Real(RealLattice[R].plus(n1, IntLattice[I].toReal(n2))))
+              case (Int(n1), Int(n2))   => MayFail.success(Int(IntLattice[I].plus(n1, n2)))
+              case (Int(n1), Real(n2))  => MayFail.success(Real(RealLattice[R].plus(IntLattice[I].toReal(n1), n2)))
+              case (Real(n1), Int(n2))  => MayFail.success(Real(RealLattice[R].plus(n1, IntLattice[I].toReal(n2))))
               case (Real(n1), Real(n2)) => MayFail.success(Real(RealLattice[R].plus(n1, n2)))
               case _                    => MayFail.failure(OperatorNotApplicable("+", List(x, y)))
             }
           case Minus =>
             (x, y) match {
-              case (Int(n1), Int(n2)) => MayFail.success(Int(IntLattice[I].minus(n1, n2)))
-              case (Int(n1), Real(n2)) =>
-                MayFail.success(Real(RealLattice[R].minus(IntLattice[I].toReal(n1), n2)))
-              case (Real(n1), Int(n2)) =>
-                MayFail.success(Real(RealLattice[R].minus(n1, IntLattice[I].toReal(n2))))
+              case (Int(n1), Int(n2))   => MayFail.success(Int(IntLattice[I].minus(n1, n2)))
+              case (Int(n1), Real(n2))  => MayFail.success(Real(RealLattice[R].minus(IntLattice[I].toReal(n1), n2)))
+              case (Real(n1), Int(n2))  => MayFail.success(Real(RealLattice[R].minus(n1, IntLattice[I].toReal(n2))))
               case (Real(n1), Real(n2)) => MayFail.success(Real(RealLattice[R].minus(n1, n2)))
               case _                    => MayFail.failure(OperatorNotApplicable("-", List(x, y)))
             }
           case Times =>
             (x, y) match {
-              case (Int(n1), Int(n2)) => MayFail.success(Int(IntLattice[I].times(n1, n2)))
-              case (Int(n1), Real(n2)) =>
-                MayFail.success(Real(RealLattice[R].times(IntLattice[I].toReal(n1), n2)))
-              case (Real(n1), Int(n2)) =>
-                MayFail.success(Real(RealLattice[R].times(n1, IntLattice[I].toReal(n2))))
+              case (Int(n1), Int(n2))   => MayFail.success(Int(IntLattice[I].times(n1, n2)))
+              case (Int(n1), Real(n2))  => MayFail.success(Real(RealLattice[R].times(IntLattice[I].toReal(n1), n2)))
+              case (Real(n1), Int(n2))  => MayFail.success(Real(RealLattice[R].times(n1, IntLattice[I].toReal(n2))))
               case (Real(n1), Real(n2)) => MayFail.success(Real(RealLattice[R].times(n1, n2)))
               case _                    => MayFail.failure(OperatorNotApplicable("*", List(x, y)))
             }
           case Quotient =>
             (x, y) match {
-              case (Int(n1), Int(n2)) => MayFail.success(Int(IntLattice[I].quotient(n1, n2)))
-              case _                  => MayFail.failure(OperatorNotApplicable("quotient", List(x, y)))
+              case (Int(n1), Int(n2))   => MayFail.success(Int(IntLattice[I].quotient(n1, n2)))
+              case _                    => MayFail.failure(OperatorNotApplicable("quotient", List(x, y)))
             }
           case Div =>
             (x, y) match {
-              case (Int(n1), Int(n2)) => MayFail.success(Real(IntLattice[I].div[R](n1, n2)))
-              case (Int(n1), Real(n2)) =>
-                MayFail.success(Real(RealLattice[R].div(IntLattice[I].toReal(n1), n2)))
-              case (Real(n1), Int(n2)) =>
-                MayFail.success(Real(RealLattice[R].div(n1, IntLattice[I].toReal(n2))))
+              case (Int(n1), Int(n2))   => MayFail.success(Real(IntLattice[I].div[R](n1, n2)))
+              case (Int(n1), Real(n2))  => MayFail.success(Real(RealLattice[R].div(IntLattice[I].toReal(n1), n2)))
+              case (Real(n1), Int(n2))  => MayFail.success(Real(RealLattice[R].div(n1, IntLattice[I].toReal(n2))))
               case (Real(n1), Real(n2)) => MayFail.success(Real(RealLattice[R].div(n1, n2)))
               case _                    => MayFail.failure(OperatorNotApplicable("/", List(x, y)))
             }
           case Modulo =>
             (x, y) match {
-              case (Int(n1), Int(n2)) => MayFail.success(Int(IntLattice[I].modulo(n1, n2)))
-              case _                  => MayFail.failure(OperatorNotApplicable("modulo", List(x, y)))
+              case (Int(n1), Int(n2))   => MayFail.success(Int(IntLattice[I].modulo(n1, n2)))
+              case _                    => MayFail.failure(OperatorNotApplicable("modulo", List(x, y)))
             }
           case Remainder =>
             (x, y) match {
-              case (Int(n1), Int(n2)) => MayFail.success(Int(IntLattice[I].remainder(n1, n2)))
-              case _                  => MayFail.failure(OperatorNotApplicable("modulo", List(x, y)))
+              case (Int(n1), Int(n2))   => MayFail.success(Int(IntLattice[I].remainder(n1, n2)))
+              case _                    => MayFail.failure(OperatorNotApplicable("modulo", List(x, y)))
             }
           case Lt =>
             (x, y) match {
-              case (Int(n1), Int(n2)) => MayFail.success(Bool(IntLattice[I].lt(n1, n2)))
-              case (Int(n1), Real(n2)) =>
-                MayFail.success(Bool(RealLattice[R].lt(IntLattice[I].toReal(n1), n2)))
-              case (Real(n1), Int(n2)) =>
-                MayFail.success(Bool(RealLattice[R].lt(n1, IntLattice[I].toReal(n2))))
+              case (Int(n1), Int(n2))   => MayFail.success(Bool(IntLattice[I].lt(n1, n2)))
+              case (Int(n1), Real(n2))  => MayFail.success(Bool(RealLattice[R].lt(IntLattice[I].toReal(n1), n2)))
+              case (Real(n1), Int(n2))  => MayFail.success(Bool(RealLattice[R].lt(n1, IntLattice[I].toReal(n2))))
               case (Real(n1), Real(n2)) => MayFail.success(Bool(RealLattice[R].lt(n1, n2)))
               case _                    => MayFail.failure(OperatorNotApplicable("<", List(x, y)))
             }
           case NumEq =>
             (x, y) match {
-              case (Int(n1), Int(n2)) => MayFail.success(Bool(IntLattice[I].eql(n1, n2)))
-              case (Int(n1), Real(n2)) =>
-                MayFail.success(Bool(RealLattice[R].eql(IntLattice[I].toReal(n1), n2)))
-              case (Real(n1), Int(n2)) =>
-                MayFail.success(Bool(RealLattice[R].eql(n1, IntLattice[I].toReal(n2))))
+              case (Int(n1), Int(n2))   => MayFail.success(Bool(IntLattice[I].eql(n1, n2)))
+              case (Int(n1), Real(n2))  => MayFail.success(Bool(RealLattice[R].eql(IntLattice[I].toReal(n1), n2)))
+              case (Real(n1), Int(n2))  => MayFail.success(Bool(RealLattice[R].eql(n1, IntLattice[I].toReal(n2))))
               case (Real(n1), Real(n2)) => MayFail.success(Bool(RealLattice[R].eql(n1, n2)))
               case _                    => MayFail.failure(OperatorNotApplicable("number=", List(x, y)))
             }
@@ -425,18 +413,18 @@ class MakeSchemeLattice[
               case (_: Clo, _: Clo)         => Bool(BoolLattice[B].inject(x == y))
               case (_: Cons, _: Cons)       => Bool(BoolLattice[B].inject(x == y))
               case (_: Vec, _: Vec)         => Bool(BoolLattice[B].inject(x == y))
-              case (_: Pointer, _: Pointer) => Bool(BoolLattice[B].top) /* we can't know for sure that equal addresses are eq (in the abstract) */
+              case (_: Pointer, _: Pointer) => if (concreteOP) Bool(BoolLattice[B].inject(x == y)) /* In the concrete, we can compare the actual pointers. */ else Bool(BoolLattice[B].top) /* In the abstract, we can't know for sure that equal addresses are equal. */
               case _                        => False
             })
           case StringAppend =>
             (x, y) match {
-              case (Str(s1), Str(s2)) => MayFail.success(Str(StringLattice[S].append(s1, s2)))
-              case _                  => MayFail.failure(OperatorNotApplicable("string-append", List(x, y)))
+              case (Str(s1), Str(s2))   => MayFail.success(Str(StringLattice[S].append(s1, s2)))
+              case _                    => MayFail.failure(OperatorNotApplicable("string-append", List(x, y)))
             }
           case StringLt =>
             (x, y) match {
-              case (Str(s1), Str(s2)) => MayFail.success(Bool(StringLattice[S].lt(s1, s2)))
-              case _                  => MayFail.failure(OperatorNotApplicable("string<?", List(x, y)))
+              case (Str(s1), Str(s2))   => MayFail.success(Bool(StringLattice[S].lt(s1, s2)))
+              case _                    => MayFail.failure(OperatorNotApplicable("string<?", List(x, y)))
             }
         }
       }

@@ -6,7 +6,7 @@ import java.util.{Calendar, Date}
 
 import scala.util.control.Breaks._
 import au.com.bytecode.opencsv.CSVWriter
-import scalaam.{Dot, StandardPrelude}
+import scalaam.StandardPrelude
 import scalaam.bench.BenchConfig._
 import scalaam.core.ConcreteAddress.Pointer
 import scalaam.core.ConcreteVal._
@@ -35,7 +35,7 @@ object BenchSoundnessUsingConcrete {
         val address   = ConcreteAddress
         val tid       = ConcreteTID
         val timestamp = ConcreteTimestamp[SchemeExp]()
-        val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Concrete.S, Concrete.B, Concrete.I, Concrete.R, Concrete.C, Concrete.Sym]
+        val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Concrete.S, Concrete.B, Concrete.I, Concrete.R, Concrete.C, Concrete.Sym](true) // Need concrete comparison!
         val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
     }
     

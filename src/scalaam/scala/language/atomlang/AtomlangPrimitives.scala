@@ -83,7 +83,7 @@ trait AtomlangPrimitives[A <: Address, V, T, C] {
                     getPointerAddresses(v).foldLeft(MayFail.success[(V, Store[A, V], Effects), Error]((bottom, store, Effects.noEff())))((acc, addr) =>
                         for {
                             atomv <- store.lookupMF(addr)
-                            vatm  <- deref(atomv) // TODO
+                            vatm  <- deref(atomv) // TODO: deref used as type check should be avoided (use isAtom).
                             (v, store_, effs) <- acc
                             eqv <- Eq.call(old, vatm)
                             res <- ifThenElse(eqv){nw}{vatm}
