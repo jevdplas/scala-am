@@ -17,18 +17,39 @@ trait TIDAllocator[TID <: ThreadIdentifier, T, C] {
 }
 
 object ConcreteTID {
+
+    var id: Int = 0
     
     trait threadID extends ThreadIdentifier
-    
-    /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
-    case class TID[T, C](exp: C, t: T) extends threadID {
-        override def toString: String = exp.hashCode().toString//exp.toString //s"*${exp.toString.hashCode}@$t*"
+
+    case class TID[T, C](exp: C, t: T, n: Int) extends threadID {
+        /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
+        override def toString: String = n.toString//exp.toString //s"*${exp.toString.hashCode}@$t*"
     }
     
     case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C]) extends TIDAllocator[threadID, T, C] {
-        def allocate[E](exp: E, t: T): threadID = TID(exp, t)
+        def allocate[E](exp: E, t: T): threadID = {
+            val cId = id
+            id = id + 1
+            TID(exp, t, cId)
+        }
     }
     
+}
+
+object ExpTimeTID {
+
+    trait threadID extends ThreadIdentifier
+
+    case class TID[T, C](exp: C, t: T) extends threadID {
+        /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
+        override def toString: String = exp.hashCode().toString //exp.toString //s"*${exp.toString.hashCode}@$t*"
+    }
+
+    case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C]) extends TIDAllocator[threadID, T, C] {
+        def allocate[E](exp: E, t: T): threadID = TID(exp, t)
+
+    }
 }
 
 /**
@@ -109,8 +130,11 @@ case class BlockableTMap[TID, Context, V](runnable: Map[TID, Set[Context]], bloc
     
     def getError(tid: TID): Set[Error] = errored.getOrElse(tid, Set())
     
-    def newThread(tid: TID, newContext: Context): BlockableTMap[TID, Context, V] =
+    def newThread(tid: TID, newContext: Context): BlockableTMap[TID, Context, V] = {
+        if (getRunnable(tid).nonEmpty || getBlocked(tid).nonEmpty || getError(tid).nonEmpty)
+            throw new Exception(s"Attempting to reuse existing TID $tid - Execution is not concrete.")
         BlockableTMap(runnable + (tid -> (getRunnable(tid) + newContext)), blocked, blockLog, finished, errored)
+    }
     
     @maybeUnsound("Verify that it is sound to remove oldContext.")
     def updateThread(tid: TID, oldContext: Context, newContext: Context): BlockableTMap[TID, Context, V] = {

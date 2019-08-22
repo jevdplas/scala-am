@@ -166,9 +166,10 @@ class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: Sto
                 work match {
                     case Nil => graph
                     case state :: work =>
-                        if (visited contains state)
+                        if (visited contains state) {
+                            throw new Exception("Error in concrete - reached state multiple times.")
                             loop(work, visited, graph)
-                        else if (state.halted)
+                        } else if (state.halted)
                             loop(work, visited + state, graph)
                         else {
                             val next = state.step(strategy).map(_._2)

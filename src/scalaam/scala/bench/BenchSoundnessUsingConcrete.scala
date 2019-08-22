@@ -25,12 +25,12 @@ object BenchSoundnessUsingConcrete {
     
     object ASem {
         val address   = NameAddress
-        val tid       = ConcreteTID
+        val tid       = ExpTimeTID
         val timestamp = ZeroCFA[SchemeExp]()
         val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
         val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
     }
-    
+
     object CSem {
         val address   = ConcreteAddress
         val tid       = ConcreteTID
@@ -266,7 +266,7 @@ object BenchSoundnessUsingConcrete {
             alat.pointer(ASem.address.Variable(nameAddr))
         case ConcretePointer(Pointer(name, _)) =>
             alat.pointer(ASem.address.Pointer(name))
-        case ConcreteFuture(ASem.tid.TID(exp, _)) => alat.future(ASem.tid.TID(exp, ASem.timestamp.T.typeclass.initial(""))) // Mimick ZeroCFA timestamp.
+        case ConcreteFuture(CSem.tid.TID(exp, _, _)) => alat.future(ASem.tid.TID(exp, ASem.timestamp.T.typeclass.initial(""))) // Mimick ZeroCFA timestamp.
         case ConcreteCons(car, cdr) =>
             val ccar = car.map(convertValue).fold(alat.bottom)((x, y) => alat.join(x, y))
             val ccdr = cdr.map(convertValue).fold(alat.bottom)((x, y) => alat.join(x, y))
