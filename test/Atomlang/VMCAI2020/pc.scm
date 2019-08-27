@@ -29,14 +29,14 @@
         (do-something thing)
         (consumer))))
 
-(define producer-thrd (future (producer 52)))
+(define producer-thrd (future (producer (random 10))))
 
 (define (do-n n f)
   (if (= n 0)
       '()
       (cons (f) (do-n (- n 1) f))))
 
-(define consumer-thrds (do-n 42 (lambda () (future (consumer)))))
+(define consumer-thrds (do-n (random 10) (lambda () (future (consumer)))))
 
 (deref producer-thrd)
 (map (lambda (t) (deref t)) consumer-thrds)
