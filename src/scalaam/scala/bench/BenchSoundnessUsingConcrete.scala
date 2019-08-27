@@ -49,7 +49,7 @@ object BenchSoundnessUsingConcrete {
     
     // Configuration.
     val repetitions  = 25//500 // Number of concrete experiments to run.
-    val timeout: Int = 30 * 60 // 10 minutes
+    val timeout: Int = 30 * 60 // 30 minutes
     val benchmarks: List[String] = List(
         "./test/Atomlang/VMCAI2020/actors.scm",
         "./test/Atomlang/VMCAI2020/atomicInt.scm",
