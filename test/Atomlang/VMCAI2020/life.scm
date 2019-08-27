@@ -1,5 +1,6 @@
 ;; Conway's game of life with concurrent computations
-(define N (expt 2 4))
+(define N (expt 2 2))
+(define ITERATIONS 2)
 (define MAXthrdSIZE 10)
 
 (define (random-bool)
@@ -155,4 +156,4 @@
         (game-of-life-whole-step)
         (game-of-life (- iterations 1)))))
 
-(game-of-life 10)
+(game-of-life ITERATIONS)
