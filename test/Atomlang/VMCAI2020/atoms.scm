@@ -47,7 +47,7 @@
                        (loop (+ i 1) (cons (f i) acc))))))
     (loop 0 '())))
 
-(define thrds (do-n 42 (lambda (i) (future (= (mem-fib i) (mem-fib2 i))))))
+(define thrds (do-n (random 10) (lambda (i) (future (= (mem-fib i) (mem-fib2 i))))))
 
 (foldl (lambda (a b) (and a b)) #t
        (map (lambda (t) (deref t)) thrds))
