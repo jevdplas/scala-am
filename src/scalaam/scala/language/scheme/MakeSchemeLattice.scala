@@ -481,7 +481,11 @@ class MakeSchemeLattice[
         val t: L = if (BoolLattice[B].isTrue(comp)) {
           val vals = content.filterKeys(index2 => BoolLattice[B].isTrue(IntLattice[I].eql(index, index2))).values
           /* XXX: init doesn't have to be included if we know for sure that index is precise enough */
-          vals.foldLeft(init)((acc, v) => schemeLattice.join(acc, v))
+          if (vals.size == 0) {
+            init
+          } else {
+            vals.foldLeft(schemeLattice.bottom)((acc, v) => schemeLattice.join(acc, v))
+          }
         } else { schemeLattice.bottom }
         /* Don't perform bound checks here because we would get too many spurious flows */
         val f: L = schemeLattice.bottom
