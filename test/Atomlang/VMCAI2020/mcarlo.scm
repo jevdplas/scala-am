@@ -1,5 +1,6 @@
 ;; Monte-carlo simulation using thrds
-(define MAXSIZE 10000)
+(define MAXSIZE (random 10))
+(define ITERATIONS (random 100))
 
 (define (inside-circle? radius x y)
   (< (+ (* x x) (* y y)) (* radius radius)))
@@ -28,7 +29,7 @@
   (/ (* 4. (monte-carlo-conc size iterations)) iterations))
 
 (define radius 1000000000)
-(define pi (approximate-pi radius 100000000))
+(define pi (approximate-pi radius ITERATIONS))
 (display pi)
 (if (< (abs (- 3.14 pi)) 0.01)
     (display "looks like pi")
