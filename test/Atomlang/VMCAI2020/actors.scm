@@ -20,7 +20,7 @@
         (error "no actor found"))))
 (define (actor-mailbox name)
   (caddr (find-actor name)))
-(define (generate-new-name) 42)
+(define (generate-new-name) (random 10000))
 (define (actor f)
   (lambda (init-state name)
     (letrec ((loop (lambda (receive state)
@@ -34,16 +34,19 @@
                                (if (compare-and-set! mb mailbox (cdr mailbox))
                                    (let ((action (receive name state (car message) (cdr message))))
                                      (if (eq? action 'terminate)
-                                       'done
+                                         'terminate
                                        (loop (car action) (cdr action))))
                                    (retrieve (read mb))))))))))
       (loop f init-state))))
 (define (create act state)
   (let* ((name (generate-new-name)))
     (register-new-actor name (lambda () 'toremove))
-    (future (act state name))
     name))
-(define (become self act st) (cons (act st self) st))
+(define (become self act st)
+  (let ((r (act st self)))
+    (if (eq? r 'terminate)
+        'terminate
+        (cons r st))))
 (define (terminate) 'terminate)
 (define (send target tag args)
   (swap! (actor-mailbox target) (lambda (curr) (append curr (list (cons tag args)))))) ; Append is not a mutable operation here.
@@ -105,4 +108,4 @@
                (terminate))
              (error "unknown message"))))))
 (define act (create master-actor '()))
-(send act 'compute (list 42))
+(send act 'compute (list 2))
