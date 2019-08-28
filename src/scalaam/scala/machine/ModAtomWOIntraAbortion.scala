@@ -466,7 +466,7 @@ class ModAtomWOIntraAbortion[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     val graphs: Graphs      = Map[TID, Edges]().withDefaultValue(List.empty)
     val kstore: KStore      = Store.empty[KAddr, Set[Kont]](t)
     val time: T             = timestamp.initial("")
-    val tid: TID            = allocator.allocate(program, time)
+    val tid: TID            = allocator.allocate(program, NoPosition, time)
     val state: State        = State(tid, control, cc, time, kstore)
     val threads: Threads    = Map(tid -> Set(state)).withDefaultValue(Set.empty)
     val vstore: VStore      = Store.initial[A, V](t, sem.initialStore)(lattice)

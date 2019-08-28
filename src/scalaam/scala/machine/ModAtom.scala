@@ -480,7 +480,7 @@ class ModAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     val control: Control    = ControlEval(program, env)
     val kstore: KStore      = Store.initial[KAddr, Set[Kont]](t, Set.empty)
     val time: T             = timestamp.initial("")
-    val tid: TID            = allocator.allocate(program, time)
+    val tid: TID            = allocator.allocate(program, NoPosition, time)
     val state: State        = State(tid, control, cc, time)
     val threads: Threads    = Map(tid -> Set(state)).withDefaultValue(Set.empty)
     val vstore: VStore      = Store.initial[A, V](t, sem.initialStore)(lattice)

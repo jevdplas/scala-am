@@ -45,12 +45,12 @@ class AtomlangSemantics[A <: Address, V, T, C, TID <: ThreadIdentifier](
         body match {
           case Nil => Err(EmptyBodyException()) // Disallow a body of a future to be empty.
           case fst :: Nil =>
-            val tid  = tidAllocator.allocate(e, t)
+            val tid  = tidAllocator.allocate(e, e.pos, t)
             val tidv = future(tid)
             val fram = FrameKeepValue()
             NewFuture(tid, tidv, fst, fram, env, store) // Let the machine handle the actual thread creation.
           case fst :: rst =>
-            val tid  = tidAllocator.allocate(e, t)
+            val tid  = tidAllocator.allocate(e, e.pos, t)
             val tidv = future(tid)
             val fram = FrameBegin(rst, env)
             NewFuture(tid, tidv, fst, fram, env, store) // Let the machine handle the actual thread creation.

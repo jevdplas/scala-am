@@ -13,7 +13,7 @@ trait TIDAllocator[TID <: ThreadIdentifier, T, C] {
   implicit val timestamp: Timestamp[T, C]
 
   /** Allocate a TID. */
-  def allocate[E](exp: E, t: T): TID
+  def allocate[E](exp: E, pos: Position, t: T): TID
 }
 
 object ConcreteTID {
@@ -22,18 +22,18 @@ object ConcreteTID {
 
   trait threadID extends ThreadIdentifier
 
-  case class TID[T, C](exp: C, t: T, n: Int) extends threadID {
+  case class TID[T, C](exp: C, t: T, n: Int, pos: Position) extends threadID {
 
     /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
-    override def toString: String = n.toString //exp.toString //s"*${exp.toString.hashCode}@$t*"
+    override def toString: String = s"$n@${pos}"
   }
 
   case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C])
       extends TIDAllocator[threadID, T, C] {
-    def allocate[E](exp: E, t: T): threadID = {
+    def allocate[E](exp: E, pos: Position, t: T): threadID = {
       val cId = id
       id = id + 1
-      TID(exp, t, cId)
+      TID(exp, t, cId, pos)
     }
   }
 
@@ -43,16 +43,16 @@ object ExpTimeTID {
 
   trait threadID extends ThreadIdentifier
 
-  case class TID[T, C](exp: C, t: T) extends threadID {
+  case class TID[T, C](exp: C, pos: Position) extends threadID {
 
     /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
     override def toString: String =
-      exp.hashCode().toString //exp.toString //s"*${exp.toString.hashCode}@$t*"
+      s"$pos"
   }
 
   case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C])
       extends TIDAllocator[threadID, T, C] {
-    def allocate[E](exp: E, t: T): threadID = TID(exp, t)
+    def allocate[E](exp: E, pos: Position, t: T): threadID = TID(exp, pos)
 
   }
 }

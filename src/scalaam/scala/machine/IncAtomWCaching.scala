@@ -259,7 +259,7 @@ class IncAtomWCaching[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     val control: Control    = ControlEval(program, env)
     val kstore: TKStore     = new TimestampedStore[KAddr, Set[Kont]](Map(), Set[KAddr]())
     val time: T             = timestamp.initial("")
-    val tid: TID            = allocator.allocate(program, time)
+    val tid: TID            = allocator.allocate(program, NoPosition, time)
     val state: State        = State(tid, control, cc, time)
     val threads: Threads    = Map(tid -> Set(state)).withDefaultValue(Set.empty)
     val tstore: TStore      = new TimestampedStore[A, V](sem.initialStore.toMap, Set())(lattice)
