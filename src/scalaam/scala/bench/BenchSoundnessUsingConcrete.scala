@@ -24,34 +24,25 @@ object BenchSoundnessUsingConcrete {
     // Setup.
 
     object ASem {
-        val address = NameAddress
-        val tid = ExpTimeTID
+        val address   = NameAddress
+        val tid       = ExpTimeTID
         val timestamp = ZeroCFA[SchemeExp]()
-        val lattice =
-            new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
-        val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](
-            address.Alloc[timestamp.T, SchemeExp],
-            tid.Alloc()
+        val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
+        val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](
+                        address.Alloc[timestamp.T, SchemeExp],
+                        tid.Alloc()
         )
     }
 
     object CSem {
-        val address = ConcreteAddress
-        val tid = ConcreteTID
+        val address   = ConcreteAddress
+        val tid       = ConcreteTID
         val timestamp = ConcreteTimestamp[SchemeExp]()
-        val lattice = new MakeSchemeLattice[
-          SchemeExp,
-          address.A,
-          Concrete.S,
-          Concrete.B,
-          Concrete.I,
-          Concrete.R,
-          Concrete.C,
-          Concrete.Sym
-        ](true) // Need concrete comparison!
-        val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](
-            address.Alloc[timestamp.T, SchemeExp],
-            tid.Alloc()
+        val lattice   = new MakeSchemeLattice[SchemeExp, address.A,
+                                              Concrete.S, Concrete.B, Concrete.I, Concrete.R, Concrete.C, Concrete.Sym](true) // Need concrete comparison!
+        val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](
+                        address.Alloc[timestamp.T, SchemeExp],
+                        tid.Alloc()
         )
     }
 
@@ -99,12 +90,17 @@ object BenchSoundnessUsingConcrete {
     var writer: CSVWriter = _
 
     def displayf(text: String): Unit = {
+        display(text)
+        writer.writeNext(text)
+        writer.flush()
+    }
+
+    def displayfOnly(text: String): Unit = {
         writer.writeNext(text)
         writer.flush()
     }
 
     def forFile(file: String): Unit = {
-        display("\n" ++ file)
         displayf("\n" ++ file)
         try {
             val f = scala.io.Source.fromFile(file)
@@ -113,7 +109,9 @@ object BenchSoundnessUsingConcrete {
             f.close()
             compare(content)
         } catch {
-            case e: Throwable => e.printStackTrace()
+            case e: Throwable =>
+                e.printStackTrace()
+                displayf(e.getStackTrace.toString)
         }
     }
 
@@ -122,30 +120,24 @@ object BenchSoundnessUsingConcrete {
             display("\nConcrete")
             val (concrete, success) = loopConcrete(content)
             if (success < repetitions) { // This threshold can be modified.
-                display(" -> timed out.\n")
+                displayf(" -> timed out.\n")
                 return
             }
-            display("\nAbstract")
+            displayf("\nAbstract")
             val abs = logAbstract(content) match {
                 case None =>
-                    display(" -> timed out.\n")
+                    displayf(" -> timed out.\n")
                     return
                 case Some(map) => map
             }
 
-            display("\nStarting comparison.")
+            displayf("\nStarting comparison.")
 
             if (concrete.keySet != abs.keySet) {
                 if (concrete.keySet.subsetOf(abs.keySet)) {
-                    display(s"\nAbstract has observed extra variables: ${abs.keySet.diff(concrete.keySet)}")
-                    displayf(s"Abstract has observed extra variables: ${abs.keySet.diff(concrete.keySet)}")
+                    displayf(s"\nAbstract has observed extra variables: ${abs.keySet.diff(concrete.keySet)}")
                 } else {
-                    display(
-                        s"\nUNSOUND: concrete has observed extra variables: ${concrete.keySet.diff(abs.keySet)}"
-                    )
-                    displayf(
-                        s"UNSOUND: concrete has observed extra variables: ${concrete.keySet.diff(abs.keySet)}"
-                    )
+                    displayf(s"\nUNSOUND: concrete has observed extra variables: ${concrete.keySet.diff(abs.keySet)}")
                     return
                 }
             }
@@ -166,7 +158,7 @@ object BenchSoundnessUsingConcrete {
                 }
             })
 
-            display("\nComparison finished.")
+            display("\nComparison finished.\n")
 
         } catch {
             case e: Throwable =>
@@ -192,8 +184,7 @@ object BenchSoundnessUsingConcrete {
                 }
             }
         }
-        display(s" ~> Succeeded $successes/$repetitions times.\n")
-        //acc.foreach(v => println(s"${v._1} => ${v._2}"))
+        displayf(s" ~> Succeeded $successes/$repetitions times.\n")
         (acc, successes)
     }
 
@@ -346,7 +337,8 @@ object BenchSoundnessUsingConcrete {
         val out = new BufferedWriter(new FileWriter(output))
         writer = new CSVWriter(out, ',', CSVWriter.NO_QUOTE_CHARACTER)
 
-        benchmarks.foreach(forFile)
+        //benchmarks.foreach(forFile)
+        List("./test/Atomlang/VMCAI2020/matmul.scm").foreach(forFile)
         writer.close()
     }
 }

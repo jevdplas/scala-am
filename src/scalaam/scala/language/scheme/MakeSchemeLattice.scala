@@ -507,18 +507,18 @@ class MakeSchemeLattice[
       case (Vec(size, content, init), Int(index)) => {
         val comp = IntLattice[I].lt(index, size)
         val t: L = if (BoolLattice[B].isTrue(comp)) {
-          val vals = content
-            .filterKeys(index2 => BoolLattice[B].isTrue(IntLattice[I].eql(index, index2)))
-            .values
           /* XXX: init doesn't have to be included if we know for sure that index is precise enough */
           if (concreteOP) {
-            if (vals.size == 0) {
+            val vals = content.find{case (index2, _) => BoolLattice[B].isTrue(IntLattice[I].eql(index, index2))}
+            if (vals.isEmpty)
               init
-            } else {
-              vals.foldLeft(schemeLattice.bottom)((acc, v) => schemeLattice.join(acc, v))
-            }
+            else
+              vals.get._2
           } else {
-            vals.foldLeft(init)((acc, v) => schemeLattice.join(acc, v))
+            content
+              .filterKeys(index2 => BoolLattice[B].isTrue(IntLattice[I].eql(index, index2)))
+              .values
+              .foldLeft(init)((acc, v) => schemeLattice.join(acc, v))
           }
         } else {
           schemeLattice.bottom
@@ -536,6 +536,9 @@ class MakeSchemeLattice[
         case (Vec(size, content, init), Int(index)) => {
           val comp = IntLattice[I].lt(index, size)
           val t: L = if (BoolLattice[B].isTrue(comp)) {
+            if (concreteOP)
+              Element(Vec(size, content + (index -> newval), init))
+            else
             Element(
               Vec(
                 size,
