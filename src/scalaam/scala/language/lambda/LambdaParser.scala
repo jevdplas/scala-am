@@ -31,9 +31,11 @@ object LambdaCompiler {
   }
 
   def compileT(exp: SExp): TailRec[LambdaExp] = exp match {
-    case SExpPair(SExpId(Identifier("lambda", _)),
-                  SExpPair(args, SExpPair(body, SExpValue(ValueNil, _), _), _),
-                  _) =>
+    case SExpPair(
+        SExpId(Identifier("lambda", _)),
+        SExpPair(args, SExpPair(body, SExpValue(ValueNil, _), _), _),
+        _
+        ) =>
       for {
         argsv <- compileArgsT(args)
         bodyv <- compileT(body)

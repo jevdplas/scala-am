@@ -8,11 +8,13 @@ trait SchemeSemantics[A <: Address, V, T, C] extends Semantics[SchemeExp, A, V, 
   implicit val schemeLattice: SchemeLattice[V, SchemeExp, A]
   val allocator: Allocator[A, T, C]
 
-  def evalCall(function: V,
-               fexp: SchemeExp,
-               argsv: List[(SchemeExp, V)],
-               store: Store[A, V],
-               t: T): Set[Action.A]
+  def evalCall(
+      function: V,
+      fexp: SchemeExp,
+      argsv: List[(SchemeExp, V)],
+      store: Store[A, V],
+      t: T
+  ): Set[Action.A]
 }
 
 /**
@@ -21,8 +23,8 @@ trait SchemeSemantics[A <: Address, V, T, C] extends Semantics[SchemeExp, A, V, 
   */
 class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, C])(
     implicit val timestamp: Timestamp[T, C],
-    implicit val schemeLattice: SchemeLattice[V, SchemeExp, A])
-    extends SchemeSemantics[A, V, T, C]
+    implicit val schemeLattice: SchemeLattice[V, SchemeExp, A]
+) extends SchemeSemantics[A, V, T, C]
     with SchemePrimitives[A, V, T, C] {
   implicit val lattice: Lattice[V] = schemeLattice
   import schemeLattice._
@@ -41,69 +43,77 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
   }
   case class FrameFuncallOperator(fexp: SchemeExp, args: List[SchemeExp], env: Env)
       extends SchemeFrame
-  case class FrameFuncallOperands(f: V,
-                                  fexp: SchemeExp,
-                                  cur: SchemeExp,
-                                  args: List[(SchemeExp, V)],
-                                  toeval: List[SchemeExp],
-                                  env: Env)
-      extends SchemeFrame
+  case class FrameFuncallOperands(
+      f: V,
+      fexp: SchemeExp,
+      cur: SchemeExp,
+      args: List[(SchemeExp, V)],
+      toeval: List[SchemeExp],
+      env: Env
+  ) extends SchemeFrame
   case class FrameIf(cons: SchemeExp, alt: SchemeExp, env: Env) extends SchemeFrame
-  case class FrameLet(variable: Identifier,
-                      bindings: List[(Identifier, V)],
-                      toeval: List[(Identifier, SchemeExp)],
-                      body: List[SchemeExp],
-                      env: Env)
-      extends SchemeFrame
-  case class FrameLetStar(variable: Identifier,
-                          bindings: List[(Identifier, SchemeExp)],
-                          body: List[SchemeExp],
-                          env: Env)
-      extends SchemeFrame
+  case class FrameLet(
+      variable: Identifier,
+      bindings: List[(Identifier, V)],
+      toeval: List[(Identifier, SchemeExp)],
+      body: List[SchemeExp],
+      env: Env
+  ) extends SchemeFrame
+  case class FrameLetStar(
+      variable: Identifier,
+      bindings: List[(Identifier, SchemeExp)],
+      body: List[SchemeExp],
+      env: Env
+  ) extends SchemeFrame
   case class FrameLetrec(addr: A, bindings: List[(A, SchemeExp)], body: List[SchemeExp], env: Env)
       extends SchemeFrame
   case class FrameSet(variable: Identifier, env: Env)    extends SchemeFrame
   case class FrameBegin(rest: List[SchemeExp], env: Env) extends SchemeFrame
   case class FrameCond(cons: List[SchemeExp], clauses: List[(SchemeExp, List[SchemeExp])], env: Env)
       extends SchemeFrame
-  case class FrameCase(clauses: List[(List[SchemeValue], List[SchemeExp])],
-                       default: List[SchemeExp],
-                       env: Env)
-      extends SchemeFrame
+  case class FrameCase(
+      clauses: List[(List[SchemeValue], List[SchemeExp])],
+      default: List[SchemeExp],
+      env: Env
+  ) extends SchemeFrame
   case class FrameAnd(rest: List[SchemeExp], env: Env)   extends SchemeFrame
   case class FrameOr(rest: List[SchemeExp], env: Env)    extends SchemeFrame
   case class FrameDefine(variable: Identifier, env: Env) extends SchemeFrame
-  case class FrameDoInit(vars: List[(Identifier, V, Option[SchemeExp])],
-                         variable: Identifier,
-                         step: Option[SchemeExp],
-                         toeval: List[(Identifier, SchemeExp, Option[SchemeExp])],
-                         test: SchemeExp,
-                         finals: List[SchemeExp],
-                         commands: List[SchemeExp],
-                         env: Env)
-      extends SchemeFrame
-  case class FrameDoBody(toeval: List[SchemeExp],
-                         vars: List[(Identifier, V, Option[SchemeExp])],
-                         test: SchemeExp,
-                         finals: List[SchemeExp],
-                         commands: List[SchemeExp],
-                         env: Env)
-      extends SchemeFrame
-  case class FrameDoStep(vars: List[(Identifier, V, Option[SchemeExp])],
-                         variable: Identifier,
-                         step: Option[SchemeExp],
-                         toeval: List[(Identifier, V, Option[SchemeExp])],
-                         test: SchemeExp,
-                         finals: List[SchemeExp],
-                         commands: List[SchemeExp],
-                         env: Env)
-      extends SchemeFrame
-  case class FrameDoTest(vars: List[(Identifier, V, Option[SchemeExp])],
-                         test: SchemeExp,
-                         finals: List[SchemeExp],
-                         commands: List[SchemeExp],
-                         env: Env)
-      extends SchemeFrame
+  case class FrameDoInit(
+      vars: List[(Identifier, V, Option[SchemeExp])],
+      variable: Identifier,
+      step: Option[SchemeExp],
+      toeval: List[(Identifier, SchemeExp, Option[SchemeExp])],
+      test: SchemeExp,
+      finals: List[SchemeExp],
+      commands: List[SchemeExp],
+      env: Env
+  ) extends SchemeFrame
+  case class FrameDoBody(
+      toeval: List[SchemeExp],
+      vars: List[(Identifier, V, Option[SchemeExp])],
+      test: SchemeExp,
+      finals: List[SchemeExp],
+      commands: List[SchemeExp],
+      env: Env
+  ) extends SchemeFrame
+  case class FrameDoStep(
+      vars: List[(Identifier, V, Option[SchemeExp])],
+      variable: Identifier,
+      step: Option[SchemeExp],
+      toeval: List[(Identifier, V, Option[SchemeExp])],
+      test: SchemeExp,
+      finals: List[SchemeExp],
+      commands: List[SchemeExp],
+      env: Env
+  ) extends SchemeFrame
+  case class FrameDoTest(
+      vars: List[(Identifier, V, Option[SchemeExp])],
+      test: SchemeExp,
+      finals: List[SchemeExp],
+      commands: List[SchemeExp],
+      env: Env
+  ) extends SchemeFrame
 
   protected def evalBody(body: List[SchemeExp], env: Env, store: Sto): Actions = body match {
     case Nil         => Action.Value(bool(false), store)
@@ -111,26 +121,30 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
     case exp :: rest => Action.Push(FrameBegin(rest, env), exp, env, store)
   }
 
-  def evalDoBody(toeval: List[SchemeExp],
-                 vars: List[(Identifier, V, Option[SchemeExp])],
-                 test: SchemeExp,
-                 finals: List[SchemeExp],
-                 commands: List[SchemeExp],
-                 t: T,
-                 env: Env,
-                 store: Sto): Actions = toeval match {
+  def evalDoBody(
+      toeval: List[SchemeExp],
+      vars: List[(Identifier, V, Option[SchemeExp])],
+      test: SchemeExp,
+      finals: List[SchemeExp],
+      commands: List[SchemeExp],
+      t: T,
+      env: Env,
+      store: Sto
+  ): Actions = toeval match {
     case Nil => evalDoStep(Nil, vars, test, finals, commands, t, env, store)
     case exp :: rest =>
       Action.Push(FrameDoBody(rest, vars, test, finals, commands, env), exp, env, store)
   }
-  def evalDoStep(vars: List[(Identifier, V, Option[SchemeExp])],
-                 toeval: List[(Identifier, V, Option[SchemeExp])],
-                 test: SchemeExp,
-                 finals: List[SchemeExp],
-                 commands: List[SchemeExp],
-                 t: T,
-                 env: Env,
-                 store: Sto): Actions = toeval match {
+  def evalDoStep(
+      vars: List[(Identifier, V, Option[SchemeExp])],
+      toeval: List[(Identifier, V, Option[SchemeExp])],
+      test: SchemeExp,
+      finals: List[SchemeExp],
+      commands: List[SchemeExp],
+      t: T,
+      env: Env,
+      store: Sto
+  ): Actions = toeval match {
     case Nil =>
       val vars2 = vars.reverse
       val store2 = vars2.foldLeft(store)({
@@ -146,20 +160,24 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
     case (variable, v, None) :: rest =>
       evalDoStep((variable, v, None) :: vars, rest, test, finals, commands, t, env, store)
     case (variable, _, Some(step)) :: rest =>
-      Action.Push(FrameDoStep(vars, variable, Some(step), rest, test, finals, commands, env),
-                  step,
-                  env,
-                  store)
+      Action.Push(
+        FrameDoStep(vars, variable, Some(step), rest, test, finals, commands, env),
+        step,
+        env,
+        store
+      )
   }
 
   def conditional(v: V, t: => Actions, f: => Actions): Actions =
     (if (isTrue(v)) t else Action.None) ++ (if (isFalse(v)) f else Action.None)
 
-  def evalCall(function: V,
-               fexp: SchemeExp,
-               argsv: List[(SchemeExp, V)],
-               store: Sto,
-               t: T): Actions = {
+  def evalCall(
+      function: V,
+      fexp: SchemeExp,
+      argsv: List[(SchemeExp, V)],
+      store: Sto,
+      t: T
+  ): Actions = {
     val fromClo: Actions = getClosures(function).map({
       case (SchemeLambda(args, body, pos), env1) =>
         if (args.length == argsv.length) {
@@ -168,19 +186,25 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
               if (body.length == 1)
                 Action.StepIn(fexp, (SchemeLambda(args, body, pos), env1), body.head, env2, store)
               else
-                Action.StepIn(fexp,
-                              (SchemeLambda(args, body, pos), env1),
-                              SchemeBegin(body, pos),
-                              env2,
-                              store)
+                Action.StepIn(
+                  fexp,
+                  (SchemeLambda(args, body, pos), env1),
+                  SchemeBegin(body, pos),
+                  env2,
+                  store
+                )
           }
-        } else { Action.Err(ArityError(fexp, args.length, argsv.length)) }
+        } else {
+          Action.Err(ArityError(fexp, args.length, argsv.length))
+        }
       case (lambda, env1) =>
         Action.Err(
-          TypeError("operator expected to be a closure, but is not", closure((lambda, env1))))
+          TypeError("operator expected to be a closure, but is not", closure((lambda, env1)))
+        )
     })
     val fromPrim: Actions =
-      getPrimitives[Primitive](function).flatMap(prim => prim.callActionEffs(fexp, argsv, store, t)) // Effects from primitives are studied!
+      getPrimitives[Primitive](function)
+        .flatMap(prim => prim.callActionEffs(fexp, argsv, store, t)) // Effects from primitives are studied!
     if (fromClo.isEmpty && fromPrim.isEmpty) {
       Action.Err(TypeError("operator expected to be a function, but is not", function))
     } else {
@@ -197,10 +221,12 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
     case _                 => None
   }
 
-  protected def bindArgs(l: List[(Identifier, V)],
-                         env: Environment[A],
-                         store: Store[A, V],
-                         t: T): (Environment[A], Store[A, V]) =
+  protected def bindArgs(
+      l: List[(Identifier, V)],
+      env: Environment[A],
+      store: Store[A, V],
+      t: T
+  ): (Environment[A], Store[A, V]) =
     l.foldLeft((env, store))({
       case ((env, store), (id, value)) => {
         val a = allocator.variable(id, t)
@@ -209,23 +235,27 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
       }
     })
 
-  protected def funcallArgs(f: V,
-                            fexp: SchemeExp,
-                            args: List[(SchemeExp, V)],
-                            toeval: List[SchemeExp],
-                            env: Env,
-                            store: Sto,
-                            t: T): Actions = toeval match {
+  protected def funcallArgs(
+      f: V,
+      fexp: SchemeExp,
+      args: List[(SchemeExp, V)],
+      toeval: List[SchemeExp],
+      env: Env,
+      store: Sto,
+      t: T
+  ): Actions = toeval match {
     case Nil =>
       evalCall(f, fexp, args.reverse, store, t)
     case e :: rest => Action.Push(FrameFuncallOperands(f, fexp, e, args, rest, env), e, env, store)
   }
-  protected def funcallArgs(f: V,
-                            fexp: SchemeExp,
-                            args: List[SchemeExp],
-                            env: Env,
-                            store: Sto,
-                            t: T): Actions =
+  protected def funcallArgs(
+      f: V,
+      fexp: SchemeExp,
+      args: List[SchemeExp],
+      env: Env,
+      store: Sto,
+      t: T
+  ): Actions =
     funcallArgs(f, fexp, List(), args, env, store, t)
 
   protected def evalQuoted(exp: SExp, store: Sto, t: T): (V, Sto) = exp match {
@@ -250,7 +280,8 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
       evalQuoted(
         SExpPair(SExpId(Identifier("quote", pos)), SExpPair(q, SExpValue(ValueNil, pos), pos), pos),
         store,
-        t)
+        t
+      )
   }
 
   def stepEval(e: SchemeExp, env: Env, store: Sto, t: T) = e match {
@@ -274,10 +305,12 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
             (env.extend(v.name, a), store.extend(a, bottom))
         })
       val exp = bindings.head._2
-      Action.Push(FrameLetrec(addresses.head, addresses.zip(bindings.map(_._2)).tail, body, env1),
-                  exp,
-                  env1,
-                  store1)
+      Action.Push(
+        FrameLetrec(addresses.head, addresses.zip(bindings.map(_._2)).tail, body, env1),
+        exp,
+        env1,
+        store1
+      )
     case SchemeNamedLet(name, bindings, body, pos) =>
       val fexp = SchemeLambda(bindings.map(_._1), body, pos)
       val a    = allocator.variable(name, t)
@@ -307,10 +340,8 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
     case SchemeDo(Nil, test, finals, commands, _) =>
       Action.Push(FrameDoTest(Nil, test, finals, commands, env), test, env, store)
     case SchemeDo((name, init, step) :: vars, test, finals, commands, _) =>
-      Action.Push(FrameDoInit(List(), name, step, vars, test, finals, commands, env),
-                  init,
-                  env,
-                  store)
+      Action
+        .Push(FrameDoInit(List(), name, step, vars, test, finals, commands, env), init, env, store)
     case SchemeVar(variable) =>
       // if (variable.name == "t") println(s"Variable lookup: $variable")
       env.lookup(variable.name) match {
@@ -320,7 +351,7 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
             case Some(v) =>
               // if (variable.name == "t") println(s"Value is $v")
               Action.Value(v, store)
-            case None    => Action.Err(UnboundAddress(a))
+            case None => Action.Err(UnboundAddress(a))
           }
         case None => Action.Err(UnboundVariable(variable))
       }
@@ -376,7 +407,11 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
     case FrameCond(cons, clauses, env) =>
       conditional(
         v,
-        if (cons.isEmpty) { Action.Value(v, store) } else { evalBody(cons, env, store) },
+        if (cons.isEmpty) {
+          Action.Value(v, store)
+        } else {
+          evalBody(cons, env, store)
+        },
         clauses match {
           case Nil                  => Action.Value(bool(false), store)
           case (exp, cons2) :: rest => Action.Push(FrameCond(cons2, rest, env), exp, env, store)
@@ -403,9 +438,11 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
     case FrameAnd(Nil, _) =>
       conditional(v, Action.Value(v, store), Action.Value(bool(false), store))
     case FrameAnd(e :: rest, env) =>
-      conditional(v,
-                  Action.Push(FrameAnd(rest, env), e, env, store),
-                  Action.Value(bool(false), store))
+      conditional(
+        v,
+        Action.Push(FrameAnd(rest, env), e, env, store),
+        Action.Value(bool(false), store)
+      )
     case FrameOr(Nil, _) =>
       conditional(v, Action.Value(v, store), Action.Value(bool(false), store))
     case FrameOr(e :: rest, env) =>
@@ -422,19 +459,22 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
             (env.extend(variable.name, a), store.extend(a, value))
         })
       Action.Push(FrameDoTest(vars2, test, finals, commands, env2), test, env2, store2)
-    case FrameDoInit(vars,
-                     name,
-                     step,
-                     (name2, init, step2) :: toeval,
-                     test,
-                     finals,
-                     commands,
-                     env) =>
+    case FrameDoInit(
+        vars,
+        name,
+        step,
+        (name2, init, step2) :: toeval,
+        test,
+        finals,
+        commands,
+        env
+        ) =>
       Action.Push(
         FrameDoInit((name, v, step) :: vars, name2, step2, toeval, test, finals, commands, env),
         init,
         env,
-        store)
+        store
+      )
     case FrameDoTest(vars, test, finals, commands, env) =>
       conditional(
         v,
@@ -451,7 +491,8 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
 
   override def initialBindings =
     allPrimitives.map(p => (p.name, allocator.primitive(p.name), primitive[Primitive](p))) ++ Set(
-      ("null", allocator.primitive("null"), nil))
+      ("null", allocator.primitive("null"), nil)
+    )
 }
 
 /**
@@ -463,9 +504,9 @@ class BaseSchemeSemantics[A <: Address, V, T, C](val allocator: Allocator[A, T, 
   *     the evaluation of (f), instead of evaluating +, and 1 in separate states.
   */
 class OptimizedSchemeSemantics[A <: Address, V, T, C](allocator: Allocator[A, T, C])( // (primitives: Primitives[Addr, V])
-    implicit val t: Timestamp[T, C], // TODO: how can we use the same names as implicits of the parent class?
-    implicit val latt: SchemeLattice[V, SchemeExp, A])
-    extends BaseSchemeSemantics[A, V, T, C](allocator)(t, latt) {
+    implicit val t: Timestamp[T, C],                                                  // TODO: how can we use the same names as implicits of the parent class?
+    implicit val latt: SchemeLattice[V, SchemeExp, A]
+) extends BaseSchemeSemantics[A, V, T, C](allocator)(t, latt) {
   import schemeLattice._
 
   /** Tries to perform atomic evaluation of an expression. Returns the result of
@@ -492,13 +533,15 @@ class OptimizedSchemeSemantics[A <: Address, V, T, C](allocator: Allocator[A, T,
       case action => action
     })
 
-  override protected def funcallArgs(f: V,
-                                     fexp: SchemeExp,
-                                     args: List[(SchemeExp, V)],
-                                     toeval: List[SchemeExp],
-                                     env: Env,
-                                     store: Sto,
-                                     t: T): Actions = toeval match {
+  override protected def funcallArgs(
+      f: V,
+      fexp: SchemeExp,
+      args: List[(SchemeExp, V)],
+      toeval: List[SchemeExp],
+      env: Env,
+      store: Sto,
+      t: T
+  ): Actions = toeval match {
     case Nil =>
       evalCall(f, fexp, args.reverse, store, t)
     case e :: rest =>

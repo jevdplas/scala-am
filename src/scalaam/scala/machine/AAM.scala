@@ -30,11 +30,10 @@ import scala.core.MachineUtil
   */
 class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp])(
     implicit val timestamp: Timestamp[T, Exp],
-    implicit val lattice: Lattice[V])
-    extends MachineAbstraction[Exp, A, V, T, Exp]
-    with MachineUtil[Exp, A, V]
-{
-  
+    implicit val lattice: Lattice[V]
+) extends MachineAbstraction[Exp, A, V, T, Exp]
+    with MachineUtil[Exp, A, V] {
+
   val Action = sem.Action
 
   /** Kontinuation addresses */
@@ -44,7 +43,7 @@ class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, 
   case class KontAddr(exp: Exp, time: T) extends KA {
     override def toString = s"Kont(${exp.toString.take(10)})"
   }
-  case object HaltKontAddr               extends KA {
+  case object HaltKontAddr extends KA {
     override def toString = "Halt"
   }
 
@@ -86,11 +85,14 @@ class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, 
         case Action.Push(frame, e, env, store, _) => {
           val next = KontAddr(e, t)
           Set(
-            State(ControlEval(e, env),
-                  store,
-                  kstore.extend(next, Set(Kont(frame, a))),
-                  next,
-                  Timestamp[T, Exp].tick(t)))
+            State(
+              ControlEval(e, env),
+              store,
+              kstore.extend(next, Set(Kont(frame, a))),
+              next,
+              Timestamp[T, Exp].tick(t)
+            )
+          )
         }
         /* When a value needs to be evaluated, we go to an eval state */
         case Action.Eval(e, env, store, _) =>
@@ -125,11 +127,13 @@ class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, 
 
   object State {
     def inject(exp: Exp, env: Iterable[(String, A)], store: Iterable[(A, V)]) =
-      State(ControlEval(exp, Environment.initial[A](env)),
-            Store.initial[A, V](t, store),
-            Store.empty[KA, Set[Kont]](t),
-            HaltKontAddr,
-            Timestamp[T, Exp].initial(""))
+      State(
+        ControlEval(exp, Environment.initial[A](env)),
+        Store.initial[A, V](t, store),
+        Store.empty[KA, Set[Kont]](t),
+        HaltKontAddr,
+        Timestamp[T, Exp].initial("")
+      )
 
     /* TODO: do this without typeclass, e.g., class State extends WithKey[KA](a) */
     implicit val stateWithKey = new WithKey[State] {
@@ -158,9 +162,11 @@ class AAM[Exp, A <: Address, V, T](val t: StoreType, val sem: Semantics[Exp, A, 
      * implementations; but they are basically similar as Set[State].
      */
     @scala.annotation.tailrec
-    def loop[WL[_]: WorkList, VS[_]: VisitedSet](todo: WL[State],
-                                                 visited: VS[State],
-                                                 graph: G): G = {
+    def loop[WL[_]: WorkList, VS[_]: VisitedSet](
+        todo: WL[State],
+        visited: VS[State],
+        graph: G
+    ): G = {
       if (timeout.reached) {
         /* If we exceeded the maximal time allowed, we stop the evaluation and return what we computed up to now */
         graph

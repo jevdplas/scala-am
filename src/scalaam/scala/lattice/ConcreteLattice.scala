@@ -91,12 +91,17 @@ object Concrete {
       }
       def toSymbol[Sym2: SymbolLattice](s: S): Sym2 = s.foldMap(s => SymbolLattice[Sym2].inject(s))
       override def concreteValues(x: S): Set[ConcreteVal] = x match {
-        case Top => ???
+        case Top             => ???
         case Values(content) => content.map(x => ConcreteString(x))
       }
     }
     implicit val boolShow: Show[Boolean] = new Show[Boolean] {
-      def show(b: Boolean): String = if (b) { "#t" } else { "#f" }
+      def show(b: Boolean): String =
+        if (b) {
+          "#t"
+        } else {
+          "#f"
+        }
     }
     implicit val boolConcrete: BoolLattice[B] = new BaseInstance[Boolean]("Bool")
     with BoolLattice[B] {
@@ -111,7 +116,7 @@ object Concrete {
       }
       def not(b: B): B = b.map(x => !x)
       override def concreteValues(x: B): Set[ConcreteVal] = x match {
-        case Top => ???
+        case Top             => ???
         case Values(content) => content.map(x => ConcreteBool(x))
       }
     }
@@ -146,7 +151,7 @@ object Concrete {
         n.foldMap(n => StringLattice[S2].inject(n.toString))
 
       override def concreteValues(x: I): Set[ConcreteVal] = x match {
-        case Top => ???
+        case Top             => ???
         case Values(content) => content.map(x => ConcreteNumber(x))
       }
     }
@@ -181,7 +186,7 @@ object Concrete {
       def toString[S2: StringLattice](n: R): S2 =
         n.foldMap(n => StringLattice[S2].inject(n.toString))
       override def concreteValues(x: R): Set[ConcreteVal] = x match {
-        case Top => ???
+        case Top             => ???
         case Values(content) => content.map(x => ConcreteReal(x))
       }
     }
@@ -191,7 +196,7 @@ object Concrete {
     implicit val charConcrete: CharLattice[C] = new BaseInstance[Char]("Char") with CharLattice[C] {
       def inject(x: Char): C = Values(Set(x))
       override def concreteValues(x: C): Set[ConcreteVal] = x match {
-        case Top => ???
+        case Top             => ???
         case Values(content) => content.map(x => ConcreteChar(x))
       }
     }
@@ -200,7 +205,7 @@ object Concrete {
       def inject(x: String): Sym                  = Values(Set(x))
       def toString[S2: StringLattice](s: Sym): S2 = s.foldMap(s => StringLattice[S2].inject(s))
       override def concreteValues(x: Sym): Set[ConcreteVal] = x match {
-        case Top => ???
+        case Top             => ???
         case Values(content) => content.map(x => ConcreteSymbol(x))
       }
     }

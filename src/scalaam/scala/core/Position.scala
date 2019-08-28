@@ -23,6 +23,12 @@ object Position {
   /** Positions are ordered */
   implicit val ordering: Ordering[Position] = new Ordering[Position] {
     def compare(x: Position, y: Position): Int =
-      if (x < y) { -1 } else if (y > x) { 1 } else { 0 }
+      if (x < y) {
+        -1
+      } else if (y > x) {
+        1
+      } else {
+        0
+      }
   }
 }
