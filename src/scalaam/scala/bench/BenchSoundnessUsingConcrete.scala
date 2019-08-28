@@ -337,8 +337,7 @@ object BenchSoundnessUsingConcrete {
         val out = new BufferedWriter(new FileWriter(output))
         writer = new CSVWriter(out, ',', CSVWriter.NO_QUOTE_CHARACTER)
 
-        //benchmarks.foreach(forFile)
-        List("./test/Atomlang/VMCAI2020/matmul.scm").foreach(forFile)
+        benchmarks.foreach(forFile)
         writer.close()
     }
 }
