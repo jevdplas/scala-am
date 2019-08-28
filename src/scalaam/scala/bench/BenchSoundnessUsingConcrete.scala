@@ -11,7 +11,7 @@ import scalaam.bench.BenchConfig._
 import scalaam.core.ConcreteAddress.Pointer
 import scalaam.core.ConcreteVal._
 import scalaam.lattice.{Concrete, Type}
-import scalaam.machine.{ConcurrentAAM, Strategy}
+import scalaam.machine.{ConcreteConcurrentAAM, Strategy}
 import scalaam.core._
 import scalaam.language.atomlang._
 import scalaam.language.scheme._
@@ -39,7 +39,7 @@ object BenchSoundnessUsingConcrete {
         val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
     }
     
-    val concrete  = new ConcurrentAAM[SchemeExp, CSem.address.A, CSem.lattice.L, CSem.timestamp.T, CSem.tid.threadID](StoreType.ConcreteStore, CSem.sem, CSem.tid.Alloc())
+    val concrete  = new ConcreteConcurrentAAM[SchemeExp, CSem.address.A, CSem.lattice.L, CSem.timestamp.T, CSem.tid.threadID](StoreType.ConcreteStore, CSem.sem, CSem.tid.Alloc())
     val cGraph    = DotGraph[concrete.State, concrete.Transition]()
     val clat      = SchemeLattice[CSem.lattice.L, SchemeExp, CSem.address.A]
     
