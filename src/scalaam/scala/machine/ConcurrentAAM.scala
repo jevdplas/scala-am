@@ -406,7 +406,7 @@ class ConcreteConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
         val curPState = Context(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
         (threads.updateThread(tid, this, curPState).newThread(tid_, newPState), store)
       case DerefFuture(tid_ : TID @unchecked, store, _) =>
-        println(s"[debug] deref future $tid_, val is ${threads.getResult(tid_)}")
+        // println(s"[debug] deref future $tid_, val is ${threads.getResult(tid_)}")
         if (threads.threadFinished(tid_))
           (
             threads.updateThread(
@@ -434,9 +434,9 @@ class ConcreteConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     /** Steps from this state to the next. Returns a set of successorStates. */
     def step(threads: Threads, store: VStore): Set[State] =
       control match {
-        case ControlEval(exp, env) => next(sem.stepEval(exp, env, store, time), threads, store, cc)
+        case ControlEval(exp, env)                => next(sem.stepEval(exp, env, store, time), threads, store, cc)
         case ControlKont(v) if cc == HaltKontAddr =>
-          println(s"[debug] Thread $tid finished with value $v")
+          // println(s"[debug] Thread $tid finished with value $v")
           Set(State(threads.finishThread(tid, this, v), store))
         case ControlKont(v) =>
           kstore.lookup(cc) match {
@@ -534,9 +534,9 @@ class ConcreteConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     def loop(cur: State): Unit = {
       if (!timeout.reached && !cur.halted) {
         val next = cur.step(strategy).map(_._2)
-        println(s"state: $cur")
+        // println(s"state: $cur")
         if (next.size != 1) {
-          println(s"State: $cur (${cur.threads})")
+          println(s"State: $cur")
           next.foreach(println)
           throw new Exception(s"Execution was not concrete! (got ${next.size} resulting states)")
         }

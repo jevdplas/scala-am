@@ -35,29 +35,26 @@ class AtomlangSemantics[A <: Address, V, T, C, TID <: ThreadIdentifier](
     * @param store The store to use for the evaluation.
     * @param t     The current timestamp.
     */
-  override def stepEval(e: SchemeExp, env: Env, store: Sto, t: T): Actions = {
-    println(s"stepeval e = $e")
-    e match {
-      case AtomlangDeref(exp, _) => Push(FrameDeref(), exp, env, store)
-      // NewFuture contains a frame used to evaluate the rest of the body of the future (after having evaluated the first expression).
-      // Another implementation strategy would be to alter the parser and to create an explicit "begin" expression using the expressions in the future's body.
-      case AtomlangFuture(body, _) =>
-        body match {
-          case Nil => Err(EmptyBodyException()) // Disallow a body of a future to be empty.
-          case fst :: Nil =>
-            val tid  = tidAllocator.allocate(e, e.pos, t)
-            val tidv = future(tid)
-            val fram = FrameKeepValue()
-            NewFuture(tid, tidv, fst, fram, env, store) // Let the machine handle the actual thread creation.
-          case fst :: rst =>
-            val tid  = tidAllocator.allocate(e, e.pos, t)
-            val tidv = future(tid)
-            val fram = FrameBegin(rst, env)
-            NewFuture(tid, tidv, fst, fram, env, store) // Let the machine handle the actual thread creation.
-        }
-      // case AtomlangSwap(atomExp, funExp, argExps, _) => Push(FrameSwapAtom(atomExp, funExp, argExps, env), atomExp, env, store)
-      case _ => super.stepEval(e, env, store, t)
-    }
+  override def stepEval(e: SchemeExp, env: Env, store: Sto, t: T): Actions = e match {
+    case AtomlangDeref(exp, _) => Push(FrameDeref(), exp, env, store)
+    // NewFuture contains a frame used to evaluate the rest of the body of the future (after having evaluated the first expression).
+    // Another implementation strategy would be to alter the parser and to create an explicit "begin" expression using the expressions in the future's body.
+    case AtomlangFuture(body, _) =>
+      body match {
+        case Nil => Err(EmptyBodyException()) // Disallow a body of a future to be empty.
+        case fst :: Nil =>
+          val tid  = tidAllocator.allocate(e, e.pos, t)
+          val tidv = future(tid)
+          val fram = FrameKeepValue()
+          NewFuture(tid, tidv, fst, fram, env, store) // Let the machine handle the actual thread creation.
+        case fst :: rst =>
+          val tid  = tidAllocator.allocate(e, e.pos, t)
+          val tidv = future(tid)
+          val fram = FrameBegin(rst, env)
+          NewFuture(tid, tidv, fst, fram, env, store) // Let the machine handle the actual thread creation.
+      }
+    // case AtomlangSwap(atomExp, funExp, argExps, _) => Push(FrameSwapAtom(atomExp, funExp, argExps, env), atomExp, env, store)
+    case _ => super.stepEval(e, env, store, t)
   }
 
   /**
