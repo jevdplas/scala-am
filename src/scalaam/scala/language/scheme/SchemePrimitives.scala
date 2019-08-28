@@ -828,7 +828,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         } else {
           _str
         }
-        print(s"[output] $str\n")
+        // print(s"[output] $str\n")
         x /* Undefined behavior in R5RS, but we return the printed value */
       }
     }
