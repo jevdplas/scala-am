@@ -80,10 +80,10 @@ object BenchSoundnessUsingConcrete {
         "./test/Atomlang/VMCAI2020/matmul.scm",
         "./test/Atomlang/VMCAI2020/mcarlo.scm",
         "./test/Atomlang/VMCAI2020/mceval.scm",
-        "./test/Atomlang/VMCAI2020/minimax.scm",
         "./test/Atomlang/VMCAI2020/msort.scm",
         "./test/Atomlang/VMCAI2020/pc.scm",
-        "./test/Atomlang/VMCAI2020/treiber-stack.scm"
+        "./test/Atomlang/VMCAI2020/treiber-stack.scm",
+        "./test/Atomlang/VMCAI2020/minimax.scm", // Sbt tends to hang here on Bertha.
     )
 
     // Setup.
