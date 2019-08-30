@@ -550,8 +550,12 @@ class ConcreteConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     val vstore: VStore      = Store.initial[A, V](t, sem.initialStore)(lattice)
     val state: State        = State(threads, vstore)
 
+    graph = graph.map(g => g.addNode(state))
     loop(state)
-    Await.result(graph, Duration.Inf)
+    println(s"Execution finished, in ${timeout.time} seconds, waiting for graph")
+    val res = Await.result(graph, Duration.Inf)
+    println(s"Number of nodes: ${ev.nodes(res)}")
+    res
   }
 
   def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
