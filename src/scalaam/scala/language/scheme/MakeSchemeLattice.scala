@@ -76,7 +76,7 @@ class MakeSchemeLattice[
   }
 
   case class Pointer(a: A) extends Value {
-    override def toString = "#pointer"
+    override def toString = s"#pointer($a)"
   }
 
   case class Vec(size: I, elements: Map[I, L], init: L) extends Value {

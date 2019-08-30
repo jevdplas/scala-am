@@ -49,6 +49,7 @@ object NameAddress {
   /** The address for a pointer */
   case class Pointer[E <: Exp](e: E) extends A {
     def printable = false
+    override def toString = s"@${e.pos}"
   }
 
   /** The address of a primitive */
