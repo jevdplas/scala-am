@@ -492,8 +492,7 @@ class ConcreteConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     /** Step the context(s) corresponding to a single, random TID. Returns a set of tuples containing the tid that was stepped and a resulting state. */
     @unsound
     def stepRandom(): Set[(TID, State)] = {
-      // println(s"Threads runnable: ${threads.threadsRunnable}")
-      for (tid <- scala.util.Random.shuffle(threads.threadsRunnable)) {
+      for (tid <- scala.util.Random.shuffle(threads.threadsRunnable.toList)) {
         val next = stepOne(tid)
         if (next.nonEmpty) return next
       }
