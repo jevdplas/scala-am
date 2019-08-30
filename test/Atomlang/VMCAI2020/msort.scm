@@ -40,5 +40,5 @@
       '()
       (cons (random 100) (generate-list (- size 1)))))
 
-(define L (generate-list 142))
-(sorted? (merge-sort L))
+(define L (generate-list (random 100)))
+(merge-sort L)

@@ -36,7 +36,7 @@
 
 (define cnt (counter))
 (map (lambda (t) (deref t))
-     (create-thrds cnt 42))
+     (create-thrds cnt (random 10)))
 (display "result: ")
 (display (cnt 'get))
 (newline)
