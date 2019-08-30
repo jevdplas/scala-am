@@ -439,7 +439,9 @@ class ConcreteConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
               })
             case None => Set()
           }
-        case ControlError(e) => Set(State(threads.failThread(tid, this, e), store))
+        case ControlError(e) =>
+          println(s"Error reached in concrete: $e")
+          Set(State(threads.failThread(tid, this, e), store))
         case e               => throw new Exception(s"Unsupported control sequence: $e.\n")
       }
   }
