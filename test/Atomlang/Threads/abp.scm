@@ -10,12 +10,14 @@
     (loop 0)))
 
 (define CLOSING -1)
-(define (server data in in-lock out out-lock seqnumber nexttosend)
+(define (server data in ; in-lock
+                out ; out-lock
+                seqnumber nexttosend)
   (let ((v (begin
-             (t/acquire in-lock)
+             ; (t/acquire in-lock)
              (let ((r (read in)))
                (reset! in #f)
-               (t/release in-lock)
+               ; (t/release in-lock)
                r))))
     ;(sleep 1)
     (if v
@@ -27,26 +29,34 @@
                   ;; expecting what we were
                   (let ((seqnumber2 (if (= seqnumber 0) 1 0))
                         (nexttosend2 (+ nexttosend 1)))
-                    (t/acquire out-lock)
+                    ; (t/acquire out-lock)
                     (reset! out (cons (vector-ref data nexttosend2) seqnumber2))
-                    (t/release out-lock)
-                    (server data in in-lock out out-lock seqnumber2 nexttosend2))
+                    ; (t/release out-lock)
+                    (server data in ; in-lock
+                            out ; out-lock
+                            seqnumber2 nexttosend2))
                   ;; Not expecting
                   (let ((seqnumber2 (if (= seqnumber 0) 1 0))
                         (nexttosend2 (- nexttosend 1)))
-                    (t/acquire out-lock)
+                    ; (t/acquire out-lock)
                     (reset! out (cons (vector-ref data nexttosend2) seqnumber2))
-                    (t/release out-lock)
-                    (server data in in-lock out out-lock seqnumber2 nexttosend2)))))
+                    ; (t/release out-lock)
+                    (server data in ; in-lock
+                            out ; out-lock
+                            seqnumber2 nexttosend2)))))
         ;; not received anything
-        (server data in in-lock out out-lock seqnumber nexttosend))))
+        (server data in ; in-lock
+                out ; out-lock
+                seqnumber nexttosend))))
 
-(define (client i in in-lock out out-lock ack)
+(define (client i in ; in-lock
+                out ; out-lock
+                ack)
   (let ((v (begin
-             (t/acquire in-lock)
+             ; (t/acquire in-lock)
              (let ((r (read in)))
                (reset! in #f)
-               (t/release in-lock)
+               ; (t/release in-lock)
                r))))
     ;(sleep 1)
     (if v
@@ -56,30 +66,40 @@
               (let ((ack2 (if (= ack 0) 1 0)))
                 (if (>= (+ i 1) N)
                     (begin
-                      (t/acquire out-lock)
+                      ; (t/acquire out-lock)
                       (reset! out CLOSING)
-                      (t/release out-lock))
+                      ; (t/release out-lock))
                     (begin
-                      (t/acquire out-lock)
+                      ; (t/acquire out-lock)
                       (reset! out ack)
-                      (t/release out-lock)
-                      (client (+ i 1) in in-lock out out-lock ack2))))
+                      ; (t/release out-lock)
+                      (client (+ i 1) in ; in-lock
+                              out ; out-lock
+                              ack2))))
               (begin
-                (t/acquire out-lock)
+                ; (t/acquire out-lock)
                 (reset! out ack)
-                (t/release out-lock)
-                (client i in in-lock out out-lock ack))))
+                ; (t/release out-lock)
+                (client i in ; in-lock
+                        out ; out-lock
+                        ack))))
         ;; not received anything
-        (client i in in-lock out out-lock ack))))
+          (client i in ; in-lock
+                  out ; out-lock
+                  ack))))
 
-(define N 42)
+(define N (random 42))
 (define data-to-send (build-vector N 0 (lambda (i) (random 100))))
 ; (printf "data to send: ~a~n" data-to-send)
 (define client->server (atom 0))
-(define client->server-lock (t/new-lock))
+; (define client->server-lock (t/new-lock))
 (define server->client (atom #f))
-(define server->client-lock (t/new-lock))
-(define s (future (server data-to-send client->server client->server-lock server->client server->client-lock 0 -1)))
-(define c (future (client 0 server->client server->client-lock client->server client->server-lock 1)))
+; (define server->client-lock (t/new-lock))
+(define s (future (server data-to-send client->server ; client->server-lock
+                          server->client ; server->client-lock
+                          0 -1)))
+(define c (future (client 0 server->client ; server->client-lock
+                          client->server ; client->server-lock
+                          1)))
 (deref s)
 (deref c)
