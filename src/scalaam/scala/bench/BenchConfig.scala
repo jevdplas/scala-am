@@ -19,35 +19,29 @@ object BenchConfig {
 
   // List of benchmarks with the required prelude (none means only the standard prelude).
   val benchmarks: List[(String, Prelude)] = List(
-    ("./test/Atomlang/Threads/abp.scm", lock),
-    ("./test/Atomlang/Threads/atoms.scm", none),
-    ("./test/Atomlang/Threads/actors.scm", lock),
-    ("./test/Atomlang/Threads/bchain.scm", lock),
-    ("./test/Atomlang/Threads/count.scm", lock),
-//        ("./test/Atomlang/Threads/crypt.scm",            none),
-    ("./test/Atomlang/Threads/dekker.scm", none),
-    ("./test/Atomlang/Threads/fact.scm", lock),
-    ("./test/Atomlang/Threads/life.scm", lock),
-    ("./test/Atomlang/Threads/matmul.scm", none),
-    ("./test/Atomlang/Threads/mcarlo.scm", none),
-    ("./test/Atomlang/Threads/mceval.scm", none),
-    ("./test/Atomlang/Threads/minimax.scm", none),
-    ("./test/Atomlang/Threads/msort.scm", none),
-    ("./test/Atomlang/Threads/nbody.scm", none),
-    ("./test/Atomlang/Threads/pc.scm", lock),
-    ("./test/Atomlang/Threads/phil.scm", lock),
-    ("./test/Atomlang/Threads/phild.scm", lock),
-    ("./test/Atomlang/Threads/pp.scm", lock),
-    ("./test/Atomlang/Threads/pps.scm", none),
-    ("./test/Atomlang/Threads/qsort.scm", none),
-    ("./test/Atomlang/Threads/ringbuf.scm", lock),
-    ("./test/Atomlang/Threads/rng.scm", lock),
-    ("./test/Atomlang/Threads/sieve.scm", none),
-    // DISABLED ("./test/Atomlang/Threads/stm.scm",              lock),
-    ("./test/Atomlang/Threads/sudoku.scm", none),
-    ("./test/Atomlang/Threads/trapr.scm", none),
-    ("./test/Atomlang/Threads/tsp.scm", none)
-  )
+    ("./test/Atomlang/VMCAI2020/abp.scm", none),
+    ("./test/Atomlang/VMCAI2020/actors.scm", none),
+    ("./test/Atomlang/VMCAI2020/atomicInt.scm", none),
+    ("./test/Atomlang/VMCAI2020/atoms.scm", none),
+ // ("./test/Atomlang/VMCAI2020/bchain.scm", none), // too slow to generate graph
+    ("./test/Atomlang/VMCAI2020/count.scm", none),
+    ("./test/Atomlang/VMCAI2020/dekker.scm", none),
+    ("./test/Atomlang/VMCAI2020/fact.scm", none),
+    ("./test/Atomlang/VMCAI2020/life.scm", none),
+    ("./test/Atomlang/VMCAI2020/matmul.scm", none),
+    ("./test/Atomlang/VMCAI2020/mcarlo.scm", none),
+    ("./test/Atomlang/VMCAI2020/mceval.scm", none),
+    ("./test/Atomlang/VMCAI2020/msort.scm", none),
+    ("./test/Atomlang/VMCAI2020/pc.scm", none),
+ // ("./test/Atomlang/VMCAI2020/phild.scm", none), // deadlocks in some cases
+ // ("./test/Atomlang/VMCAI2020/pp.scm", none), // too slow to generate graph
+    ("./test/Atomlang/VMCAI2020/rng.scm", none),
+    ("./test/Atomlang/VMCAI2020/sieve.scm", none),
+    ("./test/Atomlang/VMCAI2020/sudoku.scm", none),
+    ("./test/Atomlang/VMCAI2020/trapr.scm", none),
+    ("./test/Atomlang/VMCAI2020/treiber-stack.scm", none),
+    ("./test/Atomlang/VMCAI2020/minimax.scm", none) // Sbt tends to hang here on Bertha.
+    )
 
   // Lock implementation by means of atoms.
   val lockPrelude: String =
