@@ -11,7 +11,17 @@
       m
       (cons (car l) (append (cdr l) m))))
 
-(define (build-vector n init f)
+(define (build-vector1 n init f)
+  (letrec ((v (make-vector n init))
+           (loop (lambda (i)
+                   (if (< i n)
+                       (begin
+                         (vector-set! v i (f i))
+                         (loop (+ i 1)))
+                       v))))
+    (loop 0)))
+
+(define (build-vector2 n init f)
   (letrec ((v (make-vector n init))
            (loop (lambda (i)
                    (if (< i n)
@@ -51,9 +61,9 @@
    ;; Current cell content
    (atom (random-bool))))
 (define *field*
-  (build-vector N (make-vector N (new-cell))
+  (build-vector1 N (make-vector N (new-cell))
                 (lambda (i)
-                  (build-vector N (new-cell) (lambda (i) (new-cell))))))
+                  (build-vector2 N (new-cell) (lambda (i) (new-cell))))))
 
 (define (display-field)
   (for-each (lambda (i)

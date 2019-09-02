@@ -41,6 +41,7 @@
 (define (create act state)
   (let* ((name (generate-new-name)))
     (register-new-actor name (lambda () 'toremove))
+    (future (act state name))
     name))
 (define (become self act st)
   (let ((r (act st self)))
