@@ -35,7 +35,7 @@ object BenchTime {
   /* **** General configuration **** */
 
   val address   = NameAddress
-  val tid       = ConcreteTID
+  val tid       = ExpTimeTID
   val timestamp = ZeroCFA[SchemeExp]()
   // Need to use type lattice since replaced (int-top) and (bool-top)by constant values (42 and #t).
   val lattice =

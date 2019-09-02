@@ -19,7 +19,7 @@ import scala.machine.IncAtom
 object BenchReuse {
 
   val address   = NameAddress
-  val tid       = ConcreteTID
+  val tid       = ExpTimeTID
   val timestamp = ZeroCFA[SchemeExp]()
   val lattice =
     new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
