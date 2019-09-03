@@ -19,28 +19,33 @@ object BenchConfig {
 
   // List of benchmarks with the required prelude (none means only the standard prelude).
   val benchmarks: List[(String, Prelude)] = List(
+    /* Sub-second benchmarks */
     ("./test/Atomlang/VMCAI2020/abp.scm", none),
-    ("./test/Atomlang/VMCAI2020/actors.scm", none),
     ("./test/Atomlang/VMCAI2020/atomicInt.scm", none),
     ("./test/Atomlang/VMCAI2020/atoms.scm", none),
- // ("./test/Atomlang/VMCAI2020/bchain.scm", none), // too slow to generate graph
+    ("./test/Atomlang/VMCAI2020/bchain.scm", none),
     ("./test/Atomlang/VMCAI2020/count.scm", none),
     ("./test/Atomlang/VMCAI2020/dekker.scm", none),
     ("./test/Atomlang/VMCAI2020/fact.scm", none),
-    ("./test/Atomlang/VMCAI2020/life.scm", none),
-    ("./test/Atomlang/VMCAI2020/matmul.scm", none),
     ("./test/Atomlang/VMCAI2020/mcarlo.scm", none),
-    ("./test/Atomlang/VMCAI2020/mceval.scm", none),
+    ("./test/Atomlang/VMCAI2020/treiber-stack.scm", none),
+    ("./test/Atomlang/VMCAI2020/trapr.scm", none),
+    ("./test/Atomlang/VMCAI2020/sieve.scm", none),
     ("./test/Atomlang/VMCAI2020/msort.scm", none),
     ("./test/Atomlang/VMCAI2020/pc.scm", none),
- // ("./test/Atomlang/VMCAI2020/phild.scm", none), // deadlocks in some cases
- // ("./test/Atomlang/VMCAI2020/pp.scm", none), // too slow to generate graph
+    ("./test/Atomlang/VMCAI2020/phild.scm", none),
+    ("./test/Atomlang/VMCAI2020/pp.scm", none),
     ("./test/Atomlang/VMCAI2020/rng.scm", none),
-    ("./test/Atomlang/VMCAI2020/sieve.scm", none),
+    ("./test/Atomlang/VMCAI2020/actors.scm", none),
+
+    /* 1-2s benchmarks */
     ("./test/Atomlang/VMCAI2020/sudoku.scm", none),
-    ("./test/Atomlang/VMCAI2020/trapr.scm", none),
-    ("./test/Atomlang/VMCAI2020/treiber-stack.scm", none),
-    ("./test/Atomlang/VMCAI2020/minimax.scm", none) // Sbt tends to hang here on Bertha.
+    ("./test/Atomlang/VMCAI2020/life.scm", none),
+    ("./test/Atomlang/VMCAI2020/matmul.scm", none),
+    ("./test/Atomlang/VMCAI2020/minimax.scm", none),
+
+    /* > 10s benchmarks */
+    ("./test/Atomlang/VMCAI2020/mceval.scm", none),
     )
 
   // Lock implementation by means of atoms.
