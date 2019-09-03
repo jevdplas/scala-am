@@ -100,25 +100,46 @@
 
 (define N (random 5))
 (define data-to-send (build-vector N 0 (lambda (i) (random 100))))
+(define data-to-send2 (build-vector N 0 (lambda (i) (random 100))))
 (define client->server (atom 0))
+(define client->server2 (atom 0))
+(define client->server2-lock (t/new-lock))
 (define client->server-lock (t/new-lock))
 (define server->client (atom #f))
+(define server->client2 (atom #f))
 (define server->client-lock (t/new-lock))
+(define server->client2-lock (t/new-lock))
 (define s (future (server data-to-send client->server client->server-lock
                           server->client server->client-lock
                           0 -1)))
 (define c (future (client 0 server->client server->client-lock
                           client->server client->server-lock
                           1)))
+(define s2 (future (server data-to-send2 client->server2 client->server2-lock
+                          server->client2 server->client2-lock
+                          0 -1)))
+(define c2 (future (client 0 server->client2 server->client2-lock
+                          client->server2 client->server2-lock
+                          1)))
+
 (deref s)
 (deref c)
+(deref s2)
+(deref c2)
 
-(define data-to-send2 (build-vector N 0 (lambda (i) (random 100))))
-(define s2 (future (server data-to-send2 client->server client->server-lock
+(define s (future (server data-to-send client->server client->server-lock
                           server->client server->client-lock
                           0 -1)))
-(define c2 (future (client 0 server->client server->client-lock
+(define c (future (client 0 server->client server->client-lock
                           client->server client->server-lock
                           1)))
+(define s2 (future (server data-to-send2 client->server2 client->server2-lock
+                          server->client2 server->client2-lock
+                          0 -1)))
+(define c2 (future (client 0 server->client2 server->client2-lock
+                          client->server2 client->server2-lock
+                          1)))
+(deref s)
+(deref c)
 (deref s2)
 (deref c2)
