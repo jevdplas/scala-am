@@ -100,7 +100,6 @@
 
 (define N (random 10))
 (define data-to-send (build-vector N 0 (lambda (i) (random 100))))
-; (printf "data to send: ~a~n" data-to-send)
 (define client->server (atom 0))
 (define client->server-lock (t/new-lock))
 (define server->client (atom #f))
@@ -113,3 +112,13 @@
                           1)))
 (deref s)
 (deref c)
+
+(define data-to-send2 (build-vector N 0 (lambda (i) (random 100))))
+(define s2 (future (server data-to-send2 client->server client->server-lock
+                          server->client server->client-lock
+                          0 -1)))
+(define c2 (future (client 0 server->client server->client-lock
+                          client->server client->server-lock
+                          1)))
+(deref s2)
+(deref c2)
