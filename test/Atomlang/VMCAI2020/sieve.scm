@@ -53,15 +53,17 @@
 (define (print-primes list)
   (letrec ((loop (lambda (i N)
                    (if (= i N)
-                       'done
-                       (begin
+                       '()
+                       (cons
+                        (future
                          (if (= (read (vector-ref list i)) 0)
                              (begin
                                (display i)
                                (newline))
-                             #t)
+                             #t))
                          (loop (+ i 1) N))))))
     (loop 2 (vector-length list))))
 
 (define N (+ 10 42))
-(print-primes (sieve N))
+(map (lambda (f) (deref f)) (print-primes (sieve N)))
+

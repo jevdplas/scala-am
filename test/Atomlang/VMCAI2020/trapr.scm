@@ -7,13 +7,11 @@
 
 (define foldl
   (lambda (f base lst)
-
     (define foldl-aux
       (lambda (base lst)
         (if (null? lst)
             base
             (foldl-aux (f base (car lst)) (cdr lst)))))
-
     (foldl-aux base lst)))
 
 (define NumWorkers 42)
@@ -43,16 +41,6 @@
                                 (ry (fx rx)))
                            (loop (+ i 1) (+ acc (* 0.5 (+ ly ry) h))))))))
       (loop 0 0))))
-
-(define (build-vector n init f)
-  (letrec ((v (make-vector n init))
-           (loop (lambda (i)
-                   (if (< i n)
-                       (begin
-                         (vector-set! v i (f i))
-                         (loop (+ i 1)))
-                       v))))
-    (loop 0)))
 
 (define (worker l r h)
   (compute-area l r h))
