@@ -98,7 +98,7 @@
                   out out-lock
                   ack))))
 
-(define N (random 10))
+(define N (random 5))
 (define data-to-send (build-vector N 0 (lambda (i) (random 100))))
 (define client->server (atom 0))
 (define client->server-lock (t/new-lock))
