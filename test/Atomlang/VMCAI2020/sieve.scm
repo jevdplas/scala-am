@@ -64,6 +64,6 @@
                          (loop (+ i 1) N))))))
     (loop 2 (vector-length list))))
 
-(define N (+ 10 42))
+(define N (+ 10 (random 5)))
 (map (lambda (f) (deref f)) (print-primes (sieve N)))
 

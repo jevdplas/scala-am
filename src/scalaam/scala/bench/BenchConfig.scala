@@ -5,8 +5,8 @@ object BenchConfig {
   /* **** Experimental setup **** */
 
   val timeout: Int    = 20 * 60 // 20 minutes
-  val iterations: Int = 20      // ideal: >= 30
-  val startup: Int    = 3       // ideal: +- 10 // Number of iterations to be dropped.
+  val iterations: Int = 30      // ideal: >= 30
+  val startup: Int    = 10       // ideal: +- 10 // Number of iterations to be dropped.
 
   /* **** Benchmarks **** */
 
@@ -22,6 +22,7 @@ object BenchConfig {
     /* Sub-0.1-second benchmarks */
     ("./test/Atomlang/VMCAI2020/dekker.scm", none), // 0.008
     ("./test/Atomlang/VMCAI2020/rng.scm", none), // 0.01
+    ("./test/Atomlang/VMCAI2020/trapr.scm", none), // 0.01
     ("./test/Atomlang/VMCAI2020/atomicInt.scm", none), // 0.01
     ("./test/Atomlang/VMCAI2020/pp.scm", none), // 0.02
     ("./test/Atomlang/VMCAI2020/pc.scm", none), // 0.02
@@ -29,18 +30,15 @@ object BenchConfig {
     ("./test/Atomlang/VMCAI2020/atoms.scm", none), // 0.05
     ("./test/Atomlang/VMCAI2020/count.scm", none), // 0.05
     ("./test/Atomlang/VMCAI2020/mcarlo.scm", none), // 0.09
-
-    ("./test/Atomlang/VMCAI2020/trapr.scm", none), // 0.01 TODO
-    ("./test/Atomlang/VMCAI2020/sieve.scm", none), // 0.01 TODO
+    ("./test/Atomlang/VMCAI2020/sieve.scm", none), // 0.01
+    ("./test/Atomlang/VMCAI2020/abp.scm", none), // 0.09
 
     /* 0.1 - 1 seconds */
     ("./test/Atomlang/VMCAI2020/treiber-stack.scm", none), // 0.1
     ("./test/Atomlang/VMCAI2020/msort2.scm", none), // 0.1
-
-    ("./test/Atomlang/VMCAI2020/abp.scm", none), // 0.2
+    ("./test/Atomlang/VMCAI2020/msort.scm", none), // 0.4
     ("./test/Atomlang/VMCAI2020/sudoku-dynamic.scm", none), // 0.2
     ("./test/Atomlang/VMCAI2020/fact.scm", none), // 0.25
-    ("./test/Atomlang/VMCAI2020/msort.scm", none), // 0.4
     ("./test/Atomlang/VMCAI2020/mqsort.scm", none), // 0.4
     ("./test/Atomlang/VMCAI2020/bchain.scm", none), // 0.4
     ("./test/Atomlang/VMCAI2020/actors.scm", none), // 0.4
@@ -50,8 +48,8 @@ object BenchConfig {
     ("./test/Atomlang/VMCAI2020/life.scm", none), // 1.2
     ("./test/Atomlang/VMCAI2020/matmul.scm", none), // 3.5
     ("./test/Atomlang/VMCAI2020/minimax-less-futures.scm", none), // 5.1
-//
-//    /* > 10s benchmarks */
+
+    /* > 10s benchmarks */
     ("./test/Atomlang/VMCAI2020/minimax.scm", none), // 31.5
     ("./test/Atomlang/VMCAI2020/mceval.scm", none), // 105
     )
