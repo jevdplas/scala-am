@@ -325,8 +325,8 @@ object BenchSoundnessUsingConcrete {
             alat.pointer(ASem.address.Variable(nameAddr))
         case ConcretePointer(Pointer(name, _)) =>
             alat.pointer(ASem.address.Pointer(name))
-        case ConcreteFuture(CSem.tid.TID(exp, _, _, pos)) =>
-            alat.future(ASem.tid.TID(exp, pos)) // Mimick ZeroCFA timestamp.
+        case ConcreteFuture(CSem.tid.TID(exp, CSem.timestamp.T(seed, _), _, pos)) =>
+            alat.future(ASem.tid.TID(exp, pos, ASem.timestamp.T(seed))) // Mimick ZeroCFA timestamp.
         case ConcreteCons(car, cdr) =>
             val ccar = car.map(convertValue).fold(alat.bottom)((x, y) => alat.join(x, y))
             val ccdr = cdr.map(convertValue).fold(alat.bottom)((x, y) => alat.join(x, y))
