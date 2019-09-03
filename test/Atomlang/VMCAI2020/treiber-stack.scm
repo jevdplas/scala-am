@@ -69,4 +69,10 @@
                                   #t))))
       (check-results stacks (interleave push1-ops push2-ops) (interleave pop1-ops pop2-ops)))))
 
-(main (random 5) (random 5))
+(define (main-loop N)
+  (if (= N 0)
+      #t
+      (begin
+        (main (random 5) (random 5))
+        (main-loop (- N 1)))))
+(main-loop (random 10))
