@@ -188,7 +188,7 @@ object BenchTime {
     (mean, stddev)
   }
   def writeTexTableLine(file: String, statMod: List[Measurement], statInc: List[Measurement]): Unit = {
-    val name = file.split("/").last
+    val name = file.split("/").last.split(".scm").head
     val (timeMod, stdMod) = stats(statMod.drop(startup))
     val (timeInc, stdInc) = stats(statInc.drop(startup))
     val color = if (timeMod > timeInc) { "dgreen" } else { "red" }
