@@ -1,9 +1,7 @@
 package scalaam.bench
 
-import scalaam.BenchTime
 import scalaam.bench.BenchConfig._
-
-import scala.bench.{BenchReuse, BenchSoundness}
+import scalaam.bench.{BenchReuse, BenchTime, BenchSoundness}
 
 object BenchAll extends App {
   // display("Benchmarking soundness.")

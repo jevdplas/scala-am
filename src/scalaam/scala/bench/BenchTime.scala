@@ -1,4 +1,4 @@
-package scalaam
+package scalaam.bench
 
 import scalaam.core._
 import scalaam.graph._
@@ -18,6 +18,7 @@ import java.util.{Calendar, Date}
 
 import scalaam.bench.BenchConfig.Prelude._
 import scalaam.bench.BenchConfig._
+import scalaam.StandardPrelude
 
 /**  Contains utilities to compare the different machines. Compares both the runtime and state space size. */
 object BenchTime {

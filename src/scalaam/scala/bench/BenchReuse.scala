@@ -1,4 +1,4 @@
-package scala.bench
+package scalaam.bench
 
 import java.io.{BufferedWriter, FileWriter}
 import java.text.SimpleDateFormat
