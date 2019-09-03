@@ -14,6 +14,10 @@
         (cons (future (swap! atomicInt inc) #t)
               (iter (+ i 1)))
         '()))
-(define futures (iter 0))
-(for-each (lambda (fut) (deref fut) #t) futures)
+
+(for-each (lambda (fut) (deref fut)) (iter 0))
 (= (read atomicInt) N)
+
+(reset! atomicInt 0)
+(for-each (lambda (fut) (deref fut)) (iter 0))
+(= (read atomicInt) (+ N N))
