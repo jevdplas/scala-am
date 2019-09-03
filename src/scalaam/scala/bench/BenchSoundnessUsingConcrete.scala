@@ -124,7 +124,7 @@ object BenchSoundnessUsingConcrete {
 
     def compare(content: String): Unit =
         try {
-            display("\nConcrete")
+            displayf("\nConcrete")
             val (concrete, success) = loopConcrete(content)
             if (success < repetitions) { // This threshold can be modified.
                 displayf(" -> timed out.\n")
