@@ -72,7 +72,7 @@ object BenchTime {
   val configurations: List[Configuration] = /* List(("incOPT", incOPT)) */ List(
     ("modAtom", modAtom),
     ("incAtom", incAtom),
-    ("incCach", incCach)
+    // ("incCach", incCach)
   )
 
   /* **** Experimental output **** */
