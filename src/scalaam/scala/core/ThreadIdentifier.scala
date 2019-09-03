@@ -3,10 +3,14 @@ package scalaam.core
 import scalaam.core.Annotations._
 
 /** A trait for thread identifiers. */
-trait ThreadIdentifier extends SmartHash
+trait ThreadIdentifier extends SmartHash {
+  def pos: Position
+}
 
 /** Type for no threadIdentifiers. Can be used for sequential programs. */
-case object NoTID extends ThreadIdentifier
+case object NoTID extends ThreadIdentifier {
+  def pos = NoPosition
+}
 
 /** Allocator used to allocate thread identifiers of type TID. */
 trait TIDAllocator[TID <: ThreadIdentifier, T, C] {
@@ -43,16 +47,16 @@ object ExpTimeTID {
 
   trait threadID extends ThreadIdentifier
 
-  case class TID[T, C](exp: C, pos: Position) extends threadID {
+  case class TID[T, C](exp: C, pos: Position, t: T) extends threadID {
 
     /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
     override def toString: String =
-      s"$pos"
+      s"$pos/$t"
   }
 
   case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C])
       extends TIDAllocator[threadID, T, C] {
-    def allocate[E](exp: E, pos: Position, t: T): threadID = TID(exp, pos)
+    def allocate[E](exp: E, pos: Position, t: T): threadID = TID(exp, pos, t)
 
   }
 }
@@ -236,5 +240,5 @@ case class BlockableTMap[TID, Context, V](
       (acc, tid) =>
         acc ++ s"($tid -> " ++ getRunnable(tid)
           .foldLeft("")((acc2, context) => acc2 ++ " " ++ context.toString) ++ ")"
-    )
+    ) + s"(${blocked.size} blocked, ${finished.size} finished)"
 }

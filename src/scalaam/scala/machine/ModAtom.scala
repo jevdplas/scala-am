@@ -162,7 +162,7 @@ class ModAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
       // A new process is spawn by the semantics. The machine allocates a new TID and records the state of the new process.
       case NewFuture(ftid: TID @unchecked, tidv, fst, frame: Frame @unchecked, env, store, effs) =>
         val cc_       = KontAddr(fst, time)
-        val newPState = State(ftid, ControlEval(fst, env), cc_, timestamp.initial(ftid.toString))
+        val newPState = State(ftid, ControlEval(fst, env), cc_, timestamp.initial(ftid.pos.toString))
         val curPState = State(tid, ControlKont(tidv), cc, timestamp.tick(time))
         StepResult(
           Set(curPState),
