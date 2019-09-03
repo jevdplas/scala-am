@@ -34,15 +34,9 @@
       (product from to)
       (let ((steps (split from to)))
         (foldl * 1
-               (map (lambda (t)
-                      ;;(display t)
-                      (display (deref t))
-                      (deref t))
+               (map (lambda (t) (deref t))
                     (map (lambda (bounds)
-                           (future 1))
-                            ;(let ((v (fact-thrd (car bounds) (cdr bounds))))
-                            ;  (display v)
-                            ;  v)))
+                           (fact-thrd (car bounds) (cdr bounds)))
                          steps))))))
 
 (define (fact-thrd-ref from to result)

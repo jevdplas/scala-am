@@ -19,33 +19,41 @@ object BenchConfig {
 
   // List of benchmarks with the required prelude (none means only the standard prelude).
   val benchmarks: List[(String, Prelude)] = List(
-    /* Sub-second benchmarks */
-    ("./test/Atomlang/VMCAI2020/abp.scm", none),
-    ("./test/Atomlang/VMCAI2020/atomicInt.scm", none),
-    ("./test/Atomlang/VMCAI2020/atoms.scm", none),
-    ("./test/Atomlang/VMCAI2020/bchain.scm", none),
-    ("./test/Atomlang/VMCAI2020/count.scm", none),
-    ("./test/Atomlang/VMCAI2020/dekker.scm", none),
-    ("./test/Atomlang/VMCAI2020/fact.scm", none),
-    ("./test/Atomlang/VMCAI2020/mcarlo.scm", none),
-    ("./test/Atomlang/VMCAI2020/treiber-stack.scm", none),
-    ("./test/Atomlang/VMCAI2020/trapr.scm", none),
-    ("./test/Atomlang/VMCAI2020/sieve.scm", none),
-    ("./test/Atomlang/VMCAI2020/msort.scm", none),
-    ("./test/Atomlang/VMCAI2020/pc.scm", none),
-    ("./test/Atomlang/VMCAI2020/phild.scm", none),
-    ("./test/Atomlang/VMCAI2020/pp.scm", none),
-    ("./test/Atomlang/VMCAI2020/rng.scm", none),
-    ("./test/Atomlang/VMCAI2020/actors.scm", none),
+    /* Sub-0.1-second benchmarks */
+    ("./test/Atomlang/VMCAI2020/dekker.scm", none), // 0.008
+    ("./test/Atomlang/VMCAI2020/rng.scm", none), // 0.01
+    ("./test/Atomlang/VMCAI2020/atomicInt.scm", none), // 0.01
+    ("./test/Atomlang/VMCAI2020/pp.scm", none), // 0.02
+    ("./test/Atomlang/VMCAI2020/pc.scm", none), // 0.02
+    ("./test/Atomlang/VMCAI2020/phild.scm", none), // 0.03
+    ("./test/Atomlang/VMCAI2020/atoms.scm", none), // 0.05
+    ("./test/Atomlang/VMCAI2020/count.scm", none), // 0.05
+    ("./test/Atomlang/VMCAI2020/mcarlo.scm", none), // 0.09
+
+    ("./test/Atomlang/VMCAI2020/trapr.scm", none), // 0.01 TODO
+    ("./test/Atomlang/VMCAI2020/sieve.scm", none), // 0.01 TODO
+
+    /* 0.1 - 1 seconds */
+    ("./test/Atomlang/VMCAI2020/treiber-stack.scm", none), // 0.1
+    ("./test/Atomlang/VMCAI2020/msort2.scm", none), // 0.1
+
+    ("./test/Atomlang/VMCAI2020/abp.scm", none), // 0.2
+    ("./test/Atomlang/VMCAI2020/sudoku-dynamic.scm", none), // 0.2
+    ("./test/Atomlang/VMCAI2020/fact.scm", none), // 0.25
+    ("./test/Atomlang/VMCAI2020/msort.scm", none), // 0.4
+    ("./test/Atomlang/VMCAI2020/mqsort.scm", none), // 0.4
+    ("./test/Atomlang/VMCAI2020/bchain.scm", none), // 0.4
+    ("./test/Atomlang/VMCAI2020/actors.scm", none), // 0.4
 
     /* 1-2s benchmarks */
-    ("./test/Atomlang/VMCAI2020/sudoku.scm", none),
-    ("./test/Atomlang/VMCAI2020/life.scm", none),
-    ("./test/Atomlang/VMCAI2020/matmul.scm", none),
-    ("./test/Atomlang/VMCAI2020/minimax.scm", none),
-
-    /* > 10s benchmarks */
-    ("./test/Atomlang/VMCAI2020/mceval.scm", none),
+    ("./test/Atomlang/VMCAI2020/sudoku.scm", none), // 1.1
+    ("./test/Atomlang/VMCAI2020/life.scm", none), // 1.2
+    ("./test/Atomlang/VMCAI2020/matmul.scm", none), // 3.5
+    ("./test/Atomlang/VMCAI2020/minimax-less-futures.scm", none), // 5.1
+//
+//    /* > 10s benchmarks */
+    ("./test/Atomlang/VMCAI2020/minimax.scm", none), // 31.5
+    ("./test/Atomlang/VMCAI2020/mceval.scm", none), // 105
     )
 
   // Lock implementation by means of atoms.
