@@ -94,10 +94,14 @@ object BenchTime {
       }) ++ f.getLines.mkString("\n")
       f.close()
       val program: SchemeExp = AtomlangParser.parse(content)
+      var modStats: List[Measurement] = List()
+      var incStats: List[Measurement] = List()
       configurations.foreach { config =>
         try {
           val result = executeExperiment(program, config) // Measurements for startup are not filtered out!
           writeStatistics(file, config._1, result)
+          if (config._1 == "modAtom") { modStats = result }
+          if (config._1 == "incAtom") { incStats = result }
 
           val times            = result.map(_._1).drop(startup)
           val meantime: Double = times.sum / Math.max(times.length, 1)
@@ -109,6 +113,7 @@ object BenchTime {
           case e: Throwable => e.printStackTrace()
         }
       }
+      writeTexTableLine(file, modStats, incStats)
     } catch {
       case e: Throwable => e.printStackTrace()
     }
@@ -160,6 +165,37 @@ object BenchTime {
     }
   }
 
+  var texWriter:  BufferedWriter = _
+  def writeTexTableHeading(): Unit = {
+    texWriter.write("""\begin{table*}[htp]
+  \centering
+  \begin{tabu}{@{}lrcccc@{}}
+    \toprule
+    \textbf{Bench.} & \textbf{\begin{tabular}[c]{@{}c@{}}Non-\\ modular\end{tabular}} & \textbf{\textsc{ModAtom}} & \textbf{\textsc{IncAtom}} & \textbf{Difference} \\ \midrule""")
+    texWriter.write("\n")
+  }
+  def writeTexTableFooter(): Unit = {
+    texWriter.write("""  \end{tabu}
+  \caption{Average time needed by the different static analysers to analyse the given benchmarks in seconds together with the size of the 95\% confidence interval. $\infty$ indicates a time out\iffalse and $-$ indicates an error\fi. Benchmarks for which no result was obtained are omitted.}
+  \label{tab:results:time}
+\end{table*}""")
+    texWriter.write("\n")
+  }
+  def stats(measures: List[Measurement]): (Double, Double) = {
+    val mean = measures.map(_._1).sum / measures.size
+    val variance = (measures.map(m => (m._1 - mean) * (m._1 - mean)).sum) / measures.size
+    val stddev = scala.math.sqrt(variance)
+    (mean, stddev)
+  }
+  def writeTexTableLine(file: String, statMod: List[Measurement], statInc: List[Measurement]): Unit = {
+    val name = file.split("/").last
+    val (timeMod, stdMod) = stats(statMod.drop(startup))
+    val (timeInc, stdInc) = stats(statInc.drop(startup))
+    val color = if (timeMod > timeInc) { "dgreen" } else { "red" }
+    val diff = - (((timeMod - timeInc) / timeMod) * 100)
+    texWriter.write(f"$name & $$ \\infty$$ & $timeMod%.3f $$ \\pm$$ $stdMod%.3f\\phantom{00} & $timeInc%.3f $$ \\pm$$ $stdInc%.3f\\phantom{00} & {\\color{$color}\\phantom{9}$$$diff%2.2f$$ \\%%} \\\\\n")
+  }
+
   def main(args: Array[String]): Unit = {
     // Avoid overwriting old results by appending the date and time to the file name.
     val now: Date                = Calendar.getInstance().getTime
@@ -171,10 +207,14 @@ object BenchTime {
 
     val out = new BufferedWriter(new FileWriter(output))
     writer = new CSVWriter(out)
+    texWriter = new BufferedWriter(new FileWriter("./Results_TimeComparison" + format.format(now) + ".tex"))
+    writeTexTableHeading()
 
     writer.writeNext(fields.mkString(","))
     writer.flush()
     benchmarks.foreach(Function.tupled(forFile))
+    writeTexTableFooter()
+    texWriter.close()
     writer.close()
     display("\n\n***** Finished *****\n")
   }
