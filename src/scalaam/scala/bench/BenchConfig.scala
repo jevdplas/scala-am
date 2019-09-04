@@ -19,6 +19,10 @@ object BenchConfig {
 
   // List of benchmarks with the required prelude (none means only the standard prelude).
   val benchmarks: List[(String, Prelude)] = List(
+    /* Unknown time */
+    ("./test/Atomlang/VMCAI2020/bubbles.scm", none),
+    ("./test/Atomlang/VMCAI2020/msort2.scm", none),
+
     /* Sub-0.1-second benchmarks */
     ("./test/Atomlang/VMCAI2020/dekker.scm", none), // 0.008
     ("./test/Atomlang/VMCAI2020/rng.scm", none), // 0.01

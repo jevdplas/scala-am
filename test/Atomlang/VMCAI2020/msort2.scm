@@ -2,15 +2,16 @@
 
 (define (append l1 l2)
   (if (null? l1)
-      l2
-      (cons (car l1) (append (cdr l1) l2))))
+    l2
+    (cons (car l1) (append (cdr l1) l2))))
 
 (define (reverse l)
   (let loop ((cur l)
-             (res '()))
-     (if (null? cur)
-          res
-          (loop (cdr l) (append (car l) res)))))
+              (res '()))
+    (if (null? cur)
+      res
+      (loop (cdr cur)
+        (cons (car cur) res)))))
 
 (define (merge l-one l-two)
   (let loop ((l1 l-one)
@@ -34,7 +35,7 @@
 (define (mergesort lst)
   (let ((len (length lst)))
     (cond ((>= 1 len) lst)
-      ;   ((>= 10 len) (bubble-sort lst))
+      ; ((>= 10 len) (bubble-sort lst))
       (else
         (let* ((splt (split-at lst (floor (/ len 2))))
                 (snd  (future (mergesort (cdr splt))))
