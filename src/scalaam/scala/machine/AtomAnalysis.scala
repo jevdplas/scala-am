@@ -241,10 +241,13 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
         StepResult(Set.empty, Set.empty, Some(v), Set.empty, store, kstore)
       // Continue with a given value, given the continuation frame in this state. Pops this frame of the stack.
       case ControlKont(v) =>
+        val konts = kstore.lookup(cc)
+        if (!konts.isDefined) {
+          /* This is usually a bug. If a continuation address exists, its continuation should be in the kstore */
+        }
         val init: StepResult =
           StepResult(Set.empty, Set.empty, Option.empty, Set.empty, store, kstore)
-        kstore
-          .lookup(cc)
+        konts
           .foldLeft(init)(
             (acc1, konts) => // Lookup all associated continuation frames.
             konts.foldLeft(acc1) {
@@ -315,20 +318,21 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
           else {
             // If the state has not been explored yet, take a step
             val StepResult(succs, crea, res, effs, sto, ksto) =
-              curState.step(iState.store, iState.kstore, iState.results)
+              curState.step(iStateAcc.store, iStateAcc.kstore, iStateAcc.results)
             if (succs.size == 1 && succs.head.isError) {
-              println(s"Error state: ${succs.head}")
+              // println(s"Error state: ${succs.head}")
+              ()
             }
-            val deps = extractDependencies(iState.stid, iState.deps, curState, effs)
+            val deps = extractDependencies(iStateAcc.stid, iStateAcc.deps, curState, effs)
             val vis =
               if (!sto.asInstanceOf[DeltaStore[A, V]].updated.isEmpty || !ksto
                 .asInstanceOf[DeltaStore[KAddr, Set[Kont]]]
                 .updated
                 .isEmpty) Set.empty[State]
               else
-                iState.visited + curState // Immediately clear the visited set upon a store change.
+                iStateAcc.visited + curState // Immediately clear the visited set upon a store change.
 
-            InnerLoopState(iState.stid, iStateAcc.work ++ succs,
+            InnerLoopState(iStateAcc.stid, iStateAcc.work ++ succs,
               sto.asInstanceOf[DeltaStore[A, V]].clearUpdated,
               ksto.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].clearUpdated,
               iStateAcc.results,
@@ -564,8 +568,13 @@ class IncAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     j.toList
 
   def statesAddedFromEffects(deps: Deps, store: VStore, threads: Threads, oState: OuterLoopState, stid: TID): List[State] = {
+    /* For all written addresses */
     deps.written.keySet.foldLeft(List[State]())((acc, addr) =>
-      if (oState.store.lookup(addr) == store.lookup(addr)) acc
-      else acc ++ deps.read(addr).filter(_.tid != stid) ++ deps.written(addr).filter(_.tid != stid))
+      if (oState.store.lookup(addr) == store.lookup(addr))
+        /* If it was updated but didn't actually change, do nothing */
+        acc
+      else
+        /* If it changed, we add all states that read from that address (on a different thread id) */
+        acc ++ deps.read(addr).filter(_.tid != stid) ++ deps.written(addr).filter(_.tid != stid))
   }
 }
