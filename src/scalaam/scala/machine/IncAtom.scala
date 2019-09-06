@@ -30,6 +30,9 @@ class IncAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   type StateReadDeps  = Map[A, Set[State]]
   type StateWriteDeps = Map[A, Set[State]]
 
+  def joinMaps[A, B](m1: Map[A, Set[B]], m2: Map[A, Set[B]]): Map[A, Set[B]] =
+    m2.foldLeft(m1)({ case (map, (k, v)) => map + (k -> (map.getOrElse(k, Set()) ++ v)) })
+
   var theLabels: List[(Int, Map[Int, Int])] = List()
 
   /** Class collecting the dependencies of all threads. */
@@ -128,6 +131,7 @@ class IncAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
       oState.work.foldLeft(oState.copy(work = List())) {
         case (oStateAcc, curState) =>
           val stid: TID = curState.tid
+          // println(s"----------- Analyzing $stid")
           val iState = innerLoop(
             timeout,
             InnerLoopState(List(curState), oStateAcc.store, oStateAcc.kstore, oStateAcc.results)
@@ -145,9 +149,11 @@ class IncAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
                   )
             }
           // Add the newly found dependencies.
-          val readDeps  = oStateAcc.deps.read ++ iState.deps.read
-          val writeDeps = oStateAcc.deps.written ++ iState.deps.written
-          val joinDeps  = oStateAcc.deps.joined ++ iState.deps.joined
+          val readDeps  = joinMaps(oStateAcc.deps.read, iState.deps.read)
+          val writeDeps = joinMaps(oStateAcc.deps.written, iState.deps.written)
+          val joinDeps  = joinMaps(oStateAcc.deps.joined, iState.deps.joined)
+          // println(s"New deps: ${iState.deps.joined}")
+          // println(s"Old deps: ${oState.deps.joined}")
           // Based on R/W and W/W conflicts, decide on the states that need re-evaluation.
           val todoEffects: List[State] = iState.deps.written.keySet.foldLeft(List[State]())(
             (acc, addr) =>
@@ -157,8 +163,11 @@ class IncAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
           )
           // Calculate the thread's new return value. If it differs, some other threads joining this thread need re-evaluation.
           val retVal: V = lattice.join(oStateAcc.results(stid), iState.result)
+          // println(s"$stid terminated with $retVal")
+          // for { st <- joinDeps(stid) } { println(s"joinDep ${st.tid} -> $st") }
           val todoJoined: Set[State] =
             if (oStateAcc.results(stid) == retVal) Set.empty else joinDeps(stid)
+          // println(s"todoJoined is $todoJoined")
           val fromInterference
               : Set[State] = todoJoined ++ todoEffects // Use a set to suppress duplicates.
           OuterLoopState(
