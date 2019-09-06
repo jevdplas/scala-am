@@ -42,7 +42,7 @@ object Sem {
   import scalaam.language.scheme._
 
   val address   = NameAddress
-  val tid       = ConcreteTID
+  val tid       = ExpTimeTID
   val timestamp = ZeroCFA[SchemeExp]()
   val lattice =
     new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
@@ -99,7 +99,7 @@ object ModAtomRun {
   import scalaam.graph._
   import Sem._
 
-  val machine = new ModAtom[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](
+  val machine = new ModAtomAnalysis[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](
     StoreType.DeltaStore,
     sem,
     tid.Alloc()
@@ -190,7 +190,7 @@ object IncAtomRun {
 
   import Sem._
 
-  val machine = new IncAtom[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](
+  val machine = new IncAtomAnalysis[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](
     StoreType.DeltaStore,
     sem,
     tid.Alloc()
