@@ -496,8 +496,8 @@ class ModAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
 )(implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
     extends AtomAnalysis[Exp, A, V, T, TID](t, sem, allocator) {
   type JoinDepsCodomain = TID
-  type AddrDepsDomain = TID
-  type AddrDepsCodomain = A
+  type AddrDepsDomain = A
+  type AddrDepsCodomain = TID
 
   def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps =
     effs.foldLeft(deps) {
@@ -506,9 +506,9 @@ class ModAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
           case JoinEff(tid: TID @unchecked) =>
             deps.copy(joined = deps.joined + (tid -> (deps.joined(tid) + stid)))
           case ReadAddrEff(target: A @unchecked) =>
-            deps.copy(read = deps.read + (stid -> (deps.read(stid) + target)))
+            deps.copy(read = deps.read + (target -> (deps.read(target) + stid)))
           case WriteAddrEff(target: A @unchecked) =>
-            deps.copy(written = deps.written + (stid -> (deps.written(stid) + target)))
+            deps.copy(written = deps.written + (target -> (deps.written(target) + stid)))
           case _ => deps
         }
     }
@@ -518,24 +518,15 @@ class ModAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     j.flatMap(threads).toList
 
   def statesAddedFromEffects(deps: Deps, store: VStore, threads: Threads, oState: OuterLoopState, stid: TID): List[State] = {
-    val fromRead = deps.read.keySet.foldLeft(Set[TID]())((acc, curTid) =>
-      if (stid != curTid &&
-        deps.written(stid)
-        .intersect(oState.deps.read(curTid))
-        .exists(addr => oState.store.lookup(addr) != store.lookup(addr)))
-        acc + curTid
-      else acc
-    )
-    val fromWrite = deps.written.keySet.foldLeft(fromRead)((acc, curTid) =>
-      if (stid != curTid &&
-        deps.written(stid)
-        .intersect(oState.deps.written(curTid))
-        .exists(addr => oState.store.lookup(addr) != store.lookup(addr)))
-        acc + curTid
-      else
+    /* For all written addresses */
+    deps.written.keySet.foldLeft(List[State]())((acc, addr) =>
+      if (oState.store.lookup(addr) == store.lookup(addr))
+        /* If it was updated but didn't actually change, do nothing */
         acc
+      else
+        /* If it changed, we add all states that read from that address (on a different thread id) */
+        acc ++ deps.read(addr).filter(_ != stid).toList.flatMap(threads) ++ deps.written(addr).filter(_ != stid).toList.flatMap(threads)
     )
-    fromWrite.toList.flatMap(threads)
   }
 }
 
