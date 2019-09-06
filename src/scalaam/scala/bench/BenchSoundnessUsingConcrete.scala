@@ -17,7 +17,7 @@ import scalaam.language.atomlang._
 import scalaam.language.scheme._
 import scalaam.graph.DotGraph
 
-import scala.machine.IncAtom
+import scala.machine.{IncAtomAnalysis, ModAtomAnalysis}
 
 object BenchSoundnessUsingConcrete {
 
@@ -57,7 +57,7 @@ object BenchSoundnessUsingConcrete {
     val clat = SchemeLattice[CSem.lattice.L, SchemeExp, CSem.address.A]
 
     val incAtom =
-        new IncAtom[SchemeExp, ASem.address.A, ASem.lattice.L, ASem.timestamp.T, ASem.tid.threadID](
+        new IncAtomAnalysis[SchemeExp, ASem.address.A, ASem.lattice.L, ASem.timestamp.T, ASem.tid.threadID](
             StoreType.DeltaStore,
             ASem.sem,
             ASem.tid.Alloc()
@@ -66,7 +66,7 @@ object BenchSoundnessUsingConcrete {
     val alat = SchemeLattice[ASem.lattice.L, SchemeExp, ASem.address.A]
 
     // Configuration.
-    val repetitions = 25 //500 // Number of concrete experiments to run.
+    val repetitions = 10 //500 // Number of concrete experiments to run.
     val timeout: Int = 30 * 60 // 10 minutes
   val benchmarks: List[String] = BenchConfig.benchmarks.map(_._1)
     // Setup.
@@ -118,7 +118,8 @@ object BenchSoundnessUsingConcrete {
 
             if (concrete.keySet != abs.keySet) {
                 if (concrete.keySet.subsetOf(abs.keySet)) {
-                    displayf(s"\nAbstract has observed extra variables: ${abs.keySet.diff(concrete.keySet)}")
+                  // displayf(s"\nAbstract has observed extra variables: ${abs.keySet.diff(concrete.keySet)}")
+                  ()
                 } else {
                     displayf(s"\nUNSOUND: concrete has observed extra variables: ${concrete.keySet.diff(abs.keySet)}")
                     return
@@ -131,13 +132,15 @@ object BenchSoundnessUsingConcrete {
                 val concr = abstracted(id)
                 val absv = abs(id)
                 if (concr == absv)
-                    displayf(s"$id - OK: $concr")
+                  // displayf(s"$id - OK: $concr")
+                  ()
                 else if (!alat.subsumes(absv, concr)) {
                     display(s"\n$id - UNSOUND: inferred $absv where required $concr.")
                     displayf(s"$id - UNSOUND: inferred $absv where required $concr.")
                 } else {
-                    display(s"\n$id - Precision loss: inferred $absv where $concr suffices.")
-                    displayf(s"$id - Precision loss: inferred $absv where $concr suffices.")
+                    // display(s"\n$id - Precision loss: inferred $absv where $concr suffices.")
+                    // displayf(s"$id - Precision loss: inferred $absv where $concr suffices.")
+                  ()
                 }
             })
 
@@ -302,7 +305,7 @@ object BenchSoundnessUsingConcrete {
         case ConcretePointer(Pointer(name, _)) =>
             alat.pointer(ASem.address.Pointer(name))
         case ConcreteFuture(CSem.tid.TID(exp, CSem.timestamp.T(seed, _), _, pos)) =>
-            alat.future(ASem.tid.TID(exp, pos, ASem.timestamp.T(seed))) // Mimick ZeroCFA timestamp.
+            alat.future(ASem.tid.TID(exp, pos, ASem.timestamp.T(seed.split("@").last))) // Mimick ZeroCFA timestamp.
         case ConcreteCons(car, cdr) =>
             val ccar = car.map(convertValue).fold(alat.bottom)((x, y) => alat.join(x, y))
             val ccdr = cdr.map(convertValue).fold(alat.bottom)((x, y) => alat.join(x, y))

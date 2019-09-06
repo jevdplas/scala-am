@@ -53,13 +53,13 @@ object BenchTime {
     sem,
     tid.Alloc()
   )
-  val modAtom = new ModAtom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](
+  val modAtom = new ModAtomAnalysis[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](
     StoreType.DeltaStore,
     sem,
     tid.Alloc()
   )
   //val botMOD = new ConcurrentModularBottom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](StoreType.BasicStore, sem, tid.Alloc())
-  val incAtom = new IncAtom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](
+  val incAtom = new IncAtomAnalysis[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](
     StoreType.DeltaStore,
     sem,
     tid.Alloc()
