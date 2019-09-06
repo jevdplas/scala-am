@@ -17,7 +17,6 @@ import scalaam.lattice.Type
 import scala.machine.IncAtom
 
 object BenchReuse {
-
   val address   = NameAddress
   val tid       = ExpTimeTID
   val timestamp = ZeroCFA[SchemeExp]()
@@ -73,7 +72,7 @@ object BenchReuse {
   }
 
   def main(args: Array[String]): Unit = {
-
+    throw new Exception("TODO: adapt reuse benchmarks to use new IncAtomAnalysis machine")
     val now: Date                = Calendar.getInstance().getTime
     val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
     val output: String           = "./Results_ReuseInc" + format.format(now) + ".csv"
