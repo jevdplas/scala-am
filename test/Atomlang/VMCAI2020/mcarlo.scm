@@ -1,6 +1,6 @@
 ;; Monte-carlo simulation using thrds
-(define MAXSIZE (random 10))
-(define ITERATIONS (random 100))
+(define MAXSIZE (+ 1 (random 10)))
+(define ITERATIONS (+ 1 (random 10)))
 
 (define (inside-circle? radius x y)
   (< (+ (* x x) (* y y)) (* radius radius)))

@@ -70,7 +70,7 @@
       '()
       (cons (random 100) (generate-list (- size 1)))))
 
-(define L (generate-list (random 100)))
+(define L (generate-list (random 10)))
 (sorted? (merge-sort L))
 (sorted? (quick-sort L))
 (equal? (merge-sort L) (quick-sort L))
