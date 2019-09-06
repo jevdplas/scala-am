@@ -16,8 +16,8 @@
           '()
           (error "map applied to a non-list"))))
 
-(define N (+ 1 42))
-(define Turns 42)
+(define N (+ 1 (random 5)))
+(define Turns (random 5))
 
 (define (build-vector n init f)
   (letrec ((v (make-vector n init))

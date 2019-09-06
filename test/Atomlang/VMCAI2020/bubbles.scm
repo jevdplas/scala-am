@@ -67,9 +67,15 @@
       (begin (deref (vector-ref futures i))
         (finish (+ i 1))))))
 
-(define u (vector 1 3 5 6 3 6 -34 -6))
-(define v (vector 1 3 5 6 3 6 -34 -6))
-(define w (vector 1 3 5 6 3 6 -34 -6))
+(define n1 (random 10))
+(define n2 (random 10))
+(define n3 (random 10))
+(define n4 (- (random 10) 10))
+(define n5 (- (random 10) 10))
+(define n6 (- (random 10) 10))
+(define u (vector n1 n2 n6))
+(define v (vector n1 n2 n6))
+(define w (vector n1 n2 n6))
 
 (bubbles-classic u)
 (bubbles-odd-even v)

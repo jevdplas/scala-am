@@ -55,5 +55,7 @@
       '()
     (cons (- (random 250) (random 500)) (generate-list (- size 1)))))
 
-(define lst (generate-list (random 100)))
+(define lst (generate-list (random 10)))
 (sorted? (mergesort lst))
+
+

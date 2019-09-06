@@ -36,7 +36,7 @@
         (foldl * 1
                (map (lambda (t) (deref t))
                     (map (lambda (bounds)
-                           (fact-thrd (car bounds) (cdr bounds)))
+                           (future (fact-thrd (car bounds) (cdr bounds))))
                          steps))))))
 
 (define (fact-thrd-ref from to result)

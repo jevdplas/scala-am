@@ -1,4 +1,5 @@
 ;; Adapted from https://medium.com/@lhartikk/a-blockchain-in-200-lines-of-code-963cc1cc0e54
+;; Adapted from https://medium.com/@lhartikk/a-blockchain-in-200-lines-of-code-963cc1cc0e54
 (define (block index prev-hash timestamp data hash)
   (list 'block index prev-hash timestamp data hash))
 
@@ -63,7 +64,8 @@
 
 (define *blockchain*
   (atom (list
-          (block 0 0 1509658251 "genesis block" (calculate-hash 0 0 1598658251 "genesis-block")))))
+         (block 0 0 1509658251 '(0) ;; "genesis block"
+                (calculate-hash 0 0 1598658251 '(0))))))
 
 (define (show-blockchain)
   (for-each (lambda (b) (display (block-data b)) (display " "))
@@ -113,9 +115,10 @@
 (deref extra-miner1)
 (deref extra-miner2)
 (define miners2
-  (map (lambda (i) (future
-                     (miner NBlocksPerMiner
-                       (list-ref miner-data (modulo i (length miner-data))))))
+  (map (lambda (i)
+         (future
+          (miner NBlocksPerMiner
+                 (list-ref miner-data (modulo i (length miner-data))))))
        (range 0 NMiners)))
-(map (lambda (t) (deref t)) (miners2))
+(map (lambda (t) (deref t)) miners2)
 (show-blockchain)

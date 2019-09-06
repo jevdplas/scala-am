@@ -44,14 +44,14 @@
   (display (cnt 'get))
   (newline))
 
-(define exp1 (future (launch-experiment (random 2))))
-(define exp2 (future (launch-experiment (random 5))))
-(define exp3 (future (launch-experiment (random 7))))
-(define exp4 (future (launch-experiment (random 10))))
+(define exp1 (future (launch-experiment (+ 1 (random 2)))))
+(define exp2 (future (launch-experiment (+ 1 (random 5)))))
+(define exp3 (future (launch-experiment (+ 1 (random 7)))))
+(define exp4 (future (launch-experiment (+ 1 (random 10)))))
 
-(terminate-experiment exp1)
-(terminate-experiment exp2)
-(terminate-experiment exp3)
-(terminate-experiment exp4)
+(terminate-experiment (deref exp1))
+(terminate-experiment (deref exp2))
+(terminate-experiment (deref exp3))
+(terminate-experiment (deref exp4))
 
 
