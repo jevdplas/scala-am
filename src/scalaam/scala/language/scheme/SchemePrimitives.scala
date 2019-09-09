@@ -1263,12 +1263,12 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     object MakeVector extends Primitive {
       val name = "make-vector"
       def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T) = {
-        def createVec(size: V, init: V): MayFail[(V, Store[A, V]), Error] = {
+        def createVec(size: V, init: V): MayFail[(V, Store[A, V], Effects), Error] = {
           isInteger(size) >>= (
               isint =>
                 if (isTrue(isint)) {
                   val veca = allocator.pointer(fexp, t)
-                  vector(size, init) >>= (vec => (pointer(veca), store.extend(veca, vec)))
+                  vector(size, init) >>= (vec => (pointer(veca), store.extend(veca, vec), Effects.wAddr(veca)))
                 } else {
                   MayFail.failure(PrimitiveNotApplicable(name, args.map(_._2)))
                 }
@@ -1277,9 +1277,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         args match {
           case (_, size) :: Nil =>
             createVec(size, /* XXX: unspecified */ bool(false))
-              .map(t => (t._1, t._2, Effects.noEff()))
           case (_, size) :: (_, init) :: Nil =>
-            createVec(size, init).map(t => (t._1, t._2, Effects.noEff()))
+            createVec(size, init)
           case l => MayFail.failure(PrimitiveVariadicArityError(name, 1, l.size))
         }
       }
