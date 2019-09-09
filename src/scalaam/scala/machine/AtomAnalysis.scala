@@ -281,7 +281,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     */
   case class InnerLoopState(
     stid: TID,
-    work: List[State],
+    work: Set[State],
     store: VStore,
     kstore: KStore,
     results: RetVals,
@@ -308,9 +308,12 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   @scala.annotation.tailrec
   final def innerLoop(timeout: Timeout.T, iState: InnerLoopState): InnerLoopState = {
     if (timeout.reached || iState.work.isEmpty) return iState
+    intraRuns += 1
+    intraIterations += 1
     innerLoop(
       timeout,
-      iState.work.foldLeft(iState.copy(work = List())) {
+      profile("innerLoop") { 
+      iState.work.foldLeft(iState.copy(work = Set())) {
         case (iStateAcc, curState) =>
           if (iStateAcc.visited.contains(curState)) {
             iStateAcc // If the state has been explored already, do not take a step
@@ -343,7 +346,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
               iStateAcc.effects ++ effs,
               iStateAcc.edges + (curState -> succs))
           }
-      })
+      }})
   }
 
   /**
@@ -358,7 +361,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     */
   case class OuterLoopState(
     threads: Threads,
-    work: List[State],
+    work: Set[State],
     deps: Deps,
     results: RetVals,
     store: VStore,
@@ -366,11 +369,11 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     edges: Edges
   ) extends SmartHash
 
-  def statesRemoved(todo: List[State]): List[State]
+  def statesRemoved(todo: Set[State]): Set[State]
 
-  def statesAddedFromJoin(j: Set[JoinDepsCodomain], threads: Threads): List[State]
+  def statesAddedFromJoin(j: Set[JoinDepsCodomain], threads: Threads): Set[State]
 
-  def statesAddedFromEffects(deps: Deps, store: VStore, threads: Threads, oState: OuterLoopState, stid: TID): List[State]
+  def statesAddedFromEffects(deps: Deps, store: VStore, threads: Threads, oState: OuterLoopState, stid: TID): Set[State]
 
   /**
     * Performs the fixed-point computation for the entire program. Uses the innerLoop method to analyse single threads and uses the results and dependencies returned from this
@@ -380,16 +383,25 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     * @param iteration  The current iteration of the outer loop. This argument can be omitted.
     * @return A Map of TIDs to graphs.
     */
+  var intraIterations = 0
+
   @scala.annotation.tailrec
   final def outerLoop(timeout: Timeout.T, oState: OuterLoopState, iteration: Int = 1): OuterLoopState = {
     if (timeout.reached || oState.work.isEmpty) return oState
+    interRuns += 1
     outerLoop(
       timeout,
-      oState.work.foldLeft(oState.copy(work = List())) {
-        case (oStateAcc, curState) =>
-          val stid: TID = curState.tid
+      profile("outerLoop") { 
+      profile("grouBy") { oState.work
+        /* TODO: should avoid this groupBy and directly split by tid (otherwise the overhead will impact inc more than mod) */
+        .groupBy(_.tid) }
+        .foldLeft(oState.copy(work = Set())) {
+        case (oStateAcc, (stid, curStates)) =>
+          // val stid: TID = curState.tid
+          intraIterations = 0
           val iState = innerLoop(timeout,
-            InnerLoopState(stid, List(curState), oStateAcc.store, oStateAcc.kstore, oStateAcc.results, oState.deps))
+            InnerLoopState(stid, curStates, oStateAcc.store, oStateAcc.kstore, oStateAcc.results, oState.deps))
+            // println(s"[$iteration] Intra iterations for $stid: $intraIterations")
           // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
           val (todoCreated, newThreads): (Set[State], Threads) =
             iState.created.foldLeft((Set[State](), oStateAcc.threads)) {
@@ -404,15 +416,15 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
             }
           // Module dependencies have been updated and are available in iState.deps
           val deps = iState.deps
-          val todoEffects: List[State] = statesAddedFromEffects(deps, iState.store /* TODO: not sure this is the correct store (correct for inc, not sure for mod) */, newThreads, oStateAcc, stid)
+          val todoEffects: Set[State] = statesAddedFromEffects(deps, iState.store /* TODO: not sure this is the correct store (correct for inc, not sure for mod) */, newThreads, oStateAcc, stid)
 
           // Join the old and new return value. If the return value changes, all other threads joining in this thread need to be reanalysed.
           val retVal: V = lattice.join(oStateAcc.results(stid), iState.result)
-          val todoJoined: List[State] =
-            if (oStateAcc.results(stid) == retVal) List.empty
+          val todoJoined: Set[State] =
+            if (oStateAcc.results(stid) == retVal) Set()
             else statesAddedFromJoin(deps.joined(stid), newThreads)
-          val removedStates1: List[State] = statesRemoved(todoJoined)
-          val removedStates2: List[State] = statesRemoved(todoEffects)
+          val removedStates1: Set[State] = statesRemoved(todoJoined)
+          val removedStates2: Set[State] = statesRemoved(todoEffects)
           OuterLoopState(
             newThreads,
             oStateAcc.work ++ todoCreated ++ todoEffects ++ todoJoined,
@@ -421,6 +433,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
             iState.store,
             iState.kstore,
             (oStateAcc.edges -- removedStates1 -- removedStates2) ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
+        }
       },
       iteration+1
     )
@@ -434,11 +447,17 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     * @tparam G The type of the graph to be returned.
     * @return Returns a state graph representing the collecting semantics of the program that was analysed.
     */
+  var intraRuns: Long = 0
+  var interRuns: Long = 0
+
   def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
+    intraRuns = 0
+    interRuns = 0
+    clearProfiler()
     /** Filters out unreachable graph components that may result from invalidating edges. */
     @scala.annotation.tailrec
     def findConnectedStates(
-      work: List[State],
+      work: Set[State],
       edges: Edges,
       visited: Set[State] = Set.empty,
       acc: GraphEdges = List.empty
@@ -450,7 +469,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
         val next = edges(head)
         // Prepend the edges and work upfront the respective lists (assume next to be much shorter than work/acc).
         findConnectedStates(
-          next.map(_._2).toList ++ work.tail,
+          next.map(_._2) ++ work.tail,
           edges,
           visited + head,
           next.map(t => (head, t._1, t._2)).toList ++ acc
@@ -467,9 +486,10 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     val state: State        = State(tid, control, cc, time)
     val threads: Threads    = Map(tid -> Set(state)).withDefaultValue(Set.empty)
     val vstore: VStore      = Store.initial[A, V](t, sem.initialStore)(lattice)
+    val t0 = System.nanoTime
     val oState: OuterLoopState = OuterLoopState(
       threads, // Threads
-      List(state), // Worklist
+      Set(state), // Worklist
       Deps(
         Map.empty.withDefaultValue(Set.empty), // Join dependencies
         Map.empty.withDefaultValue(Set.empty), // Read dependencies
@@ -482,10 +502,42 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     )
 
     val result: OuterLoopState = outerLoop(timeout, oState)
+    val t1 = System.nanoTime
+
+    println(s"Total execution: ${(t1 - t0) / Math.pow(10, 9)}")
+    dumpProfile()
     theStore = result.store
     // After running the result, possibly unreachable edges may need to be filtered out.
-    Graph[G, State, Transition].empty
-      .addEdges(findConnectedStates(result.threads.values.flatten.toList, result.edges))
+    val t2 = System.nanoTime
+    val res = Graph[G, State, Transition].empty
+      .addEdges(findConnectedStates(result.threads.values.flatten.toSet, result.edges))
+    val t3 = System.nanoTime
+    println(s"Total graph construction: ${(t3 - t2) / Math.pow(10, 9)}")
+    res
+  }
+
+
+  case class ProfileEntry(calls: Int, time: Long) {
+    /* could also add statistics on time (mean, max, min) */
+    def +(p: ProfileEntry): ProfileEntry = ProfileEntry(calls = calls + p.calls, time = time + p.time)
+  }
+  var profileData: Map[String, ProfileEntry] = Map().withDefaultValue(ProfileEntry(0, 0))
+  def clearProfiler() = {
+    profileData = Map().withDefaultValue(ProfileEntry(0, 0))
+  }
+  def profile[W](name: String)(what: => W) = {
+    val t0 = System.nanoTime
+    val res = what
+    val t1 = System.nanoTime
+    profileData = profileData + (name -> (profileData(name) + ProfileEntry(1, (t1 - t0))))
+    res
+  }
+  def dumpProfile() = {
+    profileData.foreach({ case (name, ProfileEntry(calls, time)) =>
+      println(s"$name: $calls calls, took ${time.toDouble / Math.pow(10, 9)}s in total")
+    })
+    println(s"Intra runs: $intraRuns")
+    println(s"Inter runs: $interRuns")
   }
 }
 
@@ -499,7 +551,7 @@ class ModAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   type AddrDepsDomain = A
   type AddrDepsCodomain = TID
 
-  def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps =
+  def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = profile("extractDependencies") {
     effs.foldLeft(deps) {
       case (deps, curEff) =>
         curEff match {
@@ -512,20 +564,21 @@ class ModAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
           case _ => deps
         }
     }
+  }
 
-  def statesRemoved(todo: List[State]): List[State] = List.empty
-  def statesAddedFromJoin(j: Set[JoinDepsCodomain], threads: Threads): List[State] =
-    j.flatMap(threads).toList
+  def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { Set() }
+  def statesAddedFromJoin(j: Set[JoinDepsCodomain], threads: Threads): Set[State] =
+    profile("statesAddedFromJoin") { j.flatMap(threads) }
 
-  def statesAddedFromEffects(deps: Deps, store: VStore, threads: Threads, oState: OuterLoopState, stid: TID): List[State] = {
+  def statesAddedFromEffects(deps: Deps, store: VStore, threads: Threads, oState: OuterLoopState, stid: TID): Set[State] = profile("statesAddedFromEffects") {
     /* For all written addresses */
-    deps.written.keySet.foldLeft(List[State]())((acc, addr) =>
+    deps.written.keySet.foldLeft(Set[State]())((acc, addr) =>
       if (oState.store.lookup(addr) == store.lookup(addr))
         /* If it was updated but didn't actually change, do nothing */
         acc
       else
         /* If it changed, we add all states that read from that address (on a different thread id) */
-        acc ++ deps.read(addr).filter(_ != stid).toList.flatMap(threads) ++ deps.written(addr).filter(_ != stid).toList.flatMap(threads)
+        acc ++ deps.read(addr).filter(_ != stid).flatMap(threads) ++ deps.written(addr).filter(_ != stid).flatMap(threads)
     )
   }
 }
@@ -540,7 +593,7 @@ class IncAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   type AddrDepsDomain = A
   type AddrDepsCodomain = State
 
-  def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps =
+  def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = profile("extractDependencies") {
     effs.foldLeft(deps) {
       case (deps, curEff) => curEff match {
         case JoinEff(tid: TID @unchecked) =>
@@ -552,15 +605,16 @@ class IncAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
         case _ => deps
       }
     }
+  }
 
-  def statesRemoved(todo: List[State]): List[State] = todo
+  def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { todo }
 
-  def statesAddedFromJoin(j: Set[JoinDepsCodomain], threads: Threads): List[State] =
-    j.toList
+  def statesAddedFromJoin(j: Set[JoinDepsCodomain], threads: Threads): Set[State] =
+    profile("statesAddedFromJoin") { j }
 
-  def statesAddedFromEffects(deps: Deps, store: VStore, threads: Threads, oState: OuterLoopState, stid: TID): List[State] = {
+  def statesAddedFromEffects(deps: Deps, store: VStore, threads: Threads, oState: OuterLoopState, stid: TID): Set[State] = profile("statesAddedFromEffects") {
     /* For all written addresses */
-    deps.written.keySet.foldLeft(List[State]())((acc, addr) =>
+    deps.written.keySet.foldLeft(Set[State]())((acc, addr) =>
       if (oState.store.lookup(addr) == store.lookup(addr))
         /* If it was updated but didn't actually change, do nothing */
         acc

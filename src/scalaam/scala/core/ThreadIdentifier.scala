@@ -61,6 +61,25 @@ object ExpTimeTID {
   }
 }
 
+object ExpTID {
+
+  trait threadID extends ThreadIdentifier
+
+  case class TID[T, C](pos: Position) extends threadID {
+
+    /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
+    override def toString: String =
+      s"$pos"
+  }
+
+  case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C])
+      extends TIDAllocator[threadID, T, C] {
+    def allocate[E](exp: E, pos: Position, t: T): threadID = TID(pos)
+
+  }
+}
+
+
 /**
   * A mapping from TIDS to contexts.<br><br>
   * Based on: https://github.com/acieroid/scala-am/blob/744a13a5b957c73a9d0aed6e10f7dae382c9b2e3/src/main/scala/machine/concurrent/ConcurrentAAM.scala#L94
