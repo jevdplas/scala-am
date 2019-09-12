@@ -14,19 +14,18 @@ import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
 import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
 import scalaam.lattice.Type
 
-import scala.machine.IncAtom
+import scala.machine.{IncAtom, IncAtomAnalysis}
 
 object BenchReuse {
   val address   = NameAddress
   val tid       = ExpTimeTID
   val timestamp = ZeroCFA[SchemeExp]()
-  val lattice =
-    new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
-  val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](
+  val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
+  val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](
     address.Alloc[timestamp.T, SchemeExp],
     tid.Alloc()
   )
-  val incAtom = new IncAtom[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](
+  val incAtom = new IncAtomAnalysis[SchemeExp, address.A, lattice.L, timestamp.T, tid.threadID](
     StoreType.DeltaStore,
     sem,
     tid.Alloc()
@@ -72,7 +71,6 @@ object BenchReuse {
   }
 
   def main(args: Array[String]): Unit = {
-    throw new Exception("TODO: adapt reuse benchmarks to use new IncAtomAnalysis machine")
     val now: Date                = Calendar.getInstance().getTime
     val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
     val output: String           = "./Results_ReuseInc" + format.format(now) + ".csv"

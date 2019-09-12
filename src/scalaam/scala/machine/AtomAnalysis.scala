@@ -51,6 +51,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   type UnlabeledEdges = Map[State, Set[State]]
 
   var theStore: VStore = Store.initial[A, V](t, sem.initialStore)(lattice) // This is ugly!
+  var theLabels: List[(Int, Map[Int, Int])] = List()
 
   /** Class used to return all information resulting from stepping this state. */
   case class StepResult(
@@ -522,15 +523,105 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     println(s"Total execution: ${(t1 - t0) / Math.pow(10, 9)}")
     dumpProfile()
     theStore = result.store
+
     // After running the result, possibly unreachable edges may need to be filtered out.
     val t2 = System.nanoTime
-    val res = Graph[G, State, Transition].empty
-      .addEdges(findConnectedStates(result.threads.values.flatten.toSet, result.edges))
+    val res = Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toSet, result.edges))
     val t3 = System.nanoTime
     println(s"Total graph construction: ${(t3 - t2) / Math.pow(10, 9)}")
     res
   }
 
+  def runWithLabels[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
+    intraRuns = 0
+    interRuns = 0
+    clearProfiler()
+
+    /** Filters out unreachable graph components that may result from invalidating edges. */
+    @scala.annotation.tailrec
+    def findConnectedStates(
+                             timeout: Timeout.T,
+                             tid: TID,
+                             work: List[State],
+                             edges: Edges,
+                             visited: Set[State] = Set.empty,
+                             acc: GraphEdges = List.empty,
+                             labels: Map[Int, Int] = Map().withDefaultValue(0)
+                           ): (GraphEdges, Map[Int, Int]) = {
+      if (timeout.reached || work.isEmpty) return (acc, labels)
+      if (visited.contains(work.head))
+        findConnectedStates(timeout, tid, work.tail, edges, visited, acc, labels)
+      else {
+        val head = work.head
+        val next = edges(head)
+        val lbs = next.foldLeft(labels) { (lbs, e) =>
+          val i = e._1.l.toInt
+          lbs + (i -> (lbs(i) + 1))
+        }
+        // Prepend the edges and work upfront the respective lists (assume next to be much shorter than work/acc).
+        findConnectedStates(
+          timeout,
+          tid,
+          next.map(_._2).toList ++ work.tail,
+          edges,
+          visited + head,
+          next.map(t => (head, t._1, t._2)).toList ++ acc,
+          lbs
+        )
+      }
+    }
+
+    val cc: KAddr           = HaltKontAddr
+    val env: Environment[A] = Environment.initial[A](sem.initialEnv)
+    val control: Control    = ControlEval(program, env)
+    val kstore: KStore      = Store.initial[KAddr, Set[Kont]](t, Set.empty)
+    val time: T             = timestamp.initial("")
+    val tid: TID            = allocator.allocate(program, NoPosition, time)
+    val state: State        = State(tid, control, cc, time)
+    val threads: Threads    = Map(tid -> Set(state)).withDefaultValue(Set.empty)
+    val vstore: VStore      = Store.initial[A, V](t, sem.initialStore)(lattice)
+    val t0 = System.nanoTime
+    val oState: OuterLoopState = OuterLoopState(
+      threads, // Threads
+      Set(state), // Worklist
+      Deps(
+        Map.empty.withDefaultValue(Set.empty), // Join dependencies
+        Map.empty.withDefaultValue(Set.empty), // Read dependencies
+        Map.empty.withDefaultValue(Set.empty), // Write dependencies
+      ),
+      Map.empty.withDefaultValue(lattice.bottom), // Return values
+      vstore, // Store
+      kstore, // Continuation store
+      Map.empty // Graph edges
+    )
+
+    val result: OuterLoopState = outerLoop(timeout, oState)
+    val t1 = System.nanoTime
+
+    println(s"Total execution: ${(t1 - t0) / Math.pow(10, 9)}")
+    dumpProfile()
+    theStore = result.store
+
+    // After running the result, possibly unreachable edges may need to be filtered out.
+    val t2 = System.nanoTime
+    val (edg, labels): (GraphEdges, List[(TID, Map[Int, Int])]) =
+      result.threads.keySet
+        .foldLeft((List[(State, Transition, State)](), List[(TID, Map[Int, Int])]())) {
+          case ((edg, lab), td) =>
+            val (e, l): (GraphEdges, Map[Int, Int]) =
+              findConnectedStates(timeout, td, result.threads(td).toList, result.edges)
+            (edg ++ e, (td, l) :: lab)
+        }
+    theLabels = labels
+      .foldLeft((List[(Int, Map[Int, Int])](), 0)) {
+        case ((acc, n), (_, mp)) => ((n, mp) :: acc, n + 1)
+      }
+      ._1
+    val res = Graph[G, State, Transition].empty.addEdges(edg)
+    val t3 = System.nanoTime
+    println(s"Total graph construction: ${(t3 - t2) / Math.pow(10, 9)}")
+    res
+  }
 
   case class ProfileEntry(calls: Int, time: Long) {
     /* could also add statistics on time (mean, max, min) */
@@ -568,6 +659,7 @@ class ModAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { Set() }
   def statesAddedFromJoin(j: Set[RestartTarget], threads: Threads): Set[State] = profile("statesAddedFromJoin") { j.flatMap(threads) }
   def convertToStates(things: Set[TID], threads: Threads): Set[State] = things.flatMap(threads)
+
 }
 
 class IncAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](

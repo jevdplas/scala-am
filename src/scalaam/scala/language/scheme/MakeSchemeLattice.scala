@@ -1,7 +1,6 @@
 package scalaam.language.scheme
 
 import scalaam.core._
-import scalaam.core._
 import scalaam.core.ConcreteVal._
 import scalaam.lattice._
 import scalaam.util.{Monoid, MonoidInstances}
