@@ -38,13 +38,12 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
 
   /* To specify in concrete classes */
   type JoinDepsDomain = TID
-  type JoinDepsCodomain
-  type AddrDepsDomain
-  type AddrDepsCodomain
+  type AddrDepsDomain = A
+  type RestartTarget
 
-  type JoinDeps  = Map[JoinDepsDomain, Set[JoinDepsCodomain]]
-  type ReadDeps = Map[AddrDepsDomain, Set[AddrDepsCodomain]]
-  type WriteDeps = Map[AddrDepsDomain, Set[AddrDepsCodomain]]
+  type  JoinDeps = Map[JoinDepsDomain, Set[RestartTarget]]
+  type  ReadDeps = Map[AddrDepsDomain, Set[RestartTarget]]
+  type WriteDeps = Map[AddrDepsDomain, Set[RestartTarget]]
 
 
   type Edges          = Map[State, Set[(Transition, State)]] // A map is used to overwrite any old edges that would remain present in a List or Set.
@@ -105,7 +104,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
 
     override def metadata =
       GraphMetadataMap(
-        Map("halted" -> GraphMetadataBool(halted), "type" -> GraphMetadataString("concMod"))
+        Map("halted" -> GraphMetadataBool(halted), "type" -> GraphMetadataString("AtomAnalysis"))
       )
 
     /** Indicates whether this state is a final state. */
@@ -242,7 +241,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
       // Continue with a given value, given the continuation frame in this state. Pops this frame of the stack.
       case ControlKont(v) =>
         val konts = kstore.lookup(cc)
-        if (!konts.isDefined) {
+        if (konts.isEmpty) {
           /* This is usually a bug. If a continuation address exists, its continuation should be in the kstore */
         }
         val init: StepResult =
@@ -294,14 +293,23 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   ) extends SmartHash
 
   def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps
+  def extract(target: RestartTarget, deps: Deps, effs: Set[Effect]): Deps = profile("extractDependencies") {
+    effs.foldLeft(deps) {
+      case (deps, curEff) =>
+        curEff match {
+          case JoinEff(tid: TID @unchecked) =>
+            deps.copy(joined = deps.joined + (tid -> (deps.joined(tid) + target)))
+          case ReadAddrEff(addr: A @unchecked) =>
+            deps.copy(read = deps.read + (addr -> (deps.read(addr) + target)))
+          case WriteAddrEff(addr: A @unchecked) =>
+            deps.copy(written = deps.written + (addr -> (deps.written(addr) + target)))
+          case _ => deps
+        }
+    }
+  }
 
   /**
     * Performs the analysis for a single thread.
-    * @param work      A worklist.
-    * @param results   A mapping from TIDs to result values.
-    * @param store     The global store.
-    * @param iteration The iteration of the outer loop.
-    * @param visited   A list of visited states to be omitted during looping. This argument can (should) be omitted.
     * @param iState    An InnerLoopState containing initial bookkeeping information. This argument can (should) be omitted.
     * @return A set of a new global store and an innerloopstate containing extra bookkeeping information for the outer loop.
     */
@@ -312,7 +320,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     intraIterations += 1
     innerLoop(
       timeout,
-      profile("innerLoop") { 
+      profile("innerLoop") {
       iState.work.foldLeft(iState.copy(work = Set())) {
         case (iStateAcc, curState) =>
           if (iStateAcc.visited.contains(curState)) {
@@ -328,10 +336,10 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
             }
             val deps = extractDependencies(iStateAcc.stid, iStateAcc.deps, curState, effs)
             val vis =
-              if (!sto.asInstanceOf[DeltaStore[A, V]].updated.isEmpty || !ksto
+              if (sto.asInstanceOf[DeltaStore[A, V]].updated.nonEmpty || ksto
                 .asInstanceOf[DeltaStore[KAddr, Set[Kont]]]
                 .updated
-                .isEmpty) Set.empty[State]
+                .nonEmpty) Set.empty[State]
               else
                 iStateAcc.visited + curState // Immediately clear the visited set upon a store change.
 
@@ -352,9 +360,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   /**
     * Contains bookkeeping information for the outer loop of the algorithm.
     * @param threads   A map of thread identifiers to sets of initial thread states.
-    * @param readDeps  A map indicating the addresses a thread reads.
-    * @param writeDeps A map indicating the addresses a thread writes to.
-    * @param joinDeps  A map indicating the TIDs a thread joins.
+    * @param deps      The collection of dependencies inferred throughout the analysis.
     * @param results   A map of tids to result values.
     * @param store     The store.
     * @param edges     The edges of the graph.
@@ -371,28 +377,37 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
 
   def statesRemoved(todo: Set[State]): Set[State]
 
-  def statesAddedFromJoin(j: Set[JoinDepsCodomain], threads: Threads): Set[State]
+  def statesAddedFromJoin(j: Set[RestartTarget], threads: Threads): Set[State]
 
-  def statesAddedFromEffects(deps: Deps, store: VStore, threads: Threads, oState: OuterLoopState, stid: TID): Set[State]
+  def statesAddedFromEffects(deps: Deps, store: VStore, threads: Threads, oState: OuterLoopState, stid: TID): Set[State] = profile("statesAddedFromEffects") {
+    /* For all written addresses */
+    deps.written.keySet.foldLeft(Set[State]())((acc, addr) =>
+      if (oState.store.lookup(addr) == store.lookup(addr))
+      /* If it was updated but didn't actually change, do nothing */
+        acc
+      else
+      /* If it changed, we add all states that read from that address (on a different thread id) */
+        acc ++ convertToStates((deps.read(addr) ++ deps.written(addr)).filter(_ != stid), threads)
+    )
+  }
+  def convertToStates(things: Set[RestartTarget], threads: Threads): Set[State]
 
+  var intraIterations = 0
   /**
     * Performs the fixed-point computation for the entire program. Uses the innerLoop method to analyse single threads and uses the results and dependencies returned from this
     * method to steer the computation.
-    * @param work       A worklist.
     * @param oState     An OuterLoopState to contain track of the dependencies between threads and the current global store.
     * @param iteration  The current iteration of the outer loop. This argument can be omitted.
     * @return A Map of TIDs to graphs.
     */
-  var intraIterations = 0
-
   @scala.annotation.tailrec
   final def outerLoop(timeout: Timeout.T, oState: OuterLoopState, iteration: Int = 1): OuterLoopState = {
     if (timeout.reached || oState.work.isEmpty) return oState
     interRuns += 1
     outerLoop(
       timeout,
-      profile("outerLoop") { 
-      profile("grouBy") { oState.work
+      profile("outerLoop") {
+      profile("groupBy") { oState.work
         /* TODO: should avoid this groupBy and directly split by tid (otherwise the overhead will impact inc more than mod) */
         .groupBy(_.tid) }
         .foldLeft(oState.copy(work = Set())) {
@@ -423,8 +438,8 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
           val todoJoined: Set[State] =
             if (oStateAcc.results(stid) == retVal) Set()
             else statesAddedFromJoin(deps.joined(stid), newThreads)
-          val removedStates1: Set[State] = statesRemoved(todoJoined)
-          val removedStates2: Set[State] = statesRemoved(todoEffects)
+          val statesToReanalyse1: Set[State] = statesRemoved(todoJoined)
+          val statesToReanalyse2: Set[State] = statesRemoved(todoEffects)
           OuterLoopState(
             newThreads,
             oStateAcc.work ++ todoCreated ++ todoEffects ++ todoJoined,
@@ -432,12 +447,15 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
             oStateAcc.results + (stid -> retVal),
             iState.store,
             iState.kstore,
-            (oStateAcc.edges -- removedStates1 -- removedStates2) ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
+            (oStateAcc.edges -- statesToReanalyse1 -- statesToReanalyse2) ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
         }
       },
       iteration+1
     )
   }
+
+  var intraRuns: Long = 0
+  var interRuns: Long = 0
 
   /**
     * Analyses a given program in a thread-modular way. Returns a state graph representing the collecting semantics of the program.
@@ -447,9 +465,6 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     * @tparam G The type of the graph to be returned.
     * @return Returns a state graph representing the collecting semantics of the program that was analysed.
     */
-  var intraRuns: Long = 0
-  var interRuns: Long = 0
-
   def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
     intraRuns = 0
     interRuns = 0
@@ -547,40 +562,12 @@ class ModAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   allocator: TIDAllocator[TID, T, Exp]
 )(implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
     extends AtomAnalysis[Exp, A, V, T, TID](t, sem, allocator) {
-  type JoinDepsCodomain = TID
-  type AddrDepsDomain = A
-  type AddrDepsCodomain = TID
+  type RestartTarget = TID
 
-  def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = profile("extractDependencies") {
-    effs.foldLeft(deps) {
-      case (deps, curEff) =>
-        curEff match {
-          case JoinEff(tid: TID @unchecked) =>
-            deps.copy(joined = deps.joined + (tid -> (deps.joined(tid) + stid)))
-          case ReadAddrEff(target: A @unchecked) =>
-            deps.copy(read = deps.read + (target -> (deps.read(target) + stid)))
-          case WriteAddrEff(target: A @unchecked) =>
-            deps.copy(written = deps.written + (target -> (deps.written(target) + stid)))
-          case _ => deps
-        }
-    }
-  }
-
+  def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = extract(stid, deps, effs)
   def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { Set() }
-  def statesAddedFromJoin(j: Set[JoinDepsCodomain], threads: Threads): Set[State] =
-    profile("statesAddedFromJoin") { j.flatMap(threads) }
-
-  def statesAddedFromEffects(deps: Deps, store: VStore, threads: Threads, oState: OuterLoopState, stid: TID): Set[State] = profile("statesAddedFromEffects") {
-    /* For all written addresses */
-    deps.written.keySet.foldLeft(Set[State]())((acc, addr) =>
-      if (oState.store.lookup(addr) == store.lookup(addr))
-        /* If it was updated but didn't actually change, do nothing */
-        acc
-      else
-        /* If it changed, we add all states that read from that address (on a different thread id) */
-        acc ++ deps.read(addr).filter(_ != stid).flatMap(threads) ++ deps.written(addr).filter(_ != stid).flatMap(threads)
-    )
-  }
+  def statesAddedFromJoin(j: Set[RestartTarget], threads: Threads): Set[State] = profile("statesAddedFromJoin") { j.flatMap(threads) }
+  def convertToStates(things: Set[TID], threads: Threads): Set[State] = things.flatMap(threads)
 }
 
 class IncAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
@@ -589,37 +576,10 @@ class IncAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   allocator: TIDAllocator[TID, T, Exp]
 )(implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
     extends AtomAnalysis[Exp, A, V, T, TID](t, sem, allocator) {
-  type JoinDepsCodomain = State
-  type AddrDepsDomain = A
-  type AddrDepsCodomain = State
+  type RestartTarget = State
 
-  def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = profile("extractDependencies") {
-    effs.foldLeft(deps) {
-      case (deps, curEff) => curEff match {
-        case JoinEff(tid: TID @unchecked) =>
-          deps.copy(joined = deps.joined + (tid -> (deps.joined(tid) + curState)))
-        case ReadAddrEff(addr: A @unchecked) =>
-          deps.copy(read = deps.read + (addr -> (deps.read(addr) + curState)))
-        case WriteAddrEff(addr: A @unchecked) =>
-          deps.copy(written = deps.written + (addr -> (deps.written(addr) + curState)))
-        case _ => deps
-      }
-    }
-  }
-
-  def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { todo }
-
-  def statesAddedFromJoin(j: Set[JoinDepsCodomain], threads: Threads): Set[State] =
-    profile("statesAddedFromJoin") { j }
-
-  def statesAddedFromEffects(deps: Deps, store: VStore, threads: Threads, oState: OuterLoopState, stid: TID): Set[State] = profile("statesAddedFromEffects") {
-    /* For all written addresses */
-    deps.written.keySet.foldLeft(Set[State]())((acc, addr) =>
-      if (oState.store.lookup(addr) == store.lookup(addr))
-        /* If it was updated but didn't actually change, do nothing */
-        acc
-      else
-        /* If it changed, we add all states that read from that address (on a different thread id) */
-        acc ++ deps.read(addr).filter(_.tid != stid) ++ deps.written(addr).filter(_.tid != stid))
-  }
+  def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = extract(curState, deps, effs)
+  def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { todo } // TODO Verify why this is needed
+  def statesAddedFromJoin(j: Set[RestartTarget], threads: Threads): Set[State] = profile("statesAddedFromJoin") { j }
+  def convertToStates(things: Set[State], threads: Threads): Set[State] = things
 }
