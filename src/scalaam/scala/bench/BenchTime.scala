@@ -105,8 +105,8 @@ object BenchTime {
 
           val times            = result.map(_._1).drop(startup)
           val meantime: Double = times.sum / Math.max(times.length, 1)
-          val states           = result.map(_._2).drop(startup)
-          val meanstat: Double = (states.sum / Math.max(states.length, 1)).toDouble
+          val states           = result.map(_._2).drop(startup) // TODO: this should be the same every time. We only need the head.
+          val meanstat: Double = (states.sum / Math.max(states.length, 1)).toDouble // TODO: ?
 
           display(s"\nTime:\t$meantime\nStates:\t$meanstat\n")
         } catch {

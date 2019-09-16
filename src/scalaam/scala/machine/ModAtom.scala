@@ -54,7 +54,6 @@ class ModAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
       store: VStore,
       kstore: KStore
   ) {
-    // Adds the accumulator. Important: keeps the store of "this".
     def merge(acc: StepResult): StepResult =
       StepResult(
         successors ++ acc.successors,
@@ -233,6 +232,7 @@ class ModAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
         kstore
           .lookup(cc)
           .foldLeft(init)(
+
             (acc1, konts) => // Lookup all associated continuation frames.
               konts.foldLeft(acc1) {
                 case (acc2, Kont(frame, cc_)) => // For each frame, generate the next actions and accumulate everything (starting from acc1).

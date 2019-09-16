@@ -1,5 +1,6 @@
 package scala.machine
 
+import scalaam.core.Annotations._
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
@@ -10,11 +11,11 @@ import scalaam.graph._
 import scala.core.MachineUtil
 
 abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
-  val t: StoreType,
-  val sem: Semantics[Exp, A, V, T, Exp],
-  val allocator: TIDAllocator[TID, T, Exp]
-)(implicit val timestamp: Timestamp[T, Exp], implicit val lattice: Lattice[V])
-    extends MachineAbstraction[Exp, A, V, T, Exp]
+                                                                               val t: StoreType,
+                                                                               val sem: Semantics[Exp, A, V, T, Exp],
+                                                                               val allocator: TIDAllocator[TID, T, Exp]
+                                                                             )(implicit val timestamp: Timestamp[T, Exp], implicit val lattice: Lattice[V])
+  extends MachineAbstraction[Exp, A, V, T, Exp]
     with MachineUtil[Exp, A, V] {
 
   import sem.Action.{DerefFuture, Err, Eval, NewFuture, Push, StepIn, Value, A => Act}
@@ -23,7 +24,8 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   val seqAAM = new AAM[Exp, A, V, T](t, sem)
   import seqAAM._
 
-  /** Various type declarations. */
+  /* Various type declarations. */
+
   type KAddr = KA
 
   type VStore = Store[A, V]
@@ -36,10 +38,9 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   type Threads   = Map[TID, Set[State]]
   type RetVals   = Map[TID, V]
 
-  /* To specify in concrete classes */
   type JoinDepsDomain = TID
   type AddrDepsDomain = A
-  type RestartTarget
+  type RestartTarget // To specify in concrete classes.
 
   type  JoinDeps = Map[JoinDepsDomain, Set[RestartTarget]]
   type  ReadDeps = Map[AddrDepsDomain, Set[RestartTarget]]
@@ -50,19 +51,19 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   type GraphEdges     = List[(State, Transition, State)]
   type UnlabeledEdges = Map[State, Set[State]]
 
+  /* Variables for benchmarking. */
   var theStore: VStore = Store.initial[A, V](t, sem.initialStore)(lattice) // This is ugly!
   var theLabels: List[(Int, Map[Int, Int])] = List()
 
   /** Class used to return all information resulting from stepping this state. */
   case class StepResult(
-    successors: Successors,
-    created: Created,
-    result: Option[V],
-    effects: Effects,
-    store: VStore,
-    kstore: KStore
-  ) {
-    // Adds the accumulator. Important: keeps the store of "this".
+                         successors: Successors,
+                         created: Created,
+                         result: Option[V],
+                         effects: Effects,
+                         store: VStore,
+                         kstore: KStore
+                       ) {
     def merge(acc: StepResult): StepResult =
       StepResult(
         successors ++ acc.successors,
@@ -85,7 +86,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     * //@param kstore  A continuation store.
     */
   case class State(tid: TID, control: Control, cc: KAddr, time: T)
-      extends GraphElement
+    extends GraphElement
       with SmartHash {
     override def toString: String = s"$tid:${control.toString}"
 
@@ -123,13 +124,13 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
 
     /** Helper function to create new results easily without having to write all fields explicitly. */
     private def newResult(
-      successor: State,
-      effects: Effects,
-      store: VStore,
-      kstore: KStore,
-      created: Created = Set.empty,
-      result: Option[V] = Option.empty
-    ): StepResult = {
+                           successor: State,
+                           effects: Effects,
+                           store: VStore,
+                           kstore: KStore,
+                           created: Created = Set.empty,
+                           result: Option[V] = Option.empty
+                         ): StepResult = {
       StepResult(Set(successor), created, result, effects, store, kstore)
     }
 
@@ -143,13 +144,13 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
       *         as well as bookkeeping information and the resulting store.
       */
     private def act(
-      action: Act,
-      time: T,
-      old: VStore,
-      kstore: KStore,
-      cc: KAddr,
-      results: RetVals
-    ): StepResult = action match {
+                     action: Act,
+                     time: T,
+                     old: VStore,
+                     kstore: KStore,
+                     cc: KAddr,
+                     results: RetVals
+                   ): StepResult = action match {
       // The semantics reached a value => continue with this value.
       case Value(v, store, effs) =>
         newResult(State(tid, ControlKont(v), cc, timestamp.tick(time)), effs, store, kstore)
@@ -208,12 +209,12 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
       * @return Returns a stepResult containing all successor states and bookkeeping information, as well as the final store.
       */
     private def next(
-      actions: Set[Act],
-      old: VStore,
-      kstore: KStore,
-      cc: KAddr,
-      results: RetVals
-    ): StepResult = {
+                      actions: Set[Act],
+                      old: VStore,
+                      kstore: KStore,
+                      cc: KAddr,
+                      results: RetVals
+                    ): StepResult = {
       val init: StepResult = StepResult(Set.empty, Set.empty, Option.empty, Set.empty, old, kstore)
       actions.foldLeft(init)(
         (acc, curAction) => act(curAction, time, acc.store, acc.kstore, cc, results).merge(acc)
@@ -250,19 +251,19 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
         konts
           .foldLeft(init)(
             (acc1, konts) => // Lookup all associated continuation frames.
-            konts.foldLeft(acc1) {
-              case (acc2, Kont(frame, cc_)) => // For each frame, generate the next actions and accumulate everything (starting from acc1).
-                next(
-                  sem.stepKont(v, frame, acc2.store, time),
-                  acc2.store,
-                  acc2.kstore,
-                  cc_,
-                  results
-                ).merge(acc2) // Note that the frame is popped of the stack by passing cc_.
-            }
+              konts.foldLeft(acc1) {
+                case (acc2, Kont(frame, cc_)) => // For each frame, generate the next actions and accumulate everything (starting from acc1).
+                  next(
+                    sem.stepKont(v, frame, acc2.store, time),
+                    acc2.store,
+                    acc2.kstore,
+                    cc_,
+                    results
+                  ).merge(acc2) // Note that the frame is popped of the stack by passing cc_.
+              }
           )
       // Handle an error. This results in no successor states.
-      case ControlError(e) =>
+      case ControlError(_) =>
         StepResult(Set.empty, Set.empty, None, Set.empty, store, kstore)
       // An unknown control component has been reached. Should not happen so throw an error.
       case e => throw new Exception(s"Unsupported control sequence: $e.\n")
@@ -280,18 +281,18 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     * @param edges   A list of graph edges.
     */
   case class InnerLoopState(
-    stid: TID,
-    work: Set[State],
-    store: VStore,
-    kstore: KStore,
-    results: RetVals,
-    deps: Deps,
-    visited: Set[State] = Set.empty,
-    result: V = lattice.bottom,
-    created: Created = Set.empty,
-    effects: Effects = Set.empty,
-    edges: UnlabeledEdges = Map.empty
-  ) extends SmartHash
+                             stid: TID,
+                             work: Set[State],
+                             store: VStore,
+                             kstore: KStore,
+                             results: RetVals,
+                             deps: Deps,
+                             visited: Set[State] = Set.empty,
+                             result: V = lattice.bottom,
+                             created: Created = Set.empty,
+                             effects: Effects = Set.empty,
+                             edges: UnlabeledEdges = Map.empty
+                           ) extends SmartHash
 
   def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps
   def extract(target: RestartTarget, deps: Deps, effs: Set[Effect]): Deps = profile("extractDependencies") {
@@ -322,40 +323,40 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     innerLoop(
       timeout,
       profile("innerLoop") {
-      iState.work.foldLeft(iState.copy(work = Set())) {
-        case (iStateAcc, curState) =>
-          if (iStateAcc.visited.contains(curState)) {
-            iStateAcc // If the state has been explored already, do not take a step
-          }
-          else {
-            // If the state has not been explored yet, take a step
-            val StepResult(succs, crea, res, effs, sto, ksto) =
-              curState.step(iStateAcc.store, iStateAcc.kstore, iStateAcc.results)
-            if (succs.size == 1 && succs.head.isError) {
-              // println(s"Error state: ${succs.head}")
-              ()
+        iState.work.foldLeft(iState.copy(work = Set())) {
+          case (iStateAcc, curState) =>
+            if (iStateAcc.visited.contains(curState)) {
+              iStateAcc // If the state has been explored already, do not take a step
             }
-            val deps = extractDependencies(iStateAcc.stid, iStateAcc.deps, curState, effs)
-            val vis =
-              if (sto.asInstanceOf[DeltaStore[A, V]].updated.nonEmpty || ksto
-                .asInstanceOf[DeltaStore[KAddr, Set[Kont]]]
-                .updated
-                .nonEmpty) Set.empty[State]
-              else
-                iStateAcc.visited + curState // Immediately clear the visited set upon a store change.
+            else {
+              // If the state has not been explored yet, take a step
+              val StepResult(succs, crea, res, effs, sto, ksto) =
+                curState.step(iStateAcc.store, iStateAcc.kstore, iStateAcc.results)
+              if (succs.size == 1 && succs.head.isError) {
+                // println(s"Error state: ${succs.head}")
+                ()
+              }
+              val deps = extractDependencies(iStateAcc.stid, iStateAcc.deps, curState, effs)
+              val vis =
+                if (sto.asInstanceOf[DeltaStore[A, V]].updated.nonEmpty || ksto
+                  .asInstanceOf[DeltaStore[KAddr, Set[Kont]]]
+                  .updated
+                  .nonEmpty) Set.empty[State]
+                else
+                  iStateAcc.visited + curState // Immediately clear the visited set upon a store change.
 
-            InnerLoopState(iStateAcc.stid, iStateAcc.work ++ succs,
-              sto.asInstanceOf[DeltaStore[A, V]].clearUpdated,
-              ksto.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].clearUpdated,
-              iStateAcc.results,
-              deps,
-              vis,
-              lattice.join(iStateAcc.result, res.getOrElse(lattice.bottom)),
-              iStateAcc.created ++ crea,
-              iStateAcc.effects ++ effs,
-              iStateAcc.edges + (curState -> succs))
-          }
-      }})
+              InnerLoopState(iStateAcc.stid, iStateAcc.work ++ succs,
+                sto.asInstanceOf[DeltaStore[A, V]].clearUpdated,
+                ksto.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].clearUpdated,
+                iStateAcc.results,
+                deps,
+                vis,
+                lattice.join(iStateAcc.result, res.getOrElse(lattice.bottom)),
+                iStateAcc.created ++ crea,
+                iStateAcc.effects ++ effs,
+                iStateAcc.edges + (curState -> succs))
+            }
+        }})
   }
 
   /**
@@ -367,16 +368,16 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     * @param edges     The edges of the graph.
     */
   case class OuterLoopState(
-    threads: Threads,
-    work: Set[State],
-    deps: Deps,
-    results: RetVals,
-    store: VStore,
-    kstore: KStore,
-    edges: Edges
-  ) extends SmartHash
+                             threads: Threads,
+                             work: Set[State],
+                             deps: Deps,
+                             results: RetVals,
+                             store: VStore,
+                             kstore: KStore,
+                             edges: Edges
+                           ) extends SmartHash
 
-  def statesRemoved(todo: Set[State]): Set[State]
+  //def statesRemoved(todo: Set[State]): Set[State]
 
   def statesAddedFromJoin(j: Set[RestartTarget], threads: Threads): Set[State]
 
@@ -408,48 +409,44 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     outerLoop(
       timeout,
       profile("outerLoop") {
-      profile("groupBy") { oState.work
-        /* TODO: should avoid this groupBy and directly split by tid (otherwise the overhead will impact inc more than mod) */
-        .groupBy(_.tid) }
-        .foldLeft(oState.copy(work = Set())) {
-        case (oStateAcc, (stid, curStates)) =>
-          // val stid: TID = curState.tid
-          intraIterations = 0
-          val iState = innerLoop(timeout,
-            InnerLoopState(stid, curStates, oStateAcc.store, oStateAcc.kstore, oStateAcc.results, oState.deps))
-            // println(s"[$iteration] Intra iterations for $stid: $intraIterations")
-          // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
-          val (todoCreated, newThreads): (Set[State], Threads) =
-            iState.created.foldLeft((Set[State](), oStateAcc.threads)) {
-              case ((createdAcc, threadsAcc), curState) =>
-                if (threadsAcc(curState.tid).contains(curState))
-                  (createdAcc, threadsAcc) // There already is an identical thread, so do nothing.
-                else
-                  (
-                    createdAcc + curState,
-                    threadsAcc + (curState.tid -> (threadsAcc(curState.tid) + curState))
-                  )
-            }
-          // Module dependencies have been updated and are available in iState.deps
-          val deps = iState.deps
-          val todoEffects: Set[State] = statesAddedFromEffects(deps, iState.store /* TODO: not sure this is the correct store (correct for inc, not sure for mod) */, newThreads, oStateAcc, stid)
+        oState.work.groupBy(_.tid)
+          .foldLeft(oState.copy(work = Set())) {
+            case (oStateAcc, (stid, curStates)) =>
+              // val stid: TID = curState.tid
+              intraIterations = 0
+              // The inner loop immediately updates the (k)store, result map and dependency maps.
+              val iState = innerLoop(timeout, InnerLoopState(stid, curStates, oStateAcc.store, oStateAcc.kstore, oStateAcc.results, oState.deps))
+              // println(s"[$iteration] Intra iterations for $stid: $intraIterations")
+              // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
+              val (todoCreated, newThreads): (Set[State], Threads) =
+              iState.created.foldLeft((Set[State](), oStateAcc.threads)) {
+                case ((createdAcc, threadsAcc), curState) =>
+                  if (threadsAcc(curState.tid).contains(curState))
+                    (createdAcc, threadsAcc) // There already is an identical thread, so do nothing.
+                  else
+                    (createdAcc + curState, threadsAcc + (curState.tid -> (threadsAcc(curState.tid) + curState)))
+              }
+              // Module dependencies have been updated and are available in iState.deps
+              val deps = iState.deps
+              val todoEffects: Set[State] = statesAddedFromEffects(deps, iState.store /* TODO: not sure this is the correct store (correct for inc, not sure for mod) */, newThreads, oStateAcc, stid)
 
-          // Join the old and new return value. If the return value changes, all other threads joining in this thread need to be reanalysed.
-          val retVal: V = lattice.join(oStateAcc.results(stid), iState.result)
-          val todoJoined: Set[State] =
-            if (oStateAcc.results(stid) == retVal) Set()
-            else statesAddedFromJoin(deps.joined(stid), newThreads)
-          val statesToReanalyse1: Set[State] = statesRemoved(todoJoined)
-          val statesToReanalyse2: Set[State] = statesRemoved(todoEffects)
-          OuterLoopState(
-            newThreads,
-            oStateAcc.work ++ todoCreated ++ todoEffects ++ todoJoined,
-            deps,
-            oStateAcc.results + (stid -> retVal),
-            iState.store,
-            iState.kstore,
-            (oStateAcc.edges -- statesToReanalyse1 -- statesToReanalyse2) ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
-        }
+              // Join the old and new return value. If the return value changes, all other threads joining in this thread need to be reanalysed.
+              val retVal: V = lattice.join(oStateAcc.results(stid), iState.result)
+              val todoJoined: Set[State] =
+                if (oStateAcc.results(stid) == retVal) Set()
+                else statesAddedFromJoin(deps.joined(stid), newThreads)
+              // These edges will normally be overwritten anyway when the corresponding states are reanalysed.
+              //val statesToReanalyse1: Set[State] = statesRemoved(todoJoined)
+              //val statesToReanalyse2: Set[State] = statesRemoved(todoEffects)
+              OuterLoopState(
+                newThreads,
+                oStateAcc.work ++ todoCreated ++ todoEffects ++ todoJoined,
+                deps,
+                oStateAcc.results + (stid -> retVal),
+                iState.store,
+                iState.kstore,
+                (oStateAcc.edges /* -- statesToReanalyse1 -- statesToReanalyse2 */) ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
+          }
       },
       iteration+1
     )
@@ -473,11 +470,11 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     /** Filters out unreachable graph components that may result from invalidating edges. */
     @scala.annotation.tailrec
     def findConnectedStates(
-      work: Set[State],
-      edges: Edges,
-      visited: Set[State] = Set.empty,
-      acc: GraphEdges = List.empty
-    ): GraphEdges = {
+                             work: Set[State],
+                             edges: Edges,
+                             visited: Set[State] = Set.empty,
+                             acc: GraphEdges = List.empty
+                           ): GraphEdges = {
       if (timeout.reached || work.isEmpty) return acc
       if (visited.contains(work.head)) findConnectedStates(work.tail, edges, visited, acc)
       else {
@@ -648,30 +645,31 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
 }
 
 class ModAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
-  t: StoreType,
-  sem: Semantics[Exp, A, V, T, Exp],
-  allocator: TIDAllocator[TID, T, Exp]
-)(implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
-    extends AtomAnalysis[Exp, A, V, T, TID](t, sem, allocator) {
+                                                                         t: StoreType,
+                                                                         sem: Semantics[Exp, A, V, T, Exp],
+                                                                         allocator: TIDAllocator[TID, T, Exp]
+                                                                       )(implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
+  extends AtomAnalysis[Exp, A, V, T, TID](t, sem, allocator) {
   type RestartTarget = TID
 
   def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = extract(stid, deps, effs)
-  def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { Set() }
+  //def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { Set() }
   def statesAddedFromJoin(j: Set[RestartTarget], threads: Threads): Set[State] = profile("statesAddedFromJoin") { j.flatMap(threads) }
   def convertToStates(things: Set[TID], threads: Threads): Set[State] = things.flatMap(threads)
 
 }
 
 class IncAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
-  t: StoreType,
-  sem: Semantics[Exp, A, V, T, Exp],
-  allocator: TIDAllocator[TID, T, Exp]
-)(implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
-    extends AtomAnalysis[Exp, A, V, T, TID](t, sem, allocator) {
+                                                                         t: StoreType,
+                                                                         sem: Semantics[Exp, A, V, T, Exp],
+                                                                         allocator: TIDAllocator[TID, T, Exp]
+                                                                       )(implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
+  extends AtomAnalysis[Exp, A, V, T, TID](t, sem, allocator) {
   type RestartTarget = State
 
   def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = extract(curState, deps, effs)
-  def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { todo } // TODO Verify why this is needed
+  @toCheck("Verify why these edges are removed explicitly (should normally be overwritten anyway).") // TODO
+  //def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { todo }
   def statesAddedFromJoin(j: Set[RestartTarget], threads: Threads): Set[State] = profile("statesAddedFromJoin") { j }
   def convertToStates(things: Set[State], threads: Threads): Set[State] = things
 }
