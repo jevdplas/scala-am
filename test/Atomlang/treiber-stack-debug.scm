@@ -1,11 +1,11 @@
 ; Treiber stack as an example of a lock-free data structure using atoms.
 (define (map f l)
-  (if (pair? l)
-      (cons (f (car l)) (map f (cdr l)))
-      '()))
+  (if (null? l)
+    '()
+      (cons (f (car l)) (map f (cdr l)))))
 
-(define (new-stack)
- (atom '()))
+
+
 
 (define (push stk el)
  (let loop ((top (read stk)))
@@ -13,24 +13,24 @@
    (loop (read stk)))))
 
 (define (pop stk)
- (let loop ((top (read stk)))
-  (cond ((null? top) #f)
-        ((compare-and-set! stk top (cdr top)) (car top))
-        (else  (loop (read stk))))))
+
+  #t)
+
+
 
 (define (loop stk n f)
- (if (> n 0)
+ (if #t
   (let ((next (f stk n)))
        (loop stk next f))))
 
-(define (create-stacks n)
-  (cons (atom '())
-    (cons (atom '())
-      (cons (atom '())
-            '()))))
 
-(define (main nstacks nops)
-  (let* ((stacks (create-stacks 0))
+
+
+
+
+
+(define (main nops)
+  (let* ((stacks (cons (atom '()) '()))
          (push1-ops (map (lambda (stack)
                           (future (loop stack nops (lambda (s n) (push s n) (- n 1)))))
                          stacks))
@@ -39,4 +39,4 @@
                         stacks)))
     #t))
 
-(main 0 0)
+(main 0)
