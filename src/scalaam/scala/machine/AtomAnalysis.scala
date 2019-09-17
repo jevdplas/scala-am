@@ -15,8 +15,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
                                                                                val sem: Semantics[Exp, A, V, T, Exp],
                                                                                val allocator: TIDAllocator[TID, T, Exp]
                                                                              )(implicit val timestamp: Timestamp[T, Exp], implicit val lattice: Lattice[V])
-  extends MachineAbstraction[Exp, A, V, T, Exp]
-    with MachineUtil[Exp, A, V] {
+  extends MachineAbstraction[Exp, A, V, T, Exp] with MachineUtil[Exp, A, V] {
 
   import sem.Action.{DerefFuture, Err, Eval, NewFuture, Push, StepIn, Value, A => Act}
 
@@ -26,25 +25,23 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
 
   /* Various type declarations. */
 
-  type KAddr = KA
+  type KAddr          = KA
 
-  type VStore = Store[A, V]
-  type KStore = Store[KAddr, Set[Kont]]
+  type VStore         = Store[A, V]
+  type KStore         = Store[KAddr, Set[Kont]]
 
-  type Created    = Set[State]
-  type Successors = Set[State]
-  type Joined     = Set[TID]
+  type Created        = Set[State]
+  type Successors     = Set[State]
+  type Joined         = Set[TID]
 
-  type Threads   = Map[TID, Set[State]]
-  type RetVals   = Map[TID, V]
+  type Threads        = Map[TID, Set[State]]
+  type RetVals        = Map[TID, V]
 
-  type JoinDepsDomain = TID
-  type AddrDepsDomain = A
-  type RestartTarget // To specify in concrete classes.
+  type RestartTarget    // To specify in concrete classes.
 
-  type  JoinDeps = Map[JoinDepsDomain, Set[RestartTarget]]
-  type  ReadDeps = Map[AddrDepsDomain, Set[RestartTarget]]
-  type WriteDeps = Map[AddrDepsDomain, Set[RestartTarget]]
+  type  JoinDeps      = Map[TID, Set[RestartTarget]]
+  type  ReadDeps      = Map[A, Set[RestartTarget]]
+  type WriteDeps      = Map[A, Set[RestartTarget]]
 
 
   type Edges          = Map[State, Set[(Transition, State)]] // A map is used to overwrite any old edges that would remain present in a List or Set.
@@ -52,7 +49,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   type UnlabeledEdges = Map[State, Set[State]]
 
   /* Variables for benchmarking. */
-  var theStore: VStore = Store.initial[A, V](t, sem.initialStore)(lattice) // This is ugly!
+  var theStore: VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
   var theLabels: List[(Int, Map[Int, Int])] = List()
 
   /** Class used to return all information resulting from stepping this state. */
@@ -100,8 +97,8 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     }
 
     def isError: Boolean = control match {
-      case _: ControlError => true
-      case _ => false
+      case ControlError(_) => true
+      case _               => false
     }
 
     override def metadata =
@@ -297,10 +294,10 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps
   def extract(target: RestartTarget, deps: Deps, effs: Set[Effect]): Deps = profile("extractDependencies") {
     effs.foldLeft(deps) {
-      case (deps, JoinEff(tid: TID @unchecked))     => deps.copy( joined = deps.joined  + (tid  -> (deps.joined(tid)   + target)))
-      case (deps, ReadAddrEff(addr: A @unchecked))  => deps.copy(   read = deps.read    + (addr -> (deps.read(addr)    + target)))
+      case (deps,     JoinEff(tid: TID @unchecked)) => deps.copy( joined = deps.joined  + (tid  -> (deps.joined(tid)   + target)))
+      case (deps,  ReadAddrEff(addr: A @unchecked)) => deps.copy(   read = deps.read    + (addr -> (deps.read(addr)    + target)))
       case (deps, WriteAddrEff(addr: A @unchecked)) => deps.copy(written = deps.written + (addr -> (deps.written(addr) + target)))
-      case (deps, _)                                => deps
+      case (deps,                               _ ) => deps
     }
   }
 
@@ -320,21 +317,18 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
         iState.work.foldLeft(iState.copy(work = Set())) {
           case (iStateAcc, curState) =>
             if (iStateAcc.visited.contains(curState))
-              iStateAcc // If the state has been explored already, do not take a step
+              iStateAcc // If the state has been explored already, do not take a step.
             else {
-              // If the state has not been explored yet, take a step
-              val StepResult(succs, crea, res, effs, sto, ksto) =
-                curState.step(iStateAcc.store, iStateAcc.kstore, iStateAcc.results)
+              // If the state has not been explored yet, take a step.
+              val StepResult(succs, crea, res, effs, sto, ksto) = curState.step(iStateAcc.store, iStateAcc.kstore, iStateAcc.results)
               /*if (succs.size == 1 && succs.head.isError) {
                 // println(s"Error state: ${succs.head}")
                 ()
               }*/
               val deps = extractDependencies(iStateAcc.stid, iStateAcc.deps, curState, effs)
               val vis =
-                if (sto.asInstanceOf[DeltaStore[A, V]].updated.nonEmpty || ksto
-                  .asInstanceOf[DeltaStore[KAddr, Set[Kont]]]
-                  .updated
-                  .nonEmpty) Set.empty[State]
+                if (sto.asInstanceOf[DeltaStore[A, V]].updated.nonEmpty || ksto.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].updated.nonEmpty)
+                  Set.empty[State] // Updates to the global stores -> clear visited sets.
                 else
                   iStateAcc.visited + curState // Immediately clear the visited set upon a store change.
 
