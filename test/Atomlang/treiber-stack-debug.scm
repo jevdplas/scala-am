@@ -24,9 +24,10 @@
        (loop stk next f))))
 
 (define (create-stacks n)
-  (if (= n 0)
-      '()
-      (cons (new-stack) (create-stacks (- n 1)))))
+  (cons (atom '())
+    (cons (atom '())
+      (cons (atom '())
+            '()))))
 
 (define (main nstacks nops)
   (let* ((stacks (create-stacks 0))

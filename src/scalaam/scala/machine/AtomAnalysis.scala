@@ -158,8 +158,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
           State(tid, ControlEval(e, env), cc_, timestamp.tick(time)),
           effs,
           store,
-          kstore.extend(cc_, Set(Kont(frame, cc)))
-        )
+          kstore.extend(cc_, Set(Kont(frame, cc))))
       // The expression 'e' needs to be evaluated in the given environment.
       case Eval(e, env, store, effs) =>
         newResult(State(tid, ControlEval(e, env), cc, timestamp.tick(time)), effs, store, kstore)
@@ -239,13 +238,8 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
         StepResult(Set.empty, Set.empty, Some(v), Set.empty, store, kstore)
       // Continue with a given value, given the continuation frame in this state. Pops this frame of the stack.
       case ControlKont(v) =>
-        val konts = kstore.lookup(cc)
-        if (konts.isEmpty) {
-          /* This is usually a bug. If a continuation address exists, its continuation should be in the kstore */
-        }
-        val init: StepResult =
-          StepResult(Set.empty, Set.empty, Option.empty, Set.empty, store, kstore)
-        konts
+        val init: StepResult = StepResult(Set.empty, Set.empty, Option.empty, Set.empty, store, kstore)
+        kstore.lookup(cc)
           .foldLeft(init)(
             (acc1, konts) => // Lookup all associated continuation frames.
               konts.foldLeft(acc1) {
@@ -343,7 +337,9 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
                 iStateAcc.effects ++ effs,
                 iStateAcc.edges + (curState -> succs))
             }
-        }})
+        }
+      }
+    )
   }
 
   /**
@@ -386,7 +382,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
         acc
       else
       /* If it changed, we add all states that read from that address (on a different thread id) */
-        acc ++ (deps.read(addr) ++ deps.written(addr)).filter(_ != tid)
+        acc ++ (deps.read(addr) ++ deps.written(addr)).filter(_ != tid) // This filter allows for more precision as otherwise more states are reanalysed using an enlarged store.
     )
   }
 
@@ -404,11 +400,11 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     interRuns += 1
     outerLoop(
       timeout,
-      profile("outerLoop") {
+    //  profile("outerLoop") {
         oState.work.groupBy(_.tid)
           .foldLeft(oState.copy(work = Set())) {
             case (oStateAcc, (stid, curStates)) =>
-              // val stid: TID = curState.tid
+              //val stid: TID = curState.tid
               intraIterations = 0
               // The inner loop immediately updates the (k)store, result map and dependency maps.
               val iState = innerLoop(timeout, InnerLoopState(stid, curStates, oStateAcc.store, oStateAcc.kstore, oStateAcc.results, oState.deps))
@@ -422,7 +418,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
                     else
                       (createdAcc + curState, threadsAcc + (curState.tid -> (threadsAcc(curState.tid) + curState)))
                 }
-              // Module dependencies have been updated and are available in iState.deps.
+              // Module dependencies have been updated and are available in iState.deps. TODO is iState.store the correct store to pass here for mod?
               val todoWritten: Set[State] = convertToStates(targetsImpactedByWrite(stid, iState.deps, oStateAcc.store, iState.store), newThreads) // Could be oStateAcc.threads but would not be beneficial for precision.
 
               // Join the old and new return value. If the return value changes, all other threads joining in this thread need to be reanalysed.
@@ -442,8 +438,8 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
                 iState.kstore,
                 oStateAcc.edges /* -- statesToReanalyse1 -- statesToReanalyse2 */ ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
           }
-      },
-      iteration + 1)
+  //    },
+      , iteration + 1)
   }
 
   var intraRuns: Long = 0
