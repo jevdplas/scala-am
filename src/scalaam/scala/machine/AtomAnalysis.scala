@@ -372,18 +372,29 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
 
   //def statesRemoved(todo: Set[State]): Set[State]
 
-  def statesAddedFromEffects(tid: TID, deps: Deps, oldStore: VStore, newStore: VStore, threads: Threads): Set[State] = profile("statesAddedFromEffects") {
+  /** Converts a set of targets to a set of states (the initial states for these targets,
+    * i.e. the states from which the analysis for the respective targets should start. */
+  def convertToStates(targets: Set[RestartTarget], threads: Threads): Set[State]
+
+  /**
+    * Finds the targets that must be reanalysed based on a set of dependencies and an old and updated store.
+    * @param tid      The TID of the thread that was analysed, thereby converting oldStore to newStore. Used to exclude states for reanalysis.
+    * @param deps     A collection of dependencies. Should contain the newest information.
+    * @param oldStore The store <i>before</i> the thread TID was analysed.
+    * @param newStore The store <i>after</i> the threads TID was analysed.
+    * @return A set of targets that were impacted by updates to the store. The analysis should be restarted from these targets onwards.
+    */
+  def targetsImpactedByWrite(tid: TID, deps: Deps, oldStore: VStore, newStore: VStore): Set[RestartTarget] = profile("statesAddedFromEffects") {
     /* For all written addresses */
-    deps.written.keySet.foldLeft(Set[State]())((acc, addr) =>
+    deps.written.keySet.foldLeft(Set[RestartTarget]())((acc, addr) =>
       if (oldStore.lookup(addr) == newStore.lookup(addr))
       /* If it was updated but didn't actually change, do nothing */
         acc
       else
       /* If it changed, we add all states that read from that address (on a different thread id) */
-        acc ++ convertToStates((deps.read(addr) ++ deps.written(addr)).filter(_ != tid), threads)
+        acc ++ (deps.read(addr) ++ deps.written(addr)).filter(_ != tid)
     )
   }
-  def convertToStates(targets: Set[RestartTarget], threads: Threads): Set[State]
 
   var intraIterations = 0
   /**
@@ -410,32 +421,32 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
               // println(s"[$iteration] Intra iterations for $stid: $intraIterations")
               // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
               val (todoCreated, newThreads): (Set[State], Threads) =
-              iState.created.foldLeft((Set[State](), oStateAcc.threads)) {
-                case ((createdAcc, threadsAcc), curState) =>
-                  if (threadsAcc(curState.tid).contains(curState))
-                    (createdAcc, threadsAcc) // There already is an identical thread, so do nothing.
-                  else
-                    (createdAcc + curState, threadsAcc + (curState.tid -> (threadsAcc(curState.tid) + curState)))
-              }
-              // Module dependencies have been updated and are available in iState.deps
-              val todoEffects: Set[State] = statesAddedFromEffects(stid, iState.deps, oStateAcc.store, iState.store, newThreads)
+                iState.created.foldLeft((Set[State](), oStateAcc.threads)) {
+                  case ((createdAcc, threadsAcc), curState) =>
+                    if (threadsAcc(curState.tid).contains(curState))
+                      (createdAcc, threadsAcc) // There already is an identical thread, so do nothing.
+                    else
+                      (createdAcc + curState, threadsAcc + (curState.tid -> (threadsAcc(curState.tid) + curState)))
+                }
+              // Module dependencies have been updated and are available in iState.deps.
+              val todoWritten: Set[State] = convertToStates(targetsImpactedByWrite(stid, iState.deps, oStateAcc.store, iState.store), newThreads) // Could be oStateAcc.threads but would not be beneficial for precision.
 
               // Join the old and new return value. If the return value changes, all other threads joining in this thread need to be reanalysed.
               val retVal: V = lattice.join(oStateAcc.results(stid), iState.result)
               val todoJoined: Set[State] =
                 if (oStateAcc.results(stid) == retVal) Set()
-                else convertToStates(iState.deps.joined(stid), newThreads)
+                else convertToStates(iState.deps.joined(stid), newThreads) // Could be oStateAcc.threads but would not be beneficial for precision.
               // These edges will normally be overwritten anyway when the corresponding states are reanalysed.
               //val statesToReanalyse1: Set[State] = statesRemoved(todoJoined)
-              //val statesToReanalyse2: Set[State] = statesRemoved(todoEffects)
+              //val statesToReanalyse2: Set[State] = statesRemoved(todoWritten)
               OuterLoopState(
                 newThreads,
-                oStateAcc.work ++ todoCreated ++ todoEffects ++ todoJoined,
+                oStateAcc.work ++ todoCreated ++ todoWritten ++ todoJoined,
                 iState.deps,
                 oStateAcc.results + (stid -> retVal),
                 iState.store,
                 iState.kstore,
-                (oStateAcc.edges /* -- statesToReanalyse1 -- statesToReanalyse2 */) ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
+                oStateAcc.edges /* -- statesToReanalyse1 -- statesToReanalyse2 */ ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
           }
       },
       iteration + 1)
