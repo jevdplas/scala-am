@@ -200,7 +200,7 @@ object BenchTime {
     // Avoid overwriting old results by appending the date and time to the file name.
     val now: Date                = Calendar.getInstance().getTime
     val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
-    val output: String           = "./Results_TimeComparison" + format.format(now) + ".csv"
+    val output: String           = outputDir + "Results_TimeComparison" + format.format(now) + ".csv"
     val fields: List[String] = List("Benchmark", "Machine", "States") ++ ((1 to startup).map(
       "s" + _
     ) ++ (1 to iterations).map("i" + _)).toList // Field names for the csv file.

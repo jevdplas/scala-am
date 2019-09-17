@@ -73,7 +73,7 @@ object BenchReuse {
   def main(args: Array[String]): Unit = {
     val now: Date                = Calendar.getInstance().getTime
     val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
-    val output: String           = "./Results_ReuseInc" + format.format(now) + ".csv"
+    val output: String           = outputDir + "Results_ReuseInc" + format.format(now) + ".csv"
     val fields: String           = "Benchmark,tid,(iteration,number)*" // Field names for the csv file.
 
     val out = new BufferedWriter(new FileWriter(output))

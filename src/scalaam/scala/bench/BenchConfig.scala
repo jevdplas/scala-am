@@ -8,6 +8,8 @@ object BenchConfig {
   val iterations: Int = 30      // ideal: >= 30
   val startup: Int    = 3       // ideal: +- 10 // Number of iterations to be dropped.
 
+  val outputDir: String = "./results_benchmarks/"
+
   /* **** Benchmarks **** */
 
   object Prelude extends Enumeration {

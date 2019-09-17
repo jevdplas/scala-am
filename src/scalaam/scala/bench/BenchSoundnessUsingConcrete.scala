@@ -318,7 +318,7 @@ object BenchSoundnessUsingConcrete {
     def main(args: Array[String]): Unit = {
         val now: Date = Calendar.getInstance().getTime
         val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
-        val output: String = "./Results_Soundness_Concrete" + format.format(now) + ".txt"
+        val output: String = outputDir + "Results_Soundness_Concrete" + format.format(now) + ".txt"
 
         val out = new BufferedWriter(new FileWriter(output))
         writer = new CSVWriter(out, ',', CSVWriter.NO_QUOTE_CHARACTER)
