@@ -229,10 +229,7 @@ class ModAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
       case ControlKont(v) =>
         val init: StepResult =
           StepResult(Set.empty, Set.empty, Option.empty, Set.empty, store, kstore)
-        kstore
-          .lookup(cc)
-          .foldLeft(init)(
-
+        kstore.lookup(cc).foldLeft(init)(
             (acc1, konts) => // Lookup all associated continuation frames.
               konts.foldLeft(acc1) {
                 case (acc2, Kont(frame, cc_)) => // For each frame, generate the next actions and accumulate everything (starting from acc1).
@@ -313,20 +310,16 @@ class ModAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
             Set[State],
             VStore,
             KStore,
-            InnerLoopState
-        ) =
+            InnerLoopState) =
           work.foldLeft((List.empty[State], visited, store, kstore, iState)) {
             case (acc @ (workAcc, visitedAcc, storeAcc, kstoreAcc, iStateAcc), curState) =>
               if (visitedAcc.contains(curState))
                 acc  // If the state has been explored already, do not take a step.
-              else { // If the state has not been explored yet, take a step.
-                val StepResult(succs, crea, res, effs, sto, ksto) =
-                  curState.step(storeAcc, kstoreAcc, results)
+              else { // If the state has not been explored yet, do take a step.
+                val StepResult(succs, crea, res, effs, sto, ksto) = curState.step(storeAcc, kstoreAcc, results)
                 val vis =
-                  if (!sto.asInstanceOf[DeltaStore[A, V]].updated.isEmpty || !ksto
-                        .asInstanceOf[DeltaStore[KAddr, Set[Kont]]]
-                        .updated
-                        .isEmpty) Set.empty[State]
+                  if (sto.asInstanceOf[DeltaStore[A, V]].updated.nonEmpty || ksto.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].updated.nonEmpty)
+                    Set.empty[State]
                   else
                     visitedAcc + curState // Immediately clear the visited set upon a store change.
                 (
@@ -383,8 +376,7 @@ class ModAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
               oStateAcc.results,
               oStateAcc.store,
               oStateAcc.kstore,
-              iteration
-            )
+              iteration)
             // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
             val (todoCreated, newThreads): (Set[State], Threads) =
               created.foldLeft((Set[State](), oStateAcc.threads)) {
