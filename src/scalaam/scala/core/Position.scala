@@ -1,10 +1,20 @@
 package scalaam.core
 
 /** A position in a source file */
-sealed trait Position {
+sealed trait Position extends Comparable[Position] {
   def column: Int
+
   def line: Int
-  def <(that: Position): Boolean = column < that.column && line < that.line
+
+  def <(that: Position): Boolean = compareTo(that) < 0
+
+  override def compareTo(other: Position): Int = {
+    if (column > other.column) return 1
+    if (column < other.column) return -1
+    if (line > other.line) return 1
+    if (line < other.line) return -1
+    0
+  }
 }
 
 /** A position with a line and column */
