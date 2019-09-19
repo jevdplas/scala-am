@@ -636,7 +636,7 @@ class ModAtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
                                                                          sem: Semantics[Exp, A, V, T, Exp],
                                                                          allocator: TIDAllocator[TID, T, Exp]
                                                                        )(implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
-  extends AtomAnalysis[Exp, A, V, T, TID](t, sem, allocator) {
+  extends AtomAnalysisRevDeps[Exp, A, V, T, TID](t, sem, allocator) {
   type RestartTarget = TID
 
   def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = extract(stid, deps, effs)
@@ -650,7 +650,7 @@ class IncAtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
                                                                          sem: Semantics[Exp, A, V, T, Exp],
                                                                          allocator: TIDAllocator[TID, T, Exp]
                                                                        )(implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
-  extends AtomAnalysis[Exp, A, V, T, TID](t, sem, allocator) {
+  extends AtomAnalysisRevDeps[Exp, A, V, T, TID](t, sem, allocator) {
   type RestartTarget = State
 
   def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = extract(curState, deps, effs)

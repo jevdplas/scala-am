@@ -365,6 +365,9 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     * i.e. the states from which the analysis for the respective targets should start. */
   def convertToStates(targets: Set[RestartTarget], threads: Threads): Set[State]
 
+  /** Retrieves the TIDs corresponding to the targets. */
+  def getTID(targets: RestartTarget): TID
+
   /**
     * Finds the targets that must be reanalysed based on a set of dependencies and an old and updated store.
     * @param tid      The TID of the thread that was analysed, thereby converting oldStore to newStore. Used to exclude states for reanalysis.
@@ -373,6 +376,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     * @param newStore The store <i>after</i> the threads TID was analysed.
     * @return A set of targets that were impacted by updates to the store. The analysis should be restarted from these targets onwards.
     */
+  @toCheck("Should we really use localWrites instead of deps.written? Logically yes, but have not seen a difference on other benchmarks.")
   def targetsImpactedByWrite(tid: TID, deps: Deps, oldStore: VStore, newStore: VStore): Set[RestartTarget] = profile("statesAddedFromEffects") {
     /* For all written addresses in the previous intra-module analysis: */
     deps.localWrites.foldLeft(Set[RestartTarget]())((acc, addr) =>
@@ -380,13 +384,9 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
       /* if the address was updated but didn't actually change, do nothing; */
         acc
       else
-      /* else, if its value changed, add all states from other threads that read the address. */ {
-        //println(s"$addr: ${oldStore.lookup(addr)} -> ${newStore.lookup(addr)}")
-        //println(deps.read(addr))
-        //println(deps.written(addr))
-        //println()
-        acc ++ (deps.read(addr) ++ deps.written(addr)).filter(_ != tid) // This filter allows for more precision as otherwise more states are reanalysed using an enlarged store.
-      }
+      /* else, if its value changed, add all states from other threads that read the address. */
+        acc ++ (deps.read(addr) ++ deps.written(addr)).filter(getTID(_) != tid) // This filter allows for more precision as otherwise more states are reanalysed using an enlarged store.
+
     )
   }
 
@@ -401,12 +401,11 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   @scala.annotation.tailrec
   final def outerLoop(timeout: Timeout.T, oState: OuterLoopState, iteration: Int = 1): OuterLoopState = {
     if (timeout.reached || oState.work.isEmpty) return oState
-    println("Iteration: " + iteration)
     interRuns += 1
     outerLoop(
       timeout,
     //  profile("outerLoop") {
-        oState.work.groupBy(_.tid).toList.sortBy(_._1.pos).reverse // TODO change sorting order
+        oState.work.groupBy(_.tid) // TODO find best worklist order! (Can result in better performance for inc).
           .foldLeft(oState.copy(work = Set())) {
             case (oStateAcc, (stid, curStates)) =>
               //val stid: TID = curState.tid
@@ -515,13 +514,6 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     //println(s"Total execution: ${(t1 - t0) / Math.pow(10, 9)}")
     //dumpProfile()
     theStore = result.store
-
-    //println("Read")
-    //result.deps.read.foreach(println(_))
-    //println("\nWritten")
-    //result.deps.written.foreach(println(_))
-    //println("\njoined")
-    //result.deps.joined.foreach(println(_))
 
     // After running the result, possibly unreachable edges may need to be filtered out.
     //val t2 = System.nanoTime
@@ -657,7 +649,7 @@ class ModAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = extract(stid, deps, effs)
   //def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { Set() }
   def convertToStates(tids: Set[TID], threads: Threads): Set[State] = tids.flatMap(threads)
-
+  def getTID(tid: TID): TID = tid
 }
 
 class IncAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
@@ -672,4 +664,5 @@ class IncAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   @toCheck("Verify why these edges are removed explicitly (should normally be overwritten anyway).") // TODO
   //def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { todo }
   def convertToStates(states: Set[State], threads: Threads): Set[State] = states
+  def getTID(state: State): TID = state.tid
 }
