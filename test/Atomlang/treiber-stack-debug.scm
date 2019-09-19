@@ -4,30 +4,9 @@
     '()
       (cons (f (car l)) (map f (cdr l)))))
 
+(define (push stk el) (compare-and-set! stk #t (cons el #t)))
 
-
-
-(define (push stk el)
- (let loop ((top (read stk)))
-  (if (not (compare-and-set! stk top (cons el top)))
-   (loop (read stk)))))
-
-(define (pop stk)
-
-  #t)
-
-
-
-(define (loop stk n f)
- (if #t
-  (let ((next (f stk n)))
-       (loop stk next f))))
-
-
-
-
-
-
+(define (loop stk n f) (loop stk (f stk n) f))
 
 (define (main nops)
   (let* ((stacks (cons (atom '()) '()))
@@ -35,7 +14,7 @@
                           (future (loop stack nops (lambda (s n) (push s n) (- n 1)))))
                          stacks))
          (pop1-ops (map (lambda (stack)
-                         (future (loop stack nops (lambda (s n) (if (pop s) (- n 1) n)))))
+                         (future (loop stack nops (lambda (s n) #t))))
                         stacks)))
     #t))
 

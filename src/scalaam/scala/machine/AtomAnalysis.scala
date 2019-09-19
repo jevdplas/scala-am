@@ -401,7 +401,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     outerLoop(
       timeout,
     //  profile("outerLoop") {
-        oState.work.groupBy(_.tid)
+        oState.work.groupBy(_.tid).toList.sortBy(_._1.pos).reverse // TODO change sorting order
           .foldLeft(oState.copy(work = Set())) {
             case (oStateAcc, (stid, curStates)) =>
               //val stid: TID = curState.tid
