@@ -28,8 +28,8 @@ object ConcreteTID {
 
   case class TID[T, C](exp: C, t: T, n: Int, pos: Position) extends threadID {
 
-    /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
-    override def toString: String = s"$n@${pos}"
+    /** Prints this tid. */
+    override def toString: String = s"TID{$pos}"
   }
 
   case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C])
@@ -49,9 +49,9 @@ object ExpTimeTID {
 
   case class TID[T, C](exp: C, pos: Position, t: T) extends threadID {
 
-    /** Prints this tid. As the tid contains the full expression, its hashcode is used to get a shorter but (normally) unique name. */
+    /** Prints this tid. */
     override def toString: String =
-      s"$pos/$t"
+      s"TID{$pos@$t}"
   }
 
   case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C])
