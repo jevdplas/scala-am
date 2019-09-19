@@ -168,8 +168,7 @@ class IncAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
           val todoJoined: Set[State] =
             if (oStateAcc.results(stid) == retVal) Set.empty else joinDeps(stid)
           // println(s"todoJoined is $todoJoined")
-          val fromInterference
-              : Set[State] = todoJoined ++ todoEffects // Use a set to suppress duplicates.
+          val fromInterference: Set[State] = todoJoined ++ todoEffects // Use a set to suppress duplicates.
           OuterLoopState(
             newThreads,
             oStateAcc.work ++ todoCreated ++ fromInterference,

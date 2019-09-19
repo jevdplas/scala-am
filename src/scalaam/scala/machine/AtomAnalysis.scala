@@ -43,7 +43,6 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   type  ReadDeps      = Map[A, Set[RestartTarget]]
   type WriteDeps      = Map[A, Set[RestartTarget]]
 
-
   type Edges          = Map[State, Set[(Transition, State)]] // A map is used to overwrite any old edges that would remain present in a List or Set.
   type GraphEdges     = List[(State, Transition, State)]
   type UnlabeledEdges = Map[State, Set[State]]
@@ -51,6 +50,9 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   /* Variables for benchmarking. */
   var theStore: VStore = Store.initial[A, V](t, sem.initialStore)(lattice)
   var theLabels: List[(Int, Map[Int, Int])] = List()
+
+  /** Class collecting the dependencies of all threads. localWrites collects the addresses written in a current intra-module analysis. */
+  case class Deps(joined: JoinDeps, read: ReadDeps, written: WriteDeps, localWrites: Set[A] = Set())
 
   /** Class used to return all information resulting from stepping this state. */
   case class StepResult(
@@ -85,7 +87,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   case class State(tid: TID, control: Control, cc: KAddr, time: T)
     extends GraphElement
       with SmartHash {
-    override def toString: String = s"$tid:${control.toString}"
+    override def toString: String = s" [$tid :: ${control.toString}] "
 
     override def label: String = toString
 
@@ -261,9 +263,6 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     }
   }
 
-  /** Class collecting the dependencies of all threads. */
-  case class Deps(joined: JoinDeps, read: ReadDeps, written: WriteDeps)
-
   /**
     * Contains bookkeeping information for the inner loop of the algorithm.
     * @param created The threads created by the current thread.
@@ -290,7 +289,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     effs.foldLeft(deps) {
       case (deps,     JoinEff(tid: TID @unchecked)) => deps.copy( joined = deps.joined  + (tid  -> (deps.joined(tid)   + target)))
       case (deps,  ReadAddrEff(addr: A @unchecked)) => deps.copy(   read = deps.read    + (addr -> (deps.read(addr)    + target)))
-      case (deps, WriteAddrEff(addr: A @unchecked)) => deps.copy(written = deps.written + (addr -> (deps.written(addr) + target)))
+      case (deps, WriteAddrEff(addr: A @unchecked)) => deps.copy(written = deps.written + (addr -> (deps.written(addr) + target)), localWrites = deps.localWrites + addr)
       case (deps,                               _ ) => deps
     }
   }
@@ -307,7 +306,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     intraIterations += 1
     innerLoop(
       timeout,
-      profile("innerLoop") {
+    //  profile("innerLoop") {
         iState.work.foldLeft(iState.copy(work = Set())) {
           case (iStateAcc, curState) =>
             if (iStateAcc.visited.contains(curState))
@@ -338,7 +337,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
                 iStateAcc.edges + (curState -> succs))
             }
         }
-      }
+     // }
     )
   }
 
@@ -375,14 +374,19 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     * @return A set of targets that were impacted by updates to the store. The analysis should be restarted from these targets onwards.
     */
   def targetsImpactedByWrite(tid: TID, deps: Deps, oldStore: VStore, newStore: VStore): Set[RestartTarget] = profile("statesAddedFromEffects") {
-    /* For all written addresses */
-    deps.written.keySet.foldLeft(Set[RestartTarget]())((acc, addr) =>
+    /* For all written addresses in the previous intra-module analysis: */
+    deps.localWrites.foldLeft(Set[RestartTarget]())((acc, addr) =>
       if (oldStore.lookup(addr) == newStore.lookup(addr))
-      /* If it was updated but didn't actually change, do nothing */
+      /* if the address was updated but didn't actually change, do nothing; */
         acc
       else
-      /* If it changed, we add all states that read from that address (on a different thread id) */
+      /* else, if its value changed, add all states from other threads that read the address. */ {
+        //println(s"$addr: ${oldStore.lookup(addr)} -> ${newStore.lookup(addr)}")
+        //println(deps.read(addr))
+        //println(deps.written(addr))
+        //println()
         acc ++ (deps.read(addr) ++ deps.written(addr)).filter(_ != tid) // This filter allows for more precision as otherwise more states are reanalysed using an enlarged store.
+      }
     )
   }
 
@@ -397,6 +401,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   @scala.annotation.tailrec
   final def outerLoop(timeout: Timeout.T, oState: OuterLoopState, iteration: Int = 1): OuterLoopState = {
     if (timeout.reached || oState.work.isEmpty) return oState
+    println("Iteration: " + iteration)
     interRuns += 1
     outerLoop(
       timeout,
@@ -432,7 +437,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
               OuterLoopState(
                 newThreads,
                 oStateAcc.work ++ todoCreated ++ todoWritten ++ todoJoined,
-                iState.deps,
+                iState.deps.copy(localWrites = Set()),
                 oStateAcc.results + (stid -> retVal),
                 iState.store,
                 iState.kstore,
@@ -489,7 +494,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     val state: State        = State(tid, control, cc, time)
     val threads: Threads    = Map(tid -> Set(state)).withDefaultValue(Set.empty)
     val vstore: VStore      = Store.initial[A, V](t, sem.initialStore)(lattice)
-    val t0 = System.nanoTime
+    //val t0 = System.nanoTime
     val oState: OuterLoopState = OuterLoopState(
       threads, // Threads
       Set(state), // Worklist
@@ -505,17 +510,24 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     )
 
     val result: OuterLoopState = outerLoop(timeout, oState)
-    val t1 = System.nanoTime
+    //val t1 = System.nanoTime
 
-    println(s"Total execution: ${(t1 - t0) / Math.pow(10, 9)}")
-    dumpProfile()
+    //println(s"Total execution: ${(t1 - t0) / Math.pow(10, 9)}")
+    //dumpProfile()
     theStore = result.store
 
+    //println("Read")
+    //result.deps.read.foreach(println(_))
+    //println("\nWritten")
+    //result.deps.written.foreach(println(_))
+    //println("\njoined")
+    //result.deps.joined.foreach(println(_))
+
     // After running the result, possibly unreachable edges may need to be filtered out.
-    val t2 = System.nanoTime
+    //val t2 = System.nanoTime
     val res = Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toSet, result.edges))
-    val t3 = System.nanoTime
-    println(s"Total graph construction: ${(t3 - t2) / Math.pow(10, 9)}")
+    //val t3 = System.nanoTime
+    //println(s"Total graph construction: ${(t3 - t2) / Math.pow(10, 9)}")
     res
   }
 
