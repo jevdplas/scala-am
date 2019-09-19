@@ -2,7 +2,7 @@
 
 ; NOTE: ARTIFICIAL ORDERING IMPOSED ON OUTER LOOP ATOMANALYSIS
 
-(define (loop stk f) (loop stk (f stk) f))
+(define (loop stk f) (f stk) (loop stk f))
 
 (future (loop (atom '()) (lambda (s) (compare-and-set! (atom '()) #t #t))))
 (future (loop (atom '()) (lambda (s) #t)))
