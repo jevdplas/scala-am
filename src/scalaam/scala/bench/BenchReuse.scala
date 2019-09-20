@@ -14,7 +14,7 @@ import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
 import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
 import scalaam.lattice.Type
 
-import scala.machine.{IncAtom, IncAtomAnalysis}
+import scala.machine.IncAtomAnalysis
 
 object BenchReuse {
   val address   = NameAddress

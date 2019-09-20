@@ -1,3 +1,4 @@
+/*
 package scala.machine
 
 import scalaam.core.Annotations._
@@ -658,3 +659,4 @@ class IncAtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   //def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { todo }
   def convertToStates(states: Set[State], threads: Threads): Set[State] = states
 }
+*/

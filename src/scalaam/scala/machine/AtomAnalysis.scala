@@ -289,7 +289,7 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](va
     def convertToStates(targets: Set[RestartTarget], threads: Threads): Set[State]
 
     /** Retrieves the TIDs corresponding to the targets. */
-    def getTID(targets: RestartTarget): TID
+    def getTID(target: RestartTarget): TID
 
     /**
       * Finds the targets that must be reanalysed based on a set of dependencies and an old and updated store.

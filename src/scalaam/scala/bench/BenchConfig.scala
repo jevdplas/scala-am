@@ -5,8 +5,8 @@ object BenchConfig {
   /* **** Experimental setup **** */
 
   val timeout: Int    = 20 * 60 // 20 minutes
-  val iterations: Int = 1      // ideal: >= 30
-  val startup: Int    = 0       // ideal: +- 10 // Number of iterations to be dropped.
+  val iterations: Int = 30      // ideal: >= 30
+  val startup: Int    = 3       // ideal: +- 10 // Number of iterations to be dropped.
 
   val outputDir: String = "./results_benchmarks/"
 
