@@ -1,11 +1,12 @@
 package scalaam
 
+import scalaam.bench.BenchSoundnessUsingConcrete.CSem
 import scalaam.core._
 import scalaam.graph.{DotGraph, Graph}
 import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
-import scalaam.language.scheme.{SchemeExp, SchemeLattice, SchemeVar}
-import scalaam.lattice.Type
-import scalaam.machine.{ConcurrentAAM, Strategy}
+import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp, SchemeLattice, SchemeVar}
+import scalaam.lattice.{Concrete, Type}
+import scalaam.machine.{ConcreteConcurrentAAM, ConcurrentAAM, Strategy}
 import scalaam.machine.Strategy.Strategy
 
 import scala.machine._
@@ -362,6 +363,48 @@ object IncAtomWCachingRun {
               map + (id -> SchemeLattice[Sem.lattice.L, SchemeExp, address.A].join(map(id), value))
           }
       )
+  }
+}
+
+object ConcreteRun {
+
+  val address   = ConcreteAddress
+  val tid       = ConcreteTID
+  val timestamp = ConcreteTimestamp[SchemeExp]()
+  val lattice   = new MakeSchemeLattice[SchemeExp, address.A,
+    Concrete.S, Concrete.B, Concrete.I, Concrete.R, Concrete.C, Concrete.Sym](true) // Need concrete comparison!
+  val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
+
+  val machine = new ConcreteConcurrentAAM[
+    SchemeExp,
+    CSem.address.A,
+    CSem.lattice.L,
+    CSem.timestamp.T,
+    CSem.tid.threadID
+  ](StoreType.ConcreteStore, CSem.sem, CSem.tid.Alloc())
+  val graph = DotGraph[machine.State, machine.Transition]()
+
+  def run(
+           file: String,
+           out: String = "ConcreteRunResult.dot",
+           timeout: Timeout.T = Timeout.seconds(10)
+         ): ConcreteRun.graph.G = {
+    val f       = scala.io.Source.fromFile(file)
+    val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
+    val t0      = System.nanoTime
+    val result  = machine.run[graph.G](AtomlangParser.parse(content), timeout)
+    val t1      = System.nanoTime
+    if (timeout.reached) {
+      println("Time out!")
+    } else {
+      println(s"Time: ${(t1 - t0) / 1000000}ms")
+    }
+    f.close()
+    result.toFile(out)
+    import Graph.GraphOps
+    println(s"States: ${result.nodes}")
+    Dot.toImage(out)
+    result
   }
 }
 

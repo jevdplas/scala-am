@@ -1,5 +1,6 @@
 package scalaam.core
 
+import scalaam.core.Annotations.toCheck
 import scalaam.core.StoreType.StoreType
 
 case class UnboundAddress[A <: Address](a: A) extends Error
@@ -100,10 +101,11 @@ case class ConcreteStore[A <: Address, V](content: Map[A, V])(implicit val lat: 
 
   /* Specific to ConcreteStore. */
 
+  @toCheck("Disabled if.")
   override def extend(a: A, v: V): ConcreteStore[A, V] = {
-    if (content.get(a).isDefined) {
+    /*if (content.get(a).isDefined) {
       println(s"store.extend imprecision")
-    }
+    }*/
     ConcreteStore(content + (a -> v))
   }
 
