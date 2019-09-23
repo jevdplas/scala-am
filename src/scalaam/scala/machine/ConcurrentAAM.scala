@@ -527,14 +527,13 @@ class ConcreteConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     def loop(cur: State): Unit = {
       if (!timeout.reached && !cur.halted) {
         val next = cur.step(strategy).map(_._2)
-        // println(s"state: $cur")
+        next.foreach(st => graph = graph.map(g => g.addEdge(cur, empty, st))) // Next should only be of size 1, but if it's not, this will allow to find it.
         if (next.size != 1) {
           println(s"State: $cur")
           next.foreach(println)
-          throw new Exception(s"Execution was not concrete! (got ${next.size} resulting states)")
+          System.err.println(s"Execution was not concrete! (got ${next.size} resulting states)")
+          return
         }
-        val st = next.head
-        graph = graph.map(g => g.addEdge(cur, empty, st))
         loop(next.head)
       }
     }
