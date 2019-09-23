@@ -30,7 +30,7 @@ class IncAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
   type StateReadDeps  = Map[A, Set[State]]
   type StateWriteDeps = Map[A, Set[State]]
 
-  def joinMaps[A, B](m1: Map[A, Set[B]], m2: Map[A, Set[B]]): Map[A, Set[B]] =
+  def joinMaps[T1, T2](m1: Map[T1, Set[T2]], m2: Map[T1, Set[T2]]): Map[T1, Set[T2]] =
     m2.foldLeft(m1)({ case (map, (k, v)) => map + (k -> (map.getOrElse(k, Set()) ++ v)) })
 
   var theLabels: List[(Int, Map[Int, Int])] = List()

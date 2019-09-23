@@ -17,7 +17,7 @@ import scalaam.language.atomlang._
 import scalaam.language.scheme._
 import scalaam.graph.DotGraph
 
-import scala.machine.{IncAtomAnalysis, ModAtomAnalysis}
+import scala.machine.IncAtomAnalysis
 
 object BenchSoundnessUsingConcrete {
 
