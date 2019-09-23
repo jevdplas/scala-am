@@ -207,7 +207,7 @@ object BenchTime {
 
     val out = new BufferedWriter(new FileWriter(output))
     writer = new CSVWriter(out)
-    texWriter = new BufferedWriter(new FileWriter("./Results_TimeComparison" + format.format(now) + ".tex"))
+    texWriter = new BufferedWriter(new FileWriter(outputDir + "Results_TimeComparison" + format.format(now) + ".tex"))
     writeTexTableHeading()
 
     writer.writeNext(fields.mkString(","))
