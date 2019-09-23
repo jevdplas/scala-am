@@ -71,10 +71,10 @@ trait SchemeLattice[L, Exp, A <: Address] extends Lattice[L] {
 
   /** Injection of a cons cell */
   def cons(car: L, cdr: L): L
-  
+
   /** Injection of an atom */
   def atom(data: L): L
-  
+
   /** Injection of a future */
   def future(tid: ThreadIdentifier): L
 
@@ -89,22 +89,26 @@ trait SchemeLattice[L, Exp, A <: Address] extends Lattice[L] {
 
   /** Takes the cdr of a cons cell */
   def cdr(x: L): MayFail[L, Error]
-  
+
   /** Dereference an atom */
   def deref(x: L): MayFail[L, Error]
-  
+
   /** Extract the futures contained in this value. */
   def getFutures(x: L): Set[ThreadIdentifier]
-  
+
   /** Constructs a new vector */
   def vector(size: L, init: L): MayFail[L, Error]
-  
+
   /** Accesses an element of a vector */
   def vectorRef(vector: L, index: L): MayFail[L, Error]
-  
+
   /** Changes an element of a vector */
   def vectorSet(vector: L, index: L, newval: L): MayFail[L, Error]
-  
+
+  /** Return the set of concrete values contained in this lattice.
+    * Not meant to be used for analysis purposes, but rather to compare analysis results with a concrete run. */
+  def concreteValues(x: L): Set[ConcreteVal]
+
   /* TODO: move this to the tests
   trait SchemeLatticeLaw extends MonoidLaw {
     import scalaz.std.boolean.conditional
@@ -168,10 +172,11 @@ trait SchemeLattice[L, Exp, A <: Address] extends Lattice[L] {
     }
     /* TODO: more properties */
   }
-  */
+ */
 }
 
 object SchemeLattice {
   def apply[L, Exp, A <: Address](
-      implicit lat: SchemeLattice[L, Exp, A]): SchemeLattice[L, Exp, A] = lat
+      implicit lat: SchemeLattice[L, Exp, A]
+  ): SchemeLattice[L, Exp, A] = lat
 }

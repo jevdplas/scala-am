@@ -31,12 +31,27 @@
   (letrec ((loop (lambda (i acc)
                    (if (= i n)
                        acc
-                       (loop (+ i 1) (cons (future (thrd cnt 42)) acc))))))
+                       (loop (+ i 1) (cons (future (thrd cnt (random 10))) acc))))))
     (loop 0 '())))
 
 (define cnt (counter))
-(map (lambda (t) (deref t))
-     (create-thrds cnt 42))
-(display "result: ")
-(display (cnt 'get))
-(newline)
+
+(define (launch-experiment n)
+  (create-thrds cnt (random n)))
+(define (terminate-experiment e)
+  (map (lambda (t) (deref t)) e)
+  (display "result: ")
+  (display (cnt 'get))
+  (newline))
+
+(define exp1 (future (launch-experiment (+ 1 (random 2)))))
+(define exp2 (future (launch-experiment (+ 1 (random 5)))))
+(define exp3 (future (launch-experiment (+ 1 (random 7)))))
+(define exp4 (future (launch-experiment (+ 1 (random 10)))))
+
+(terminate-experiment (deref exp1))
+(terminate-experiment (deref exp2))
+(terminate-experiment (deref exp3))
+(terminate-experiment (deref exp4))
+
+

@@ -18,7 +18,10 @@ trait Environment[A <: Address] {
   def lookup(name: String): Option[A]
   def lookupMF(name: Identifier): MayFail[A, Error] = lookup(name.name) match {
     case Some(v) => MayFail.success(v)
-    case None    => MayFail.failure(UnboundVariable(name))
+    case None    => {
+      println(s"Unbound variable looked up in env: $name")
+      MayFail.failure(UnboundVariable(name))
+    }
   }
 
   /** Extend the environment */
@@ -48,8 +51,10 @@ case class BasicEnvironment[A <: Address](content: Map[String, A]) extends Envir
 
 /* Default environment constructors */
 object Environment {
+
   /** The empty environment */
   def empty[A <: Address]: Environment[A] = BasicEnvironment(Map[String, A]())
+
   /** Constructs initial environment given its initial element */
   def initial[A <: Address](values: Iterable[(String, A)]): Environment[A] =
     BasicEnvironment(values.toMap)

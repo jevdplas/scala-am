@@ -1,3 +1,13 @@
+(define (t/new-lock)
+  (atom #f))
+(define (t/acquire lock)
+  (let try ()
+    (if (compare-and-set! lock #f #t)
+        #t
+        (try))))
+(define (t/release lock)
+  (reset! lock #f))
+
 ;; Ping-pong
 (define (map f l)
   (if (pair? l)

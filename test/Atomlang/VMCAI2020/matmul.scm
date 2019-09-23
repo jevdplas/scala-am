@@ -1,5 +1,5 @@
 ;; Benchmark that compare recursive concurrent matrix multiplication with naive sequential matrix multiplication
-(define N (expt 2 42))
+(define N (expt 2 (random 4)))
 (define (build-vector n init f)
   (letrec ((v (make-vector n init))
            (loop (lambda (i)
@@ -9,15 +9,93 @@
                          (loop (+ i 1)))
                        v))))
     (loop 0)))
+(define (build-vector2 n init f)
+  (letrec ((v (make-vector n init))
+           (loop (lambda (i)
+                   (if (< i n)
+                       (begin
+                         (vector-set! v i (f i))
+                         (loop (+ i 1)))
+                       v))))
+    (loop 0)))
+(define (build-vector3 n init f)
+  (letrec ((v (make-vector n init))
+           (loop (lambda (i)
+                   (if (< i n)
+                       (begin
+                         (vector-set! v i (f i))
+                         (loop (+ i 1)))
+                       v))))
+    (loop 0)))
+(define (build-vector4 n init f)
+  (letrec ((v (make-vector n init))
+           (loop (lambda (i)
+                   (if (< i n)
+                       (begin
+                         (vector-set! v i (f i))
+                         (loop (+ i 1)))
+                       v))))
+    (loop 0)))
+
+(define (build-vector5 n init f)
+  (letrec ((v (make-vector n init))
+           (loop (lambda (i)
+                   (if (< i n)
+                       (begin
+                         (vector-set! v i (f i))
+                         (loop (+ i 1)))
+                       v))))
+    (loop 0)))
+
+(define (build-vector6 n init f)
+  (letrec ((v (make-vector n init))
+           (loop (lambda (i)
+                   (if (< i n)
+                       (begin
+                         (vector-set! v i (f i))
+                         (loop (+ i 1)))
+                       v))))
+    (loop 0)))
+
+(define (build-vector7 n init f)
+  (letrec ((v (make-vector n init))
+           (loop (lambda (i)
+                   (if (< i n)
+                       (begin
+                         (vector-set! v i (f i))
+                         (loop (+ i 1)))
+                       v))))
+    (loop 0)))
+
+(define (build-vector8 n init f)
+  (letrec ((v (make-vector n init))
+           (loop (lambda (i)
+                   (if (< i n)
+                       (begin
+                         (vector-set! v i (f i))
+                         (loop (+ i 1)))
+                       v))))
+    (loop 0)))
+
+(define (build-vector9 n init f)
+  (letrec ((v (make-vector n init))
+           (loop (lambda (i)
+                   (if (< i n)
+                       (begin
+                         (vector-set! v i (f i))
+                         (loop (+ i 1)))
+                       v))))
+    (loop 0)))
+
 (define (random-matrix w h)
   (build-vector N (vector)
                 (lambda (i)
-                  (build-vector N 0 (lambda (j) (random 100))))))
+                  (build-vector2 N 0 (lambda (j) (random 100))))))
 
 (define (extract-matrix M size fromx fromy)
-  (build-vector size (vector)
+  (build-vector3 size (vector)
                 (lambda (i)
-                  (build-vector size 0 (lambda (j)
+                  (build-vector4 size 0 (lambda (j)
                                          (vector-ref (vector-ref M (+ fromx i)) (+ fromy j)))))))
 (define (split-matrix M)
   (let ((half (/ (vector-length M) 2)))
@@ -29,9 +107,9 @@
 
 (define (combine-matrices size M11 M12 M21 M22)
   (let ((half (vector-length M11)))
-    (build-vector size (vector)
+    (build-vector5 size (vector)
                   (lambda (i)
-                    (build-vector size 0
+                    (build-vector6 size 0
                                   (lambda (j)
                                     (if (and (< i half) (< j half))
                                         (vector-ref (vector-ref M11 i) j)
@@ -42,9 +120,9 @@
                                                 (vector-ref (vector-ref M22 (- i half)) (- j half)))))))))))
 
 (define (matrix+ A B)
-  (build-vector (vector-length A) (vector)
+  (build-vector7 (vector-length A) (vector)
                 (lambda (i)
-                  (build-vector (vector-length (vector-ref A i)) 0
+                  (build-vector8 (vector-length (vector-ref A i)) 0
                                 (lambda (j)
                                   (+ (vector-ref (vector-ref A i) j)
                                      (vector-ref (vector-ref B i) j)))))))
@@ -70,7 +148,7 @@
 
 (define (matrix-multiply-seq A B)
   (let* ((n (vector-length A))
-         (C (build-vector n (vector) (lambda (i) (make-vector n 0)))))
+         (C (build-vector9 n (vector) (lambda (i) (make-vector n 0)))))
     (letrec ((loopi
               (lambda (i)
                 (if (= i n)

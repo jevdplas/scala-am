@@ -38,7 +38,8 @@ object MonoidInstances {
 
   // Given two monoids, defines how a tuple of them also is a monoid.
   def tupleMonoid[M: Monoid, N: Monoid]: Monoid[(M, N)] = new Monoid[(M, N)] {
-    def append(x: (M, N), y: => (M, N)): (M, N) = (Monoid[M].append(x._1, y._1), Monoid[N].append(x._2, y._2))
+    def append(x: (M, N), y: => (M, N)): (M, N) =
+      (Monoid[M].append(x._1, y._1), Monoid[N].append(x._2, y._2))
     def zero: (M, N) = (Monoid[M].zero, Monoid[N].zero)
   }
 

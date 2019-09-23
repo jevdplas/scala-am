@@ -1,5 +1,6 @@
 ;; Conway's game of life with concurrent computations
-(define N (expt 2 4))
+(define N (expt 2 2))
+(define ITERATIONS 2)
 (define MAXthrdSIZE 10)
 
 (define (random-bool)
@@ -10,7 +11,17 @@
       m
       (cons (car l) (append (cdr l) m))))
 
-(define (build-vector n init f)
+(define (build-vector1 n init f)
+  (letrec ((v (make-vector n init))
+           (loop (lambda (i)
+                   (if (< i n)
+                       (begin
+                         (vector-set! v i (f i))
+                         (loop (+ i 1)))
+                       v))))
+    (loop 0)))
+
+(define (build-vector2 n init f)
   (letrec ((v (make-vector n init))
            (loop (lambda (i)
                    (if (< i n)
@@ -48,11 +59,11 @@
    ;; New content of the cell
    (atom #f)
    ;; Current cell content
-   (atom (random-bool)))
+   (atom (random-bool))))
 (define *field*
-  (build-vector N (make-vector N (new-cell))
+  (build-vector1 N (make-vector N (new-cell))
                 (lambda (i)
-                  (build-vector N (new-cell) (lambda (i) (new-cell))))))
+                  (build-vector2 N (new-cell) (lambda (i) (new-cell))))))
 
 (define (display-field)
   (for-each (lambda (i)
@@ -71,9 +82,9 @@
   (vector-ref (vector-ref *field* i) j))
 
 (define (update-to-new cell)
-  (let (old (cadr cell))
+  (let ((old (cadr cell))
         (new (car cell)))
-    (reset! old (read new)))
+    (reset! old (read new))))
 
 (define (game-of-life-new-step)
   (for-each (lambda (i)
@@ -155,4 +166,4 @@
         (game-of-life-whole-step)
         (game-of-life (- iterations 1)))))
 
-(game-of-life 10)
+(game-of-life ITERATIONS)

@@ -36,14 +36,13 @@
         (foldl * 1
                (map (lambda (t) (deref t))
                     (map (lambda (bounds)
-                           (future
-                            (fact-thrd (car bounds) (cdr bounds))))
+                           (future (fact-thrd (car bounds) (cdr bounds))))
                          steps))))))
 
 (define (fact-thrd-ref from to result)
   (if (<= (- to from) FragmentSize)
       (let ((partial-fact (product from to)))
-        (swap! result (lamdba (curr) (* partial-fact curr))))
+        (swap! result (lambda (curr) (* partial-fact curr))))
       (let ((steps (split from to)))
         (map (lambda (t) (deref t))
              (map (lambda (bounds)
@@ -61,6 +60,7 @@
     (if (= res1 res2)
         (display res1)
         (display "factorials don't match..."))
-    (newline)))
+(newline)))
 
 (fact N)
+

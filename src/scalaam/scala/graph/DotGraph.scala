@@ -1,16 +1,22 @@
 package scalaam.graph
 
 case class DotGraph[N <: GraphElement, E <: GraphElement]() {
-  class G(val ids: Map[N, Int],
-          val next: Int,
-          val _nodes: Set[N],
-          val _edges: Map[N, Set[(E, N)]]) {
+  class G(
+      val ids: Map[N, Int],
+      val next: Int,
+      val _nodes: Set[N],
+      val _edges: Map[N, Set[(E, N)]]
+  ) {
     def _addNode(node: N): G =
-      if (_nodes.contains(node)) { this } else {
+      if (_nodes.contains(node)) {
+        this
+      } else {
         new G(ids + (node -> next), next + 1, _nodes + node, _edges)
       }
     private def _addEdgeNoCheck(node1: N, edge: E, node2: N): G =
-      if (_edges.contains(node1) && _edges(node1).contains((edge, node2))) { this } else {
+      if (_edges.contains(node1) && _edges(node1).contains((edge, node2))) {
+        this
+      } else {
         val existing: Set[(E, N)] = _edges.getOrElse(node1, Set[(E, N)]())
         new G(ids, next, _nodes, _edges + (node1 -> (existing ++ Set((edge, node2)))))
       }
@@ -36,7 +42,8 @@ case class DotGraph[N <: GraphElement, E <: GraphElement]() {
         val color   = n.color
         val tooltip = n.metadata.toString.replace("<", "&lt;").replace(">", "&gt;")
         writer.write(
-          s"node_$id[shape=box, xlabel=$id, label=<$label>, fillcolor=<$color> style=<filled>, tooltip=<$tooltip>];\n")
+          s"node_$id[shape=box, xlabel=$id, label=<$label>, fillcolor=<$color> style=<filled>, tooltip=<$tooltip>];\n"
+        )
       })
       _edges.foreach({
         case (n1, ns) =>
@@ -50,9 +57,9 @@ case class DotGraph[N <: GraphElement, E <: GraphElement]() {
     }
 
     def getNode(id: Int): Option[N] = ids.find({ case (_, v) => id == v }).map(_._1)
-  
+
     def findNodes(p: N => Boolean) = _nodes.filter(p)
-  
+
   }
 
   object G {
@@ -64,7 +71,7 @@ case class DotGraph[N <: GraphElement, E <: GraphElement]() {
       def removeEdge(g: G, node1: N, edge: E, node2: N) = ??? /* TODO[easy] implement */
       def nodes(g: G)                                   = g._nodes.size
       def edges(g: G)                                   = g._edges.size
-      def findNodes(g: G, p: N => Boolean)             = g._nodes.filter(p)
+      def findNodes(g: G, p: N => Boolean)              = g._nodes.filter(p)
     }
   }
 }

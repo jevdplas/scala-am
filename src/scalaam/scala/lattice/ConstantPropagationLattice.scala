@@ -20,9 +20,14 @@ object ConstantPropagation {
       case Top => Top
       case Constant(_) =>
         y match {
-          case Top         => Top
-          case Constant(_) => if (x == y) { x } else { Top }
-          case Bottom      => x
+          case Top => Top
+          case Constant(_) =>
+            if (x == y) {
+              x
+            } else {
+              Top
+            }
+          case Bottom => x
         }
       case Bottom => y
     }
@@ -30,9 +35,14 @@ object ConstantPropagation {
       case Bottom => Bottom
       case Constant(_) =>
         y match {
-          case Top         => x
-          case Constant(_) => if (x == y) { x } else { Bottom }
-          case Bottom      => Bottom
+          case Top => x
+          case Constant(_) =>
+            if (x == y) {
+              x
+            } else {
+              Bottom
+            }
+          case Bottom => Bottom
         }
       case Top => y
     }

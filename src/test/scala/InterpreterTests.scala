@@ -48,7 +48,7 @@ class SchemeInterpreterAAMTests[A <: Address, T, V](
     implicit val l: SchemeLattice[V, SchemeExp, A])
     extends SchemeInterpreterTests[A, V, T, SchemeExp](kind) {
     val sem = new BaseSchemeSemantics[A, V, T, SchemeExp](allocator)
-    val machine = new AAM[SchemeExp, A, V, T](StoreType.BasicStore, sem)
+    val machine = new AAM[SchemeExp, A, V, T](StoreType.DeltaStore, sem)
 }
 
 class AtomlangInterpreterAAMTests[A <: Address, T, V, TID <: ThreadIdentifier](
@@ -58,7 +58,7 @@ class AtomlangInterpreterAAMTests[A <: Address, T, V, TID <: ThreadIdentifier](
     implicit val l: SchemeLattice[V, SchemeExp, A])
     extends SchemeInterpreterTests[A, V, T, SchemeExp](kind) {
     val sem = new AtomlangSemantics[A, V, T, SchemeExp, TID](allocator, TIDAllocator)
-    val machine = new AAM[SchemeExp, A, V, T](StoreType.BasicStore, sem)
+    val machine = new AAM[SchemeExp, A, V, T](StoreType.DeltaStore, sem)
 }
 
 

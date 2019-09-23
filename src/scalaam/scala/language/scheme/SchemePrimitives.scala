@@ -14,21 +14,30 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
   trait Primitive {
     def name: String
     override def toString = name
-    def callAction(fexp: SchemeExp,
-                   args: List[(SchemeExp, V)],
-                   store: Store[A, V],
-                   t: T): Set[Action.A] =
+    def callAction(
+        fexp: SchemeExp,
+        args: List[(SchemeExp, V)],
+        store: Store[A, V],
+        t: T
+    ): Set[Action.A] =
       call(fexp, args, store, t)
         .mapSet[Action.A](vstore => Action.Value(vstore._1, vstore._2))(err => Action.Err(err))
-    def callActionEffs(fexp: SchemeExp,
-                       args: List[(SchemeExp, V)],
-                       store: Store[A, V], t: T): Set[Action.A] =
+    def callActionEffs(
+        fexp: SchemeExp,
+        args: List[(SchemeExp, V)],
+        store: Store[A, V],
+        t: T
+    ): Set[Action.A] =
       call(fexp, args, store, t)
-          .mapSet[Action.A](vStEffs => Action.Value(vStEffs._1, vStEffs._2, vStEffs._3))(err => Action.Err(err))
-    def call(fexp: SchemeExp,
-             args: List[(SchemeExp, V)],
-             store: Store[A, V],
-             t: T): MayFail[(V, Store[A, V], Effects), Error]
+        .mapSet[Action.A](vStEffs => Action.Value(vStEffs._1, vStEffs._2, vStEffs._3))(
+          err => Action.Err(err)
+        )
+    def call(
+        fexp: SchemeExp,
+        args: List[(SchemeExp, V)],
+        store: Store[A, V],
+        t: T
+    ): MayFail[(V, Store[A, V], Effects), Error]
   }
 
   /** Bundles all the primitives together, annotated with R5RS support (v: supported, vv: supported and tested in PrimitiveTests, vx: not fully supported, x: not supported), and section in Guile manual */
@@ -151,8 +160,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       Remainder, /* [vv] remainder: Integer Operations */
       /* [x]  reverse: Append/Reverse */
       Round, /* [vv] round: Arithmetic */
-      SetCar,    /* [vv] set-car!: Pairs */
-      SetCdr,    /* [vv] set-cdr!: Pairs */
+      SetCar, /* [vv] set-car!: Pairs */
+      SetCdr, /* [vv] set-cdr!: Pairs */
       Sin, /* [vv] sin: Scientific */
       Sqrt, /* [vv] sqrt: Scientific */
       /* [x]  string: String Constructors */
@@ -181,14 +190,14 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       Tan, /* [vv] tan: Scientific */
       /* [x]  truncate: Arithmetic */
       /* [x]  values: Multiple Values */
-      MakeVector,     /* [vv] make-vector: Vector Creation */
-      Vector,         /* [vv] vector: Vector Creation */
+      MakeVector, /* [vv] make-vector: Vector Creation */
+      Vector, /* [vv] vector: Vector Creation */
       /* [x]  vector->list: Vector Creation */
       /* [x]  vector-fill!: Vector Accessors */
-      VectorLength,   /* [vv] vector-length: Vector Accessors */
-      VectorRef,      /* [vv] vector-ref: Vector Accessors */
+      VectorLength, /* [vv] vector-length: Vector Accessors */
+      VectorRef, /* [vv] vector-ref: Vector Accessors */
       VectorSet, /* [vv] vector-set!: Vector Accessors */
-      Vectorp,        /* [vv] vector?: Vector Creation */
+      Vectorp, /* [vv] vector?: Vector Creation */
       /* [x]  with-input-from-file: File Ports */
       /* [x]  with-output-to-file: File Ports */
       /* [x]  write-char: Writing */
@@ -235,10 +244,10 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       Cddddr,
       /* Other primitives that are not R5RS */
       Random,
-      Error,
+      Error
     )
   }
-  
+
   def allPrimitives: List[Primitive] = SchemePrimitives
 
   object PrimitiveDefs {
@@ -257,10 +266,12 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       def call(arg: (SchemeExp, V)): MayFail[V, Error]                  = call(arg._2)
       def call(fexp: SchemeExp, arg: (SchemeExp, V)): MayFail[V, Error] = call(arg)
       def call(): MayFail[V, Error]                                     = call(List())
-      def call(fexp: SchemeExp,
-               args: List[(SchemeExp, V)],
-               store: Store[A, V],
-               t: T): MayFail[(V, Store[A, V], Effects), Error] =
+      def call(
+          fexp: SchemeExp,
+          args: List[(SchemeExp, V)],
+          store: Store[A, V],
+          t: T
+      ): MayFail[(V, Store[A, V], Effects), Error] =
         (args match {
           case Nil           => call()
           case x :: Nil      => call(fexp, x)
@@ -268,7 +279,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
           case _             => call(args.map({ case (_, v) => v }))
         }).map(v => (v, store, Effects.noEff()))
     }
-  
+
     abstract class StoreOperation(val name: String, val nargs: Option[Int] = None)
         extends Primitive {
       def call(args: List[V], store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] =
@@ -277,61 +288,87 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         call(List(arg), store)
       def call(arg1: V, arg2: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] =
         call(List(arg1, arg2), store)
-      def call(fexp: SchemeExp,
-               arg1: (SchemeExp, V),
-               arg2: (SchemeExp, V),
-               store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] =
+      def call(
+          fexp: SchemeExp,
+          arg1: (SchemeExp, V),
+          arg2: (SchemeExp, V),
+          store: Store[A, V]
+      ): MayFail[(V, Store[A, V], Effects), Error] =
         call(arg1._2, arg2._2, store)
-      def call(fexp: SchemeExp,
-               arg: (SchemeExp, V),
-               store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] =
+      def call(
+          fexp: SchemeExp,
+          arg: (SchemeExp, V),
+          store: Store[A, V]
+      ): MayFail[(V, Store[A, V], Effects), Error] =
         call(arg._2, store)
       def call(store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = call(List(), store)
-      def call(fexp: SchemeExp,
-               args: List[(SchemeExp, V)],
-               store: Store[A, V],
-               t: T): MayFail[(V, Store[A, V], Effects), Error] = (args match {
-        case Nil           => call(store)
-        case x :: Nil      => call(fexp, x, store)
-        case x :: y :: Nil => call(fexp, x, y, store)
-        case _             => call(args.map({ case (_, v) => v }), store)
-      }).map{case (v, store, effs) => (v, store, effs)}
+      def call(
+          fexp: SchemeExp,
+          args: List[(SchemeExp, V)],
+          store: Store[A, V],
+          t: T
+      ): MayFail[(V, Store[A, V], Effects), Error] =
+        (args match {
+          case Nil           => call(store)
+          case x :: Nil      => call(fexp, x, store)
+          case x :: y :: Nil => call(fexp, x, y, store)
+          case _             => call(args.map({ case (_, v) => v }), store)
+        }).map { case (v, store, effs) => (v, store, effs) }
     }
 
     import schemeLattice._
-    
+
     /** Dereferences a pointer x (which may point to multiple addresses) and applies a function to its value, joining everything together, generating a read effect. */
-    def dereferencePointer(x: V, store: Store[A, V])(f: V => MayFail[V, Error]): MayFail[(V, Effects), Error] =
-      getPointerAddresses(x).foldLeft(MayFail.success[(V, Effects), Error]((bottom, Effects.noEff())))(
+    def dereferencePointer(x: V, store: Store[A, V])(
+        f: V => MayFail[V, Error]
+    ): MayFail[(V, Effects), Error] =
+      getPointerAddresses(x).foldLeft(
+        MayFail.success[(V, Effects), Error]((bottom, Effects.noEff()))
+      )(
         (acc, a) =>
           for {
             v            <- store.lookupMF(a)
             res          <- f(v)
             (accv, effs) <- acc
-          } yield (join(accv, res), effs ++ Effects.rAddr(a)))
-  
+          } yield (join(accv, res), effs ++ Effects.rAddr(a))
+      )
+
     /** Like dereferencePointerWithEffects, but allows the applied function to generate effects too. */
-    def dereferencePointerFunEffs(x: V, store: Store[A, V])(f: V => MayFail[(V, Effects), Error]): MayFail[(V, Effects), Error] =
-      getPointerAddresses(x).foldLeft(MayFail.success[(V, Effects), Error]((bottom, Effects.noEff())))(
+    def dereferencePointerFunEffs(x: V, store: Store[A, V])(
+        f: V => MayFail[(V, Effects), Error]
+    ): MayFail[(V, Effects), Error] =
+      getPointerAddresses(x).foldLeft(
+        MayFail.success[(V, Effects), Error]((bottom, Effects.noEff()))
+      )(
         (acc, a) =>
           for {
             v            <- store.lookupMF(a)
             res          <- f(v)
             (accv, effs) <- acc
-          } yield (join(accv, res._1), effs ++ res._2 ++ Effects.rAddr(a)))
-  
-    def dereferencePointerGetAddressReturnStore(x: V, store: Store[A, V])(f: (A, V, Store[A, V]) => MayFail[(V, Store[A, V], Effects), Error]): MayFail[(V, Store[A, V], Effects), Error] =
-      getPointerAddresses(x).foldLeft(MayFail.success[(V, Store[A, V], Effects), Error]((bottom, store, Effects.noEff())))(
+          } yield (join(accv, res._1), effs ++ res._2 ++ Effects.rAddr(a))
+      )
+
+    def dereferencePointerGetAddressReturnStore(x: V, store: Store[A, V])(
+        f: (A, V, Store[A, V]) => MayFail[(V, Store[A, V], Effects), Error]
+    ): MayFail[(V, Store[A, V], Effects), Error] =
+      getPointerAddresses(x).foldLeft(
+        MayFail.success[(V, Store[A, V], Effects), Error]((bottom, store, Effects.noEff()))
+      )(
         (acc: MayFail[(V, Store[A, V], Effects), Error], a: A) =>
-          acc >>= { case (accv, updatedStore, effs) =>
-            /* We use the old store because the new added information can only negatively influence precision (as it didn't hold at the point of the function call */
-            store.lookupMF(a) >>= (v =>
-              /* But we pass the updated store around as it should reflect all updates */
-              f(a, v, updatedStore) >>= {case (res, newStore, e) =>
-                MayFail.success((join(accv, res), newStore, effs ++ e ++ Effects.rAddr(a)))
-              })
-          })
-    
+          acc >>= {
+            case (accv, updatedStore, effs) =>
+              /* We use the old store because the new added information can only negatively influence precision (as it didn't hold at the point of the function call */
+              store.lookupMF(a) >>= (
+                  v =>
+                    /* But we pass the updated store around as it should reflect all updates */
+                    f(a, v, updatedStore) >>= {
+                      case (res, newStore, e) =>
+                        MayFail.success((join(accv, res), newStore, effs ++ e ++ Effects.rAddr(a)))
+                    }
+                )
+          }
+      )
+
     /* TODO[medium] improve these implicit classes to be able to write primitives more clearly */
     implicit class V1Ops(f: V => MayFail[V, Error]) {
       def apply(arg: MayFail[V, Error]): MayFail[V, Error] = arg >>= f
@@ -353,39 +390,66 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         v2 <- arg2
         res <- f(v1, v2)
       } yield res */
-    def ifThenElse(cond: MayFail[V, Error])(thenBranch: => MayFail[V, Error])(
-        elseBranch: => MayFail[V, Error]): MayFail[V, Error] = {
+    def ifThenElse(
+        cond: MayFail[V, Error]
+    )(thenBranch: => MayFail[V, Error])(elseBranch: => MayFail[V, Error]): MayFail[V, Error] = {
       val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
       val mfMon  = scalaam.util.MonoidInstances.mayFail[V](latMon)
       cond >>= { condv =>
-        val t = if (isTrue(condv)) { thenBranch } else { MayFail.success[V, Error](latMon.zero) }
-        val f = if (isFalse(condv)) { elseBranch } else { MayFail.success[V, Error](latMon.zero) }
+        val t = if (isTrue(condv)) {
+          thenBranch
+        } else {
+          MayFail.success[V, Error](latMon.zero)
+        }
+        val f = if (isFalse(condv)) {
+          elseBranch
+        } else {
+          MayFail.success[V, Error](latMon.zero)
+        }
         mfMon.append(t, f)
       }
     }
-    
-    def ifThenElseWithEffs(cond: MayFail[V, Error])(thenBranch: => MayFail[(V, Effects), Error])(
-        elseBranch: => MayFail[(V, Effects), Error]): MayFail[(V, Effects), Error] = {
+
+    def ifThenElseWithEffs(cond: MayFail[V, Error])(
+        thenBranch: => MayFail[(V, Effects), Error]
+    )(elseBranch: => MayFail[(V, Effects), Error]): MayFail[(V, Effects), Error] = {
       val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
       val effMon = scalaam.util.MonoidInstances.setMonoid[Effect]
       val tupMon = scalaam.util.MonoidInstances.tupleMonoid(latMon, effMon)
       val mfMon  = scalaam.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
       cond >>= { condv =>
-        val t = if (isTrue(condv))  { thenBranch } else { MayFail.success[(V, Effects), Error]((latMon.zero, Effects.noEff())) }
-        val f = if (isFalse(condv)) { elseBranch } else { MayFail.success[(V, Effects), Error]((latMon.zero, Effects.noEff())) }
+        val t = if (isTrue(condv)) {
+          thenBranch
+        } else {
+          MayFail.success[(V, Effects), Error]((latMon.zero, Effects.noEff()))
+        }
+        val f = if (isFalse(condv)) {
+          elseBranch
+        } else {
+          MayFail.success[(V, Effects), Error]((latMon.zero, Effects.noEff()))
+        }
         mfMon.append(t, f)
       }
     }
-  
-    def ifThenElseCondEffs(cond: MayFail[(V, Effects), Error])(thenBranch: => MayFail[(V, Effects), Error])(
-        elseBranch: => MayFail[(V, Effects), Error]): MayFail[(V, Effects), Error] = {
+
+    def ifThenElseCondEffs(cond: MayFail[(V, Effects), Error])(
+        thenBranch: => MayFail[(V, Effects), Error]
+    )(elseBranch: => MayFail[(V, Effects), Error]): MayFail[(V, Effects), Error] = {
       val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
       val effMon = scalaam.util.MonoidInstances.setMonoid[Effect]
       val tupMon = scalaam.util.MonoidInstances.tupleMonoid(latMon, effMon)
       val mfMon  = scalaam.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
       cond >>= { condv =>
-        val t = if (isTrue(condv._1)) { thenBranch.map{case (v, e) => (v, e ++ condv._2)} } else  { MayFail.success[(V, Effects), Error]((latMon.zero, condv._2)) }
-        val f = if (isFalse(condv._1)) { elseBranch.map{case (v, e) => (v, e ++ condv._2)} } else { MayFail.success[(V, Effects), Error]((latMon.zero, condv._2)) }
+        val t = if (isTrue(condv._1)) {
+          thenBranch.map { case (v, e) => (v, e ++ condv._2) }
+        } else {
+          MayFail.success[(V, Effects), Error]((latMon.zero, condv._2))
+        }
+        val f = if (isFalse(condv._1)) {
+          elseBranch.map { case (v, e) => (v, e ++ condv._2) }
+        } else {
+          MayFail.success[(V, Effects), Error]((latMon.zero, condv._2))
+        }
         mfMon.append(t, f)
       }
     }
@@ -716,7 +780,9 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       override def call(x: V, store: Store[A, V]) =
         for {
           ispointer <- isPointer(x)
-          (isvector, effs) <- dereferencePointer(x, store) { v => isVector(v) }
+          (isvector, effs) <- dereferencePointer(x, store) { v =>
+            isVector(v)
+          }
         } yield (and(ispointer, isvector), store, effs)
     }
     object Eq extends NoStoreOperation("eq?", Some(2)) {
@@ -748,13 +814,21 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     }
     object Newline extends NoStoreOperation("newline", Some(0)) {
       // TODO re-enable printing! (This is just very annoying during benchmarking.)
-      override def call() = { /* println(""); */ MayFailSuccess(bool(false)) }
+      override def call() = {
+        /* println(""); */
+        MayFailSuccess(bool(false))
+      }
     }
     object Display extends NoStoreOperation("display", Some(1)) {
       override def call(x: V) = {
         // TODO re-enable printing! (This is just very annoying during benchmarking.)
-        // val str = x.toString
-        // print(if (str.startsWith("\"")) { str.substring(1, str.size - 1) } else { str })
+        val _str = x.toString
+        val str = if (_str.startsWith("\"")) {
+          _str.substring(1, _str.size - 1)
+        } else {
+          _str
+        }
+        // print(s"[output] $str\n")
         x /* Undefined behavior in R5RS, but we return the printed value */
       }
     }
@@ -768,7 +842,9 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T) = args match {
         case (_, car) :: (_, cdr) :: Nil =>
           val consa = allocator.pointer(fexp, t)
-          MayFail.success((pointer(consa), store.extend(consa, cons(car, cdr)), Effects.wAddr(consa)))
+          MayFail.success(
+            (pointer(consa), store.extend(consa, cons(car, cdr)), Effects.wAddr(consa))
+          )
         case l => MayFail.failure(PrimitiveArityError(name, 2, l.size))
       }
     }
@@ -781,22 +857,30 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         .drop(1)
         .take(name.length - 2)
         .toList
-        .reverseMap(c =>
-          if (c == 'a') { Car } else if (c == 'd') { Cdr } else {
-            throw new Exception(s"Incorrect car/cdr operation: $name")
-        })
+        .reverseMap(
+          c =>
+            if (c == 'a') {
+              Car
+            } else if (c == 'd') {
+              Cdr
+            } else {
+              throw new Exception(s"Incorrect car/cdr operation: $name")
+            }
+        )
       override def call(v: V, store: Store[A, V]) =
         for {
-         (v, effs) <- spec.foldLeft(MayFail.success[(V, Effects), Error]((v, Effects.noEff())))((acc, op) =>
-            for {
-              (v, ef) <- acc
-              (res, effs) <- dereferencePointer(v, store) { consv =>
-                op match {
-                  case Car => car(consv)
-                  case Cdr => cdr(consv)
+          (v, effs) <- spec.foldLeft(MayFail.success[(V, Effects), Error]((v, Effects.noEff())))(
+            (acc, op) =>
+              for {
+                (v, ef) <- acc
+                (res, effs) <- dereferencePointer(v, store) { consv =>
+                  op match {
+                    case Car => car(consv)
+                    case Cdr => cdr(consv)
+                  }
                 }
-              }
-            } yield (res, ef ++ effs))
+              } yield (res, ef ++ effs)
+          )
         } yield (v, store, effs)
     }
 
@@ -834,25 +918,29 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     object SetCar extends StoreOperation("set-car!", Some(2)) {
       override def call(cell: V, value: V, store: Store[A, V]) =
         getPointerAddresses(cell)
-          .foldLeft(MayFail.success[(Store[A, V], Effects), Error]((store, Effects.noEff())))((acc, a) =>
-            for {
-              consv <- store.lookupMF(a) /* look up in old store */
-              (st, effs) <- acc /* updated store and accumulated effects. */
-              v1 = value /* update car */
-              v2 <- cdr(consv) /* preserves cdr */
-            } yield (st.update(a, cons(v1, v2)), effs ++ Effects.wAddr(a)))
+          .foldLeft(MayFail.success[(Store[A, V], Effects), Error]((store, Effects.noEff())))(
+            (acc, a) =>
+              for {
+                consv      <- store.lookupMF(a) /* look up in old store */
+                (st, effs) <- acc /* updated store and accumulated effects. */
+                v1 = value /* update car */
+                v2 <- cdr(consv) /* preserves cdr */
+              } yield (st.update(a, cons(v1, v2)), effs ++ Effects.wAddr(a))
+          )
           .map(storeEffs => (bool(false) /* undefined */, storeEffs._1, storeEffs._2))
     }
     object SetCdr extends StoreOperation("set-cdr!", Some(2)) {
       override def call(cell: V, value: V, store: Store[A, V]) =
         getPointerAddresses(cell)
-          .foldLeft(MayFail.success[(Store[A, V], Effects), Error]((store, Effects.noEff())))((acc, a) =>
-            for {
-              consv <- store.lookupMF(a) /* look up in old store */
-              (st, effs) <- acc /* updated store and accumulated effects. */
-              v1    <- car(consv) /* preserves car */
-              v2 = value /* update cdr */
-            } yield (st.update(a, cons(v1, v2)), effs ++ Effects.wAddr(a)))
+          .foldLeft(MayFail.success[(Store[A, V], Effects), Error]((store, Effects.noEff())))(
+            (acc, a) =>
+              for {
+                consv      <- store.lookupMF(a) /* look up in old store */
+                (st, effs) <- acc /* updated store and accumulated effects. */
+                v1         <- car(consv) /* preserves car */
+                v2 = value /* update cdr */
+              } yield (st.update(a, cons(v1, v2)), effs ++ Effects.wAddr(a))
+          )
           .map(storeEffs => (bool(false) /* undefined */, storeEffs._1, storeEffs._2))
     }
 
@@ -860,7 +948,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       override def call(l: V, store: Store[A, V]) = {
         def length(l: V, visited: Set[V]): MayFail[(V, Effects), Error] =
           if (visited.contains(l)) {
-              (bottom, Effects.noEff())
+            (bottom, Effects.noEff())
           } else {
             ifThenElseWithEffs(isPointer(l)) {
               /* dereferences the pointer and applies length to the result */
@@ -871,14 +959,14 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
               ifThenElseWithEffs(isCons(l)) {
                 /* length of the list is length of its cdr plus one */
                 for {
-                  cdrv      <- cdr(l)
+                  cdrv             <- cdr(l)
                   (lengthcdr, eff) <- length(cdrv, visited + l)
-                  len       <- plus(number(1), lengthcdr)
+                  len              <- plus(number(1), lengthcdr)
                 } yield (len, eff)
               } {
                 ifThenElseWithEffs(isNull(l)) {
                   /* length of null is 0 */
-                    (number(0), Effects.noEff())
+                  (number(0), Effects.noEff())
                 } {
                   /* not a list */
                   MayFail.failure(PrimitiveNotApplicable("length", List(l)))
@@ -922,13 +1010,13 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                 ifThenElseWithEffs((and _)(isCons(a), isCons(b))) {
                   /* If both cons, check car and cdr */
                   for {
-                    cara <- car(a)
-                    carb <- car(b)
-                    cdra <- cdr(a)
-                    cdrb <- cdr(b)
+                    cara     <- car(a)
+                    carb     <- car(b)
+                    cdra     <- cdr(a)
+                    cdrb     <- cdr(b)
                     (r1, e1) <- equalp(cara, carb, visited2)
                     (r2, e2) <- equalp(cdra, cdrb, visited2)
-                    res  <- (and _)(r1, r2)
+                    res      <- (and _)(r1, r2)
                   } yield (res, e1 ++ e2)
                 } {
                   ifThenElseWithEffs((and _)(isPointer(a), isPointer(b))) {
@@ -959,7 +1047,12 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
               args))))
       */
     object ListPrim extends StoreOperation("list", None) {
-      override def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T): MayFail[(V, Store[A, V], Effects), Error] =
+      override def call(
+          fexp: SchemeExp,
+          args: List[(SchemeExp, V)],
+          store: Store[A, V],
+          t: T
+      ): MayFail[(V, Store[A, V], Effects), Error] =
         args match {
           case Nil => MayFail.success((nil, store, Effects.noEff()))
           case (exp, v) :: rest =>
@@ -1014,7 +1107,11 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
               (list-ref (cdr l) (- index 1)))
             (error "list-ref applied to a non-list"))) */
     object ListRef extends StoreOperation("list-ref", Some(2)) {
-      override def call(l: V, index: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
+      override def call(
+          l: V,
+          index: V,
+          store: Store[A, V]
+      ): MayFail[(V, Store[A, V], Effects), Error] = {
         def listRef(l: V, index: V, visited: Set[(V, V)]): MayFail[(V, Effects), Error] = {
           if (visited.contains((l, index))) {
             (bottom, Effects.noEff())
@@ -1054,10 +1151,15 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
             (if (equal? (car l) e)
               l
               (member e (cdr l))))) */
-    abstract class MemberLike(override val name: String,
-                              eqFn: (V, V, Store[A, V]) => MayFail[(V, Effects), Error])
-        extends StoreOperation(name, Some(2)) {
-      override def call(e: V, l: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
+    abstract class MemberLike(
+        override val name: String,
+        eqFn: (V, V, Store[A, V]) => MayFail[(V, Effects), Error]
+    ) extends StoreOperation(name, Some(2)) {
+      override def call(
+          e: V,
+          l: V,
+          store: Store[A, V]
+      ): MayFail[(V, Store[A, V], Effects), Error] = {
         def mem(e: V, l: V, visited: Set[V]): MayFail[(V, Effects), Error] = {
           if (visited.contains(l)) {
             (bottom, Effects.noEff())
@@ -1074,7 +1176,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                       /* (car l) and e are equal, return l */
                       (l, Effects.noEff())
                     } {
-                     cdr(lv) >>= (mem(e, _, visited + l))
+                      cdr(lv) >>= (mem(e, _, visited + l))
                     }
                   } yield res
                 }
@@ -1092,14 +1194,25 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     }
 
     object Member
-        extends MemberLike("member",
-                           (x: V, y: V, store: Store[A, V]) => Equal.call(x, y, store).map(ve => (ve._1,ve._3)))
-    object Memq extends MemberLike("memq", (x: V, y: V, _: Store[A, V]) => Eq.call(x, y).map((_, Effects.noEff())))
+        extends MemberLike(
+          "member",
+          (x: V, y: V, store: Store[A, V]) => Equal.call(x, y, store).map(ve => (ve._1, ve._3))
+        )
+    object Memq
+        extends MemberLike(
+          "memq",
+          (x: V, y: V, _: Store[A, V]) => Eq.call(x, y).map((_, Effects.noEff()))
+        )
 
-    abstract class AssocLike(override val name: String,
-                             eqFn: (V, V, Store[A, V]) => MayFail[(V, Effects), Error])
-        extends StoreOperation(name, Some(2)) {
-      override def call(e: V, l: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
+    abstract class AssocLike(
+        override val name: String,
+        eqFn: (V, V, Store[A, V]) => MayFail[(V, Effects), Error]
+    ) extends StoreOperation(name, Some(2)) {
+      override def call(
+          e: V,
+          l: V,
+          store: Store[A, V]
+      ): MayFail[(V, Store[A, V], Effects), Error] = {
         def assoc(e: V, l: V, visited: Set[V]): MayFail[(V, Effects), Error] = {
           if (visited.contains(l)) {
             (bottom, Effects.noEff())
@@ -1111,11 +1224,11 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                 dereferencePointerFunEffs(l, store) { lv =>
                   for {
                     carl <- car(lv)
-                    res  <- ifThenElseWithEffs(isPointer(carl)) {
+                    res <- ifThenElseWithEffs(isPointer(carl)) {
                       dereferencePointerFunEffs(carl, store) { carlv =>
                         for {
                           caarl <- car(carlv)
-                          res2  <- ifThenElseCondEffs(eqFn(e, caarl, store)) {
+                          res2 <- ifThenElseCondEffs(eqFn(e, caarl, store)) {
                             (carl, Effects.noEff())
                           } {
                             cdr(lv) >>= (assoc(e, _, visited + l))
@@ -1137,49 +1250,65 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       }
     }
     object Assoc
-        extends AssocLike("assoc",
-                          (x: V, y: V, store: Store[A, V]) => Equal.call(x, y, store).map(ve => (ve._1, ve._3)))
-    object Assq extends AssocLike("assq", (x: V, y: V, _: Store[A, V]) => Eq.call(x, y).map((_, Effects.noEff())))
-  
+        extends AssocLike(
+          "assoc",
+          (x: V, y: V, store: Store[A, V]) => Equal.call(x, y, store).map(ve => (ve._1, ve._3))
+        )
+    object Assq
+        extends AssocLike(
+          "assq",
+          (x: V, y: V, _: Store[A, V]) => Eq.call(x, y).map((_, Effects.noEff()))
+        )
+
     object MakeVector extends Primitive {
       val name = "make-vector"
-      def call(fexp: SchemeExp,
-               args: List[(SchemeExp, V)],
-               store: Store[A, V],
-               t: T) = {
-        def createVec(size: V, init: V): MayFail[(V, Store[A, V]), Error] = {
-          isInteger(size) >>= (isint =>
-            if (isTrue(isint)) {
-              val veca = allocator.pointer(fexp, t)
-              vector(size, init) >>= (vec => (pointer(veca), store.extend(veca, vec)))
-            } else {
-              MayFail.failure(PrimitiveNotApplicable(name, args.map(_._2)))
-            })
+      def call(fexp: SchemeExp, args: List[(SchemeExp, V)], store: Store[A, V], t: T) = {
+        def createVec(size: V, init: V): MayFail[(V, Store[A, V], Effects), Error] = {
+          isInteger(size) >>= (
+              isint =>
+                if (isTrue(isint)) {
+                  val veca = allocator.pointer(fexp, t)
+                  vector(size, init) >>= (vec => (pointer(veca), store.extend(veca, vec), Effects.wAddr(veca)))
+                } else {
+                  MayFail.failure(PrimitiveNotApplicable(name, args.map(_._2)))
+                }
+            )
         }
         args match {
-          case (_, size) :: Nil => createVec(size, /* XXX: unspecified */ bool(false)).map(t => (t._1, t._2, Effects.noEff()))
-          case (_, size) :: (_, init) :: Nil => createVec(size, init).map(t => (t._1, t._2, Effects.noEff()))
+          case (_, size) :: Nil =>
+            createVec(size, /* XXX: unspecified */ bool(false))
+          case (_, size) :: (_, init) :: Nil =>
+            createVec(size, init)
           case l => MayFail.failure(PrimitiveVariadicArityError(name, 1, l.size))
         }
       }
     }
-  
+
     object Vector extends Primitive {
       val name = "vector"
-      def call(fexp: SchemeExp,
-               args: List[(SchemeExp, V)],
-               store: Store[A, V],
-               t: T): MayFail[(V, Store[A, V], Effects), Error] = {
+      def call(
+          fexp: SchemeExp,
+          args: List[(SchemeExp, V)],
+          store: Store[A, V],
+          t: T
+      ): MayFail[(V, Store[A, V], Effects), Error] = {
         val veca = allocator.pointer(fexp, t)
-        vector(number(args.size), bottom) >>= (emptyvec =>
-          args.zipWithIndex.foldLeft(MayFail.success[V, Error](emptyvec))((acc, arg) => acc >>= (vec =>
-            arg match {
-              case ((_, value), index) =>
-                vectorSet(vec, number(index), value)
-            }))) >>= (vec => (pointer(veca), store.extend(veca, vec), Effects.wAddr(veca)))
+        vector(number(args.size), bottom) >>= (
+            emptyvec =>
+              args.zipWithIndex.foldLeft(MayFail.success[V, Error](emptyvec))(
+                (acc, arg) =>
+                  acc >>= (
+                      vec =>
+                        arg match {
+                          case ((_, value), index) =>
+                            vectorSet(vec, number(index), value)
+                        }
+                    )
+              )
+          ) >>= (vec => (pointer(veca), store.extend(veca, vec), Effects.wAddr(veca)))
       }
     }
-  
+
     object VectorLength extends StoreOperation("vector-length", Some(1)) {
       def length(v: V, store: Store[A, V]): MayFail[(V, Effects), Error] = {
         dereferencePointer(v, store) { vec =>
@@ -1194,7 +1323,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         length(v, store).map(ve => (ve._1, store, ve._2))
       }
     }
-  
+
     object VectorRef extends StoreOperation("vector-ref", Some(2)) {
       def vectorRef(v: V, index: V, store: Store[A, V]): MayFail[(V, Effects), Error] = {
         dereferencePointer(v, store) { vec =>
@@ -1208,34 +1337,48 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       override def call(v: V, index: V, store: Store[A, V]) =
         vectorRef(v, index, store).map(ve => (ve._1, store, ve._2))
     }
-  
+
     object VectorSet extends StoreOperation("vector-set!", Some(3)) {
-      def vectorSet(v: V, index: V, newval: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
-        dereferencePointerGetAddressReturnStore(v, store) { case (veca, vec, store) =>
-          isVector(vec) >>= (test => {
-            val t: MayFail[(V, Option[(A, V)]), Error] =
-              if (isTrue(test)) {
-                schemeLattice.vectorSet(vec, index, newval) >>= (newvec =>
-                  MayFail.success((/* unspecified */ bool(false), Some((veca, newvec)))))
-              } else {
-                MayFail.success((bottom, None))
+      def vectorSet(
+          v: V,
+          index: V,
+          newval: V,
+          store: Store[A, V]
+      ): MayFail[(V, Store[A, V], Effects), Error] = {
+        dereferencePointerGetAddressReturnStore(v, store) {
+          case (veca, vec, store) =>
+            isVector(vec) >>= (test => {
+              val t: MayFail[(V, Option[(A, V)]), Error] =
+                if (isTrue(test)) {
+                  schemeLattice.vectorSet(vec, index, newval) >>= (
+                      newvec =>
+                        MayFail.success(( /* unspecified */ bool(false), Some((veca, newvec))))
+                    )
+                } else {
+                  MayFail.success((bottom, None))
+                }
+              val f: MayFail[V, Error] =
+                if (isFalse(test)) {
+                  MayFail.failure(PrimitiveNotApplicable(name, List(v, index, newval)))
+                } else {
+                  MayFail.success(bottom)
+                }
+              t >>= {
+                case (tv, None) =>
+                  f.join(MayFail.success(tv), join).map(v => (v, store, Effects.noEff()))
+                case (tv, Some((a, va))) =>
+                  f.join(MayFail.success(tv), join)
+                    .map(v => (v, store.update(a, va), Effects.wAddr(a)))
               }
-            val f: MayFail[V, Error] =
-              if (isFalse(test)) {
-                MayFail.failure(PrimitiveNotApplicable(name, List(v, index, newval)))
-              } else {
-                MayFail.success(bottom)
-              }
-            t >>= {
-              case (tv, None) => f.join(MayFail.success(tv), join).map(v => (v, store, Effects.noEff()))
-              case (tv, Some((a, va))) => f.join(MayFail.success(tv), join).map(v => (v, store.update(a, va), Effects.wAddr(a)))
-            }
-          })
+            })
         }
       }
-      override def call(args: List[V], store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = args match {
+      override def call(
+          args: List[V],
+          store: Store[A, V]
+      ): MayFail[(V, Store[A, V], Effects), Error] = args match {
         case v :: index :: newval :: Nil => vectorSet(v, index, newval, store)
-        case _ => MayFail.failure(PrimitiveArityError(name, 3, args.size))
+        case _                           => MayFail.failure(PrimitiveArityError(name, 3, args.size))
       }
     }
   }
