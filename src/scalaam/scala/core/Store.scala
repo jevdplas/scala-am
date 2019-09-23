@@ -101,9 +101,9 @@ case class ConcreteStore[A <: Address, V](content: Map[A, V])(implicit val lat: 
   /* Specific to ConcreteStore. */
 
   override def extend(a: A, v: V): ConcreteStore[A, V] = {
-    if (content.get(a).isDefined) {
-      println(s"store.extend imprecision")
-    }
+    // if (content.get(a).isDefined) {
+    //   println(s"store.extend imprecision")
+    // }
     ConcreteStore(content + (a -> v))
   }
 
