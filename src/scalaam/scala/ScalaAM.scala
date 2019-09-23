@@ -32,7 +32,7 @@ object Dot {
     val cmd =
       if (System.getProperty("os.name").toLowerCase.contains("windows")) "bash -c \"" + base + "\""
       else base
-    cmd.!
+    // cmd.!
   }
 }
 
