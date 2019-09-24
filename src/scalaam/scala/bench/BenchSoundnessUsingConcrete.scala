@@ -11,7 +11,7 @@ import scalaam.bench.BenchConfig._
 import scalaam.core.ConcreteAddress.Pointer
 import scalaam.core.ConcreteVal._
 import scalaam.lattice.{Concrete, Type}
-import scalaam.machine.{ConcreteConcurrentAAM, Strategy}
+import scalaam.machine.ConcreteConcurrentAAM
 import scalaam.core._
 import scalaam.language.atomlang._
 import scalaam.language.scheme._
@@ -179,8 +179,7 @@ object BenchSoundnessUsingConcrete {
         val t = Timeout.seconds(timeout)
         val result = concrete.run[cGraph.G](
             AtomlangParser.parse(content),
-            t,
-            Strategy.RandomInterleaving
+            t
         ) // Important: random interleavings!
         if (t.reached) return None
         val states = result._nodes
