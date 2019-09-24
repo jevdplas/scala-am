@@ -7,7 +7,7 @@ import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
 import scalaam.machine.AAM
 
-import scala.core.MachineUtil
+import scala.core.{Expression, MachineUtil}
 
 // TODO verify that bottom is returned - at least add comment (?).
 /**
@@ -23,7 +23,7 @@ import scala.core.MachineUtil
   * @tparam T
   * @tparam TID
   */
-class ModAtomWOIntraAbortion[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
+class ModAtomWOIntraAbortion[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
     val t: StoreType,
     val sem: Semantics[Exp, A, V, T, Exp],
     val allocator: TIDAllocator[TID, T, Exp]

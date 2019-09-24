@@ -6,6 +6,8 @@ import scalaam.core._
 import scalaam.graph.{BaseTransition, Graph}
 import scalaam.graph.Graph.GraphOps
 
+import scala.core.Expression
+
 // TODO IncAtom may perform too much work by restarting the same reanalysis from multiple points within the thread (not visible in results but longer analysis time).
 // TODO Therefore, only restart the analysis from the earliest point in the thread (-> pps benchmark?).
 
@@ -14,7 +16,7 @@ import scalaam.graph.Graph.GraphOps
   * This is accomplished by a change in dependency tracking, so that dependencies are to States and not to Threads, i.e., the tracking
   * of dependencies now uses a finer granularity.
   */
-class IncAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
+class IncAtom[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
     t: StoreType,
     sem: Semantics[Exp, A, V, T, Exp],
     allocator: TIDAllocator[TID, T, Exp]

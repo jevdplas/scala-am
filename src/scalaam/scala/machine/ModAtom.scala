@@ -7,9 +7,9 @@ import scalaam.machine.AAM
 import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
 
-import scala.core.MachineUtil
+import scala.core.{Expression, MachineUtil}
 
-class ModAtom[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
+class ModAtom[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
     val t: StoreType,
     val sem: Semantics[Exp, A, V, T, Exp],
     val allocator: TIDAllocator[TID, T, Exp]

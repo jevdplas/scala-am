@@ -2,6 +2,6 @@ package scala.core
 
 import scalaam.core.Position
 
-trait Exp {
+trait Expression {
   val pos: Position
 }

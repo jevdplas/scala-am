@@ -7,14 +7,14 @@ import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
 import scalaam.machine.Strategy.Strategy
 
-import scala.core.MachineUtil
+import scala.core.{Expression, MachineUtil}
 
 /**
   * Implementation of an abstract PCESK machine. This machine uses parts of an underlying AAM.<br><br>
   *
   * Based on https://github.com/acieroid/scala-am/blob/744a13a5b957c73a9d0aed6e10f7dae382c9b2e3/src/main/scala/machine/concurrent/ConcurrentAAM.scala
   */
-class ConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
+class ConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
     val t: StoreType,
     val sem: Semantics[Exp, A, V, T, Exp],
     val allocator: TIDAllocator[TID, T, Exp]
@@ -286,7 +286,7 @@ object Strategy extends Enumeration {
   val AllInterleavings, OneInterleaving, RandomInterleaving = Value
 }
 
-class ConcreteConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
+class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
     val t: StoreType,
     val sem: Semantics[Exp, A, V, T, Exp],
     val allocator: TIDAllocator[TID, T, Exp]

@@ -6,6 +6,8 @@ import scalaam.core._
 import scalaam.graph.{BaseTransition, Graph}
 import scalaam.graph.Graph.GraphOps
 
+import scala.core.Expression
+
 /**
   * Implementation of an optimised version of the IncrementalConcurrentModular machine. Two optimisations are implemented: <br>
   * <ul>
@@ -21,7 +23,7 @@ import scalaam.graph.Graph.GraphOps
   *
   * @see scala.machine.IncrementalConcurrentModular
   */
-class IncAtomWCaching[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
+class IncAtomWCaching[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
     t: StoreType,
     sem: Semantics[Exp, A, V, T, Exp],
     allocator: TIDAllocator[TID, T, Exp]

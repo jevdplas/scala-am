@@ -2,7 +2,7 @@ package scalaam.language.sexp
 
 import scalaam.core.{Identifier, Position}
 
-import scala.core.Exp
+import scala.core.Expression
 
 /**
   * S-expressions and related values
@@ -42,7 +42,7 @@ object ValueNil extends Value {
   * resides in the input file, and as tagging information for the abstract
   * machine.
   */
-trait SExp extends Exp
+trait SExp extends Expression
 
 /**
   * An s-expression is made of pairs, e.g., (foo bar) is represented as the pair

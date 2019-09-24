@@ -1,6 +1,6 @@
 package scalaam.core
 
-import scala.core.Exp
+import scala.core.Expression
 
 /** An address */
 trait Address extends SmartHash {
@@ -21,7 +21,7 @@ trait Allocator[A <: Address, T, C] {
   def variable(name: Identifier, t: T): A
 
   /** Allocate a pointer given some information of type E (usually an expression) */
-  def pointer[E <: Exp](e: E, t: T): A
+  def pointer[E <: Expression](e: E, t: T): A
 
   /** Allocate a primitive */
   def primitive(name: String): A
@@ -47,7 +47,7 @@ object NameAddress {
   }
 
   /** The address for a pointer */
-  case class Pointer[E <: Exp](e: E) extends A {
+  case class Pointer[E <: Expression](e: E) extends A {
     def printable = false
     override def toString = s"A{${e.pos}}"
   }
@@ -61,7 +61,7 @@ object NameAddress {
   case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C]) extends Allocator[A, T, C] {
     def variable(name: Identifier, t: T): A = Variable(name)
 
-    def pointer[E <: Exp](e: E, t: T): A = Pointer(e)
+    def pointer[E <: Expression](e: E, t: T): A = Pointer(e)
 
     def primitive(name: String) = Primitive(name)
   }
@@ -81,7 +81,7 @@ object ConcreteAddress {
   }
 
   /** Concrete address for a pointer. */
-  case class Pointer[E <: Exp, Time](exp: E, time: Time) extends A {
+  case class Pointer[E <: Expression, Time](exp: E, time: Time) extends A {
     def printable = false
   }
 
@@ -94,7 +94,7 @@ object ConcreteAddress {
   case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C]) extends Allocator[A, T, C] {
     def variable(name: Identifier, t: T): A = Variable(name, t)
 
-    def pointer[E <: Exp](exp: E, t: T): A = Pointer(exp, t)
+    def pointer[E <: Expression](exp: E, t: T): A = Pointer(exp, t)
 
     def primitive(name: String) = Primitive(name)
   }
@@ -111,7 +111,7 @@ case class TimestampAddress[T, C]()(implicit val time: Timestamp[T, C]) {
   object Alloc extends Allocator[A, T, C] {
     implicit val timestamp: Timestamp[T, C] = time
     def variable(name: Identifier, t: T): A = A(nameAlloc.variable(name, t), t)
-    def pointer[E <: Exp](e: E, t: T): A    = A(nameAlloc.pointer[E](e, t), t)
+    def pointer[E <: Expression](e: E, t: T): A    = A(nameAlloc.pointer[E](e, t), t)
     def primitive(name: String): A          = A(nameAlloc.primitive(name), timestamp.initial(""))
   }
 }

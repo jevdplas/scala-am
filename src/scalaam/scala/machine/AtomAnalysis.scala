@@ -8,10 +8,10 @@ import scalaam.machine.AAM
 import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
 
-import scala.core.MachineUtil
+import scala.core.{Expression, MachineUtil}
 
-abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])
-                                                                             (implicit val timestamp: Timestamp[T, Exp], implicit val lattice: Lattice[V])
+abstract class AtomAnalysis[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])
+                                                                                            (implicit val timestamp: Timestamp[T, Exp], implicit val lattice: Lattice[V])
   extends MachineAbstraction[Exp, A, V, T, Exp] with MachineUtil[Exp, A, V] {
 
     import sem.Action.{DerefFuture, Err, Eval, NewFuture, Push, StepIn, Value, A => Act}
@@ -326,6 +326,8 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](va
       */
     @scala.annotation.tailrec
     final def outerLoop(timeout: Timeout.T, oState: OuterLoopState, iteration: Int = 1): OuterLoopState = {
+        System.err.println(iteration)
+        System.err.println(oState.work)
         if (timeout.reached || oState.work.isEmpty) return oState
         interRuns += 1
         outerLoop(
@@ -421,7 +423,9 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](va
 
         val result: OuterLoopState = outerLoop(timeout, oState)
         //val t1 = System.nanoTime
-
+        println(result.deps.joined)
+        println(result.deps.written)
+        println(result.deps.read)
         //println(s"Total execution: ${(t1 - t0) / Math.pow(10, 9)}")
         //dumpProfile()
         theStore = result.store
@@ -534,8 +538,8 @@ abstract class AtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](va
     }
 }
 
-class ModAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])
-                                                                       (implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
+class ModAtomAnalysis[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])
+                                                                                      (implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
   extends AtomAnalysis[Exp, A, V, T, TID](t, sem, allocator) {
     type RestartTarget = TID
 
@@ -544,8 +548,8 @@ class ModAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: Store
     def getTID(tid: TID): TID = tid
 }
 
-class IncAtomAnalysis[Exp, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])
-                                                                       (implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
+class IncAtomAnalysis[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])
+                                                                                      (implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
   extends AtomAnalysis[Exp, A, V, T, TID](t, sem, allocator) {
     type RestartTarget = State
 
