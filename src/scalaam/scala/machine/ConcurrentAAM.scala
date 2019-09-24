@@ -466,55 +466,17 @@ class ConcreteConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
 
     def halted: Boolean = threads.allDone
 
-    /** Step the context(s) corresponding to a TID. Returns a set of tuples consisting out of the tid that was stepped and a resulting state. */
-    def stepOne(tid: TID): Set[(TID, State)] = { // TODO: Just return a set of states?
-      threads
-        .getRunnable(tid)
-        .flatMap(state => {
-          // println(s"stepping thread $tid, in state $state")
-          state.step(threads, store).map((tid, _))
-        })
-    }
-
-    /** Step the context(s) corresponding to multiple TIDs. Returns a set of tuples containing the tid that was stepped and a resulting state. */
-    def stepMultiple(): Set[(TID, State)] = threads.threadsRunnable.flatMap(tid => stepOne(tid))
-
-    /** Step the context(s) corresponding to a single TID. Returns a set of tuples containing the tid that was stepped and a resulting state. */
-    @unsound
-    def stepAny(): Set[(TID, State)] = {
-      for (tid <- threads.threadsRunnable) {
-        val next = stepOne(tid)
-        if (next.nonEmpty) return next
-      }
-      Set()
-    }
-
     /** Step the context(s) corresponding to a single, random TID. Returns a set of tuples containing the tid that was stepped and a resulting state. */
-    @unsound
-    def stepRandom(): Set[(TID, State)] = {
+    def step(): Set[(TID, State)] = {
       for (tid <- scala.util.Random.shuffle(threads.threadsRunnable.toList)) {
-        val next = stepOne(tid)
+        val next = threads.getRunnable(tid).flatMap(state => {state.step(threads, store).map((tid, _))})
         if (next.nonEmpty) return next
       }
       Set()
-    }
-
-    /**
-      * Steps the machine from one state to the next. Different strategies may be used. <br><br>
-      *
-      * Strategies:<br>
-      * <i>AllInterleavings</i>:  All threads that are not halted make a step.<br>
-      * <i>OneInterleaving</i>: One thread that is not halted makes a step.
-      */
-    def step(strategy: Strategy): Set[(TID, State)] = strategy match {
-      case Strategy.AllInterleavings   => stepMultiple()
-      case Strategy.OneInterleaving    => stepAny()
-      case Strategy.RandomInterleaving => stepRandom()
-      case _                           => throw new Exception("Unsupported analysis strategy.")
     }
   }
 
-  def run[G](program: Exp, timeout: Timeout.T, strategy: Strategy)(
+  def run[G](program: Exp, timeout: Timeout.T)(
       implicit ev: Graph[G, State, Transition]
   ): G = {
     import scala.concurrent.{Await, Future}
@@ -526,7 +488,7 @@ class ConcreteConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     @scala.annotation.tailrec
     def loop(cur: State): Unit = {
       if (!timeout.reached && !cur.halted) {
-        val next = cur.step(strategy).map(_._2)
+        val next = cur.step().map(_._2)
         next.foreach(st => graph = graph.map(g => g.addEdge(cur, empty, st))) // Next should only be of size 1, but if it's not, this will allow to find it.
         if (next.size != 1) {
           println(s"State: $cur")
@@ -554,9 +516,5 @@ class ConcreteConcurrentAAM[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
     val res = Await.result(graph, Duration.Inf)
     println(s"Number of nodes: ${ev.nodes(res)}")
     res
-  }
-
-  def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
-    run(program, timeout, Strategy.AllInterleavings)
   }
 }
