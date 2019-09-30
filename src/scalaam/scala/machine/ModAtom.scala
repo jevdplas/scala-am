@@ -78,7 +78,7 @@ class ModAtom[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
   case class State(tid: TID, control: Control, cc: KAddr, time: T)
       extends GraphElement
       with SmartHash {
-    override def toString: String = control.toString
+    override def toString: String = s" [$tid :: ${control.toString}] "
 
     override def label: String = toString
 

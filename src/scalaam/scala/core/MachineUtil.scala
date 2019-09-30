@@ -18,7 +18,7 @@ trait MachineUtil[Exp <: Expression, A <: Address, V] {
   trait Control extends SmartHash
 
   case class ControlEval(exp: Exp, env: Environment[A]) extends Control {
-    override def toString = s"ev($exp)"
+    override def toString = s"ev($exp[${exp.pos}])"
   }
 
   case class ControlKont(v: V) extends Control {

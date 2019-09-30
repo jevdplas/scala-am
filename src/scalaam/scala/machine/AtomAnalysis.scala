@@ -159,13 +159,7 @@ abstract class AtomAnalysis[Exp <: Expression, A <: Address, V, T, TID <: Thread
           * @param results A map of TIDs to values, used to retrieve the return values of other processes.
           * @return Returns a stepResult containing all successor states and bookkeeping information, as well as the final store.
           */
-        private def next(
-                          actions: Set[Act],
-                          old: VStore,
-                          kstore: KStore,
-                          cc: KAddr,
-                          results: RetVals
-                        ): StepResult = {
+        private def next(actions: Set[Act], old: VStore, kstore: KStore, cc: KAddr, results: RetVals): StepResult = {
             val init: StepResult = StepResult(Set.empty, Set.empty, Option.empty, Set.empty, old, kstore)
             actions.foldLeft(init)(
                 (acc, curAction) => act(curAction, time, acc.store, acc.kstore, cc, results).merge(acc)
@@ -218,12 +212,14 @@ abstract class AtomAnalysis[Exp <: Expression, A <: Address, V, T, TID <: Thread
                               visited: Set[State] = Set.empty, result: V = lattice.bottom, created: Created = Set.empty,
                               effects: Effects = Set.empty, edges: UnlabeledEdges = Map.empty) extends SmartHash
 
+    /** Selects the restart target out of the list of parameters and calls extract using this target. */
     def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps
 
-    def extract(target: RestartTarget, deps: Deps, effs: Set[Effect]): Deps = profile("extractDependencies") {
+    /** Associates effects with restart targets. */
+    def extract(target: RestartTarget, deps: Deps, effs: Set[Effect]): Deps = profile("extract") {
         effs.foldLeft(deps) {
-            case (deps, JoinEff(tid: TID@unchecked)) => deps.copy(joined = deps.joined + (tid -> (deps.joined(tid) + target)))
-            case (deps, ReadAddrEff(addr: A@unchecked)) => deps.copy(read = deps.read + (addr -> (deps.read(addr) + target)))
+            case (deps,     JoinEff(tid: TID@unchecked)) => deps.copy(joined  = deps.joined  + (tid  -> (deps.joined(tid)   + target)))
+            case (deps,  ReadAddrEff(addr: A@unchecked)) => deps.copy(read    = deps.read    + (addr -> (deps.read(addr)    + target)))
             case (deps, WriteAddrEff(addr: A@unchecked)) => deps.copy(written = deps.written + (addr -> (deps.written(addr) + target)), localWrites = deps.localWrites + addr)
             case (deps, _) => deps
         }
@@ -240,34 +236,30 @@ abstract class AtomAnalysis[Exp <: Expression, A <: Address, V, T, TID <: Thread
         if (timeout.reached || iState.work.isEmpty) return iState
         intraRuns += 1
         intraIterations += 1
-        innerLoop(
-            timeout,
-            //  profile("innerLoop") {
-            iState.work.foldLeft(iState.copy(work = Set())) {
-                case (iStateAcc, curState) =>
-                    if (iStateAcc.visited.contains(curState))
-                        iStateAcc // If the state has been explored already, do not take a step.
-                    else {
-                        // If the state has not been explored yet, take a step.
-                        val StepResult(succs, crea, res, effs, sto, ksto) = curState.step(iStateAcc.store, iStateAcc.kstore, iStateAcc.results)
-                        val deps = extractDependencies(iStateAcc.stid, iStateAcc.deps, curState, effs)
-                        val vis =
-                            if (sto.asInstanceOf[DeltaStore[A, V]].updated.nonEmpty || ksto.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].updated.nonEmpty)
-                                Set.empty[State] // Updates to the global stores -> clear visited sets.
-                            else
-                                iStateAcc.visited + curState // Immediately clear the visited set upon a store change.
+        innerLoop(timeout, /*  profile("innerLoop") { */ iState.work.foldLeft(iState.copy(work = Set())) { case (iStateAcc, curState) =>
+            if (iStateAcc.visited.contains(curState))
+              iStateAcc // If the state has been explored already, do not take a step.
+            else {
+                // If the state has not been explored yet, take a step.
+                val StepResult(succs, crea, res, effs, sto, ksto) = curState.step(iStateAcc.store, iStateAcc.kstore, iStateAcc.results)
+                val deps = extractDependencies(iStateAcc.stid, iStateAcc.deps, curState, effs)
+                val vis =
+                  if (sto.asInstanceOf[DeltaStore[A, V]].updated.nonEmpty || ksto.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].updated.nonEmpty)
+                      Set.empty[State] // Immediately clear the visited set upon a change to one of the global stores.
+                  else
+                      iStateAcc.visited + curState
 
-                        InnerLoopState(iStateAcc.stid, iStateAcc.work ++ succs,
-                                       sto.asInstanceOf[DeltaStore[A, V]].clearUpdated,
-                                       ksto.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].clearUpdated,
-                                       iStateAcc.results,
-                                       deps,
-                                       vis,
-                                       lattice.join(iStateAcc.result, res.getOrElse(lattice.bottom)),
-                                       iStateAcc.created ++ crea,
-                                       iStateAcc.effects ++ effs,
-                                       iStateAcc.edges + (curState -> succs))
-                    }
+                InnerLoopState(iStateAcc.stid, iStateAcc.work ++ succs,
+                  sto.asInstanceOf[DeltaStore[A, V]].clearUpdated,
+                  ksto.asInstanceOf[DeltaStore[KAddr, Set[Kont]]].clearUpdated,
+                  iStateAcc.results,
+                  deps,
+                  vis,
+                  lattice.join(iStateAcc.result, res.getOrElse(lattice.bottom)),
+                  iStateAcc.created ++ crea,
+                  iStateAcc.effects ++ effs,
+                  iStateAcc.edges + (curState -> succs))
+                }
             }
             // }
         )
@@ -288,7 +280,7 @@ abstract class AtomAnalysis[Exp <: Expression, A <: Address, V, T, TID <: Thread
       * i.e. the states from which the analysis for the respective targets should start. */
     def convertToStates(targets: Set[RestartTarget], threads: Threads): Set[State]
 
-    /** Retrieves the TIDs corresponding to the targets. */
+    /** Retrieves the TIDs corresponding to the target. */
     def getTID(target: RestartTarget): TID
 
     /**
@@ -326,46 +318,39 @@ abstract class AtomAnalysis[Exp <: Expression, A <: Address, V, T, TID <: Thread
       */
     @scala.annotation.tailrec
     final def outerLoop(timeout: Timeout.T, oState: OuterLoopState, iteration: Int = 1): OuterLoopState = {
-        System.err.println(iteration)
-        System.err.println(oState.work)
         if (timeout.reached || oState.work.isEmpty) return oState
         interRuns += 1
         outerLoop(
             timeout,
             //  profile("outerLoop") {
-            oState.work.groupBy(_.tid) // TODO find best worklist order! (Can result in better performance for inc).
-              .foldLeft(oState.copy(work = Set())) {
-                  case (oStateAcc, (stid, curStates)) =>
-                      //val stid: TID = curState.tid
-                      intraIterations = 0
-                      // The inner loop immediately updates the (k)store, result map and dependency maps.
-                      val iState = innerLoop(timeout, InnerLoopState(stid, curStates, oStateAcc.store, oStateAcc.kstore, oStateAcc.results, oState.deps))
-                      // println(s"[$iteration] Intra iterations for $stid: $intraIterations")
-                      // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
-                      val (todoCreated, newThreads): (Set[State], Threads) =
-                      iState.created.foldLeft((Set[State](), oStateAcc.threads)) {
-                          case ((createdAcc, threadsAcc), curState) =>
-                              if (threadsAcc(curState.tid).contains(curState))
-                                  (createdAcc, threadsAcc) // There already is an identical thread, so do nothing.
-                              else
-                                  (createdAcc + curState, threadsAcc + (curState.tid -> (threadsAcc(curState.tid) + curState)))
-                      }
-                      // Module dependencies have been updated and are available in iState.deps. TODO is iState.store the correct store to pass here for mod?
-                      val todoWritten: Set[State] = convertToStates(targetsImpactedByWrite(stid, iState.deps, oStateAcc.store, iState.store), newThreads) // Could be oStateAcc.threads but would not be beneficial for precision.
+            // TODO find best worklist order! (Can result in better performance for inc).
+            oState.work.groupBy(_.tid).foldLeft(oState.copy(work = Set())) { case (oStateAcc, (stid, curStates)) =>
+                intraIterations = 0
+                // The inner loop immediately updates the (k)store, result map and dependency maps.
+                val iState = innerLoop(timeout, InnerLoopState(stid, curStates, oStateAcc.store, oStateAcc.kstore, oStateAcc.results, oStateAcc.deps))
+                // println(s"[$iteration] Intra iterations for $stid: $intraIterations")
+                // todoCreated contains the initial states of threads that have never been explored. threads is updated accordingly to newThreads to register these new states.
+                val (todoCreated, newThreads): (Set[State], Threads) =
+                iState.created.foldLeft((Set[State](), oStateAcc.threads)) { case ((createdAcc, threadsAcc), curState) =>
+                      if (threadsAcc(curState.tid).contains(curState))
+                          (createdAcc, threadsAcc) // There already is an identical thread, so do nothing.
+                      else
+                          (createdAcc + curState, threadsAcc + (curState.tid -> (threadsAcc(curState.tid) + curState)))
+                }
+                // Module dependencies have been updated and are available in iState.deps. TODO is iState.store the correct store to pass here for mod?
+                val todoWritten: Set[State] = convertToStates(targetsImpactedByWrite(stid, iState.deps, oStateAcc.store, iState.store), newThreads) // Could be oStateAcc.threads but would not be beneficial for precision.
 
-                      // Join the old and new return value. If the return value changes, all other threads joining in this thread need to be reanalysed.
-                      val retVal: V = lattice.join(oStateAcc.results(stid), iState.result)
-                      val todoJoined: Set[State] =
-                          if (oStateAcc.results(stid) == retVal) Set()
-                          else convertToStates(iState.deps.joined(stid), newThreads) // Could be oStateAcc.threads but would not be beneficial for precision.
-                      OuterLoopState(newThreads,
-                                     oStateAcc.work ++ todoCreated ++ todoWritten ++ todoJoined,
-                                     iState.deps.copy(localWrites = Set()),
-                                     oStateAcc.results + (stid -> retVal),
-                                     iState.store,
-                                     iState.kstore,
-                                     oStateAcc.edges ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
-              }
+                // Join the old and new return value. If the return value changes, all other threads joining in this thread need to be reanalysed.
+                val retVal: V = lattice.join(oStateAcc.results(stid), iState.result)
+                val todoJoined: Set[State] = if (oStateAcc.results(stid) == retVal) Set() else convertToStates(iState.deps.joined(stid), newThreads)
+                OuterLoopState(newThreads,
+                             oStateAcc.work ++ todoCreated ++ todoWritten ++ todoJoined,
+                             iState.deps.copy(localWrites = Set()), // Reset the set of local writes.
+                             oStateAcc.results + (stid -> retVal),
+                             iState.store,
+                             iState.kstore,
+                             oStateAcc.edges ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
+            }
             //    },
             , iteration + 1)
     }
@@ -423,9 +408,6 @@ abstract class AtomAnalysis[Exp <: Expression, A <: Address, V, T, TID <: Thread
 
         val result: OuterLoopState = outerLoop(timeout, oState)
         //val t1 = System.nanoTime
-        println(result.deps.joined)
-        println(result.deps.written)
-        println(result.deps.read)
         //println(s"Total execution: ${(t1 - t0) / Math.pow(10, 9)}")
         //dumpProfile()
         theStore = result.store

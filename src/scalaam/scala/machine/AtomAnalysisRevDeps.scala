@@ -1,7 +1,5 @@
-/*
-package scala.machine
+/* package scala.machine
 
-import scalaam.core.Annotations._
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
@@ -9,9 +7,9 @@ import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
 import scalaam.machine.AAM
 
-import scala.core.MachineUtil
+import scala.core.{Expression, MachineUtil}
 
-abstract class AtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
+abstract class AtomAnalysisRevDeps[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
                                                                                val t: StoreType,
                                                                                val sem: Semantics[Exp, A, V, T, Exp],
                                                                                val allocator: TIDAllocator[TID, T, Exp]
@@ -269,7 +267,7 @@ abstract class AtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentif
   }
 
   /** Class collecting the dependencies of all threads. */
-  case class Deps(joined: JoinDeps, read: ReadDeps, written: WriteDeps)
+  case class Deps(joined: JoinDeps, read: ReadDeps, written: WriteDeps, localWrites: Set[A] = Set())
 
   /**
     * Contains bookkeeping information for the inner loop of the algorithm.
@@ -297,7 +295,7 @@ abstract class AtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentif
     effs.foldLeft(deps) {
       case (deps,     JoinEff(tid: TID @unchecked)) => deps.copy( joined = deps.joined  + (target -> (deps.joined(target)  + tid)))
       case (deps,  ReadAddrEff(addr: A @unchecked)) => deps.copy(   read = deps.read    + (target -> (deps.read(target)    + addr)))
-      case (deps, WriteAddrEff(addr: A @unchecked)) => deps.copy(written = deps.written + (target -> (deps.written(target) + addr)))
+      case (deps, WriteAddrEff(addr: A @unchecked)) => deps.copy(written = deps.written + (target -> (deps.written(target) + addr)), localWrites = deps.localWrites + addr)
       case (deps,                               _ ) => deps
     }
   }
@@ -406,13 +404,13 @@ abstract class AtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentif
               // Module dependencies have been updated and are available in iState.deps.
               val todoWritten: Set[State] = convertToStates(iState.deps.read.keySet.foldLeft(Set[RestartTarget]())(
                 (acc, curTarget) =>
-                  if (stid != curTarget && iState.deps.written(curTarget)
+                  if (stid != curTarget && iState.deps.localWrites
                     .intersect(oStateAcc.deps.read(curTarget)) // .intersect(oStateAcc.readDeps(curTid)) TODO Why oStateAcc?
                     .exists(addr => oStateAcc.store.lookup(addr) != iState.store.lookup(addr)))
                     acc + curTarget
                   else acc) ++ iState.deps.written.keySet.foldLeft(Set[RestartTarget]())(
                   (acc, curTarget) =>
-                    if (stid != curTarget && iState.deps.written(curTarget)
+                    if (stid != curTarget && iState.deps.localWrites
                       .intersect(oStateAcc.deps.written(curTarget))
                       .exists(addr => oStateAcc.store.lookup(addr) != iState.store.lookup(addr)))
                       acc + curTarget
@@ -430,7 +428,7 @@ abstract class AtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentif
               OuterLoopState(
                 newThreads,
                 oStateAcc.work ++ todoCreated ++ todoWritten ++ todoJoined,
-                iState.deps,
+                iState.deps.copy(localWrites = Set()),
                 oStateAcc.results + (stid -> retVal),
                 iState.store,
                 iState.kstore,
@@ -487,7 +485,7 @@ abstract class AtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentif
     val state: State        = State(tid, control, cc, time)
     val threads: Threads    = Map(tid -> Set(state)).withDefaultValue(Set.empty)
     val vstore: VStore      = Store.initial[A, V](t, sem.initialStore)(lattice)
-    val t0 = System.nanoTime
+    // val t0 = System.nanoTime
     val oState: OuterLoopState = OuterLoopState(
       threads, // Threads
       Set(state), // Worklist
@@ -503,17 +501,19 @@ abstract class AtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentif
     )
 
     val result: OuterLoopState = outerLoop(timeout, oState)
-    val t1 = System.nanoTime
-
-    println(s"Total execution: ${(t1 - t0) / Math.pow(10, 9)}")
-    dumpProfile()
+    //val t1 = System.nanoTime
+    println("joined: " + result.deps.joined.size)
+    println("written: " + result.deps.written.values.flatten.toSet.size)
+    println("read: " + result.deps.read.values.flatten.toSet.size)
+    //println(s"Total execution: ${(t1 - t0) / Math.pow(10, 9)}")
+    //dumpProfile()
     theStore = result.store
 
     // After running the result, possibly unreachable edges may need to be filtered out.
-    val t2 = System.nanoTime
+    //val t2 = System.nanoTime
     val res = Graph[G, State, Transition].empty.addEdges(findConnectedStates(result.threads.values.flatten.toSet, result.edges))
-    val t3 = System.nanoTime
-    println(s"Total graph construction: ${(t3 - t2) / Math.pow(10, 9)}")
+    //val t3 = System.nanoTime
+    //println(s"Total graph construction: ${(t3 - t2) / Math.pow(10, 9)}")
     res
   }
 
@@ -632,31 +632,22 @@ abstract class AtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentif
   }
 }
 
-class ModAtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
-                                                                         t: StoreType,
-                                                                         sem: Semantics[Exp, A, V, T, Exp],
-                                                                         allocator: TIDAllocator[TID, T, Exp]
-                                                                       )(implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
+class ModAtomAnalysisRevDeps[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])
+                                                                                     (implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
   extends AtomAnalysisRevDeps[Exp, A, V, T, TID](t, sem, allocator) {
-  type RestartTarget = TID
+    type RestartTarget = TID
 
-  def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = extract(stid, deps, effs)
-  //def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { Set() }
-  def convertToStates(tids: Set[TID], threads: Threads): Set[State] = tids.flatMap(threads)
-
+    def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = extract(stid, deps, effs)
+    def convertToStates(tids: Set[TID], threads: Threads): Set[State] = tids.flatMap(threads)
+    def getTID(tid: TID): TID = tid
 }
 
-class IncAtomAnalysisRevDeps[Exp, A <: Address, V, T, TID <: ThreadIdentifier](
-                                                                         t: StoreType,
-                                                                         sem: Semantics[Exp, A, V, T, Exp],
-                                                                         allocator: TIDAllocator[TID, T, Exp]
-                                                                       )(implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
+class IncAtomAnalysisRevDeps[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](t: StoreType, sem: Semantics[Exp, A, V, T, Exp], allocator: TIDAllocator[TID, T, Exp])
+                                                                                     (implicit val timestamp2: Timestamp[T, Exp], implicit val lattice2: Lattice[V])
   extends AtomAnalysisRevDeps[Exp, A, V, T, TID](t, sem, allocator) {
-  type RestartTarget = State
+    type RestartTarget = State
 
-  def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = extract(curState, deps, effs)
-  @toCheck("Verify why these edges are removed explicitly (should normally be overwritten anyway).") // TODO
-  //def statesRemoved(todo: Set[State]): Set[State] = profile("statesRemoved") { todo }
-  def convertToStates(states: Set[State], threads: Threads): Set[State] = states
-}
-*/
+    def extractDependencies(stid: TID, deps: Deps, curState: State, effs: Set[Effect]): Deps = extract(curState, deps, effs)
+    def convertToStates(states: Set[State], threads: Threads): Set[State] = states
+    def getTID(state: State): TID = state.tid
+}*/

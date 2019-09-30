@@ -512,7 +512,7 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
 
     graph = graph.map(g => g.addNode(state))
     loop(state)
-    println(s"Execution finished, in ${timeout.time} seconds, waiting for graph")
+    //println(s"Execution finished, in ${timeout.time} seconds, waiting for graph")
     val res = Await.result(graph, Duration.Inf)
     println(s"Number of nodes: ${ev.nodes(res)}")
     res
