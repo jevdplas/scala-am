@@ -16,19 +16,14 @@
       (begin
         (swap! buffer (lambda (curr) (cons n curr)))
         (producer (- n 1)))))
-(define (consumer)
-  (if (null? (read buffer))
-      (if (read done)
-          'done
-          (consumer))
-      (let ((thing '())) ; Also possible with compare-and-set!.
-        (swap! buffer
-               (lambda (curr)
-                 (set! thing (car curr)) ; This side effect is not very bad, since thing is not accessible from the outside.
-                 (cdr curr)))
-        (do-something thing)
-        (consumer))))
-
+(define (consumer) ; Susceptible to ABA problem!
+  (let ((buf (read buffer)))
+    (cond ((and (null? buf) (read done)) 'done)
+      ((null? buf) (consumer))
+      (#t
+          (compare-and-set! buffer buf (cdr buf))
+          (do-something (car buf))
+          (consumer)))))
 (define producer-thrd (future (producer (random 10))))
 
 (define (do-n n f)

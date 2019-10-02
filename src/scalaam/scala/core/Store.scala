@@ -90,7 +90,7 @@ case class ConcreteStore[A <: Address, V](content: Map[A, V])(implicit val lat: 
   def lookup(a: A) = content.get(a)
 
   def lookupMF(a: A) = content.get(a) match {
-    case Some(a) => MayFail.success(a)
+    case Some(v) => MayFail.success(v)
     case None    => MayFail.failure(UnboundAddress(a))
   }
 

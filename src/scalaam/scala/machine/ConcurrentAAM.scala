@@ -307,6 +307,8 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
   type KStore  = Store[KAddr, Set[Kont]]
   type Threads = BlockableTMap[TID, Context, V]
 
+  var bottomFlag = false
+
   /**
     * The state of one thread.
     *
@@ -334,7 +336,11 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
         old: VStore,
         kstore: KStore
     ): (Threads, VStore) = action match {
-      case Value(v, store, _) =>
+      case Value(v, store, _) => // We should not reach bottom during the evaluation of an expression!
+        if (v == lattice.bottom) {
+          println("Reached bottom during the evaluation of an expression.")
+          bottomFlag = true
+        }
         (
           threads.updateThread(
             tid,
@@ -496,6 +502,7 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
           System.err.println(s"Execution was not concrete! (got ${next.size} resulting states)")
           return
         }
+        if (bottomFlag) return
         loop(next.head)
       }
     }
@@ -511,6 +518,7 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
     val state: State        = State(threads, vstore)
 
     graph = graph.map(g => g.addNode(state))
+    bottomFlag = false
     loop(state)
     //println(s"Execution finished, in ${timeout.time} seconds, waiting for graph")
     val res = Await.result(graph, Duration.Inf)
