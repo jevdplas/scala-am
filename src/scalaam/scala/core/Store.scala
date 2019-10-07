@@ -200,13 +200,10 @@ case class DeltaStore[A <: Address, V](val content: Map[A, V], val updated: Set[
   def updateOrExtend(a: A, v: V) = extend(a, v)
 
   def join(that: Store[A, V]) =
-    if (that.isInstanceOf[DeltaStore[A, V]]) {
+    if (that.isInstanceOf[DeltaStore[A, V]])
       updated.foldLeft(that)((acc, k) => lookup(k).fold(acc)(v => acc.extend(k, v)))
-    } else {
-      throw new RuntimeException(
-        s"Trying to join incompatible stores: ${this.getClass.getSimpleName} and ${that.getClass.getSimpleName}"
-      )
-    }
+    else
+      throw new RuntimeException(s"Trying to join incompatible stores: ${this.getClass.getSimpleName} and ${that.getClass.getSimpleName}")
 
   def clearUpdated: DeltaStore[A, V] = new DeltaStore(content, Set.empty[A])
 
