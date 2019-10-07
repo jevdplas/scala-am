@@ -17,7 +17,7 @@ case class KCFA[C](k: Int) {
   object T {
     implicit val typeclass = new Timestamp[T, C] {
       def initial(seed: String)     = T(seed, List.empty)
-      def tick(t: T)                = t
+      def tick(t: T): T             = t
       override def tick(t: T, c: C) = T(t.seed, (c :: t.history).take(k))
     }
   }
@@ -29,7 +29,7 @@ case class ZeroCFA[C]() {
   object T {
     implicit val typeclass = new Timestamp[T, C] {
       def initial(seed: String) = T(seed)
-      def tick(t: T)            = t
+      def tick(t: T): T         = t
     }
   }
 }

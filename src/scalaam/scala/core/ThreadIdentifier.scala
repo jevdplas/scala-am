@@ -249,7 +249,7 @@ case class BlockableTMap[TID, Context, V](
     false
   }
 
-  def threadsRunnable = runnable.keySet
+  def threadsRunnable: Set[TID] = runnable.keySet
 
   def allDone: Boolean = runnable.isEmpty && blocked.isEmpty
   def canRun: Boolean  = runnable.isEmpty

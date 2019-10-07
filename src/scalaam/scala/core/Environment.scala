@@ -18,10 +18,9 @@ trait Environment[A <: Address] {
   def lookup(name: String): Option[A]
   def lookupMF(name: Identifier): MayFail[A, Error] = lookup(name.name) match {
     case Some(v) => MayFail.success(v)
-    case None    => {
+    case None    =>
       println(s"Unbound variable looked up in env: $name")
       MayFail.failure(UnboundVariable(name))
-    }
   }
 
   /** Extend the environment */
@@ -31,22 +30,22 @@ trait Environment[A <: Address] {
   def extend(values: Iterable[(String, A)]): Environment[A]
 
   /** Checks whether this environment subsumes another */
-  def subsumes(that: Environment[A]) =
+  def subsumes(that: Environment[A]): Boolean =
     that.forall((binding: (String, A)) => lookup(binding._1).contains(binding._2))
 }
 
 /** Basic mapping from names to addresses */
 case class BasicEnvironment[A <: Address](content: Map[String, A]) extends Environment[A] {
-  override def toString =
+  override def toString: String =
     "{" + content
       .filter({ case (_, a) => a.printable })
       .map({ case (k, v) => s"$k: $v" })
       .mkString(", ") + "}"
-  def keys                                  = content.keys
-  def forall(p: ((String, A)) => Boolean)   = content.forall(p)
-  def lookup(name: String)                  = content.get(name)
-  def extend(name: String, a: A)            = this.copy(content = content + (name -> a))
-  def extend(values: Iterable[(String, A)]) = this.copy(content = content ++ values)
+  def keys: Iterable[String]                                     = content.keys
+  def forall(p: ((String, A)) => Boolean): Boolean               = content.forall(p)
+  def lookup(name: String): Option[A]                            = content.get(name)
+  def extend(name: String, a: A): BasicEnvironment[A]            = this.copy(content = content + (name -> a))
+  def extend(values: Iterable[(String, A)]): BasicEnvironment[A] = this.copy(content = content ++ values)
 }
 
 /* Default environment constructors */

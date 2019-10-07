@@ -13,14 +13,10 @@ import scalaam.language.LanguagePrelude
 
 import scala.machine._
 
-object Main {
-  def main(args: Array[String]): Unit = {}
-}
-
 object Dot {
 
   /**
-    * Uses graphviz to create a .png image of a given .dot file.<br>
+    * Uses graphviz to create a .svg image of a given .dot file.<br>
     * Requires graphviz to be installed. On windows, requires WSL to be available.
     */
   def toImage(dot: String): Int = {
@@ -222,8 +218,8 @@ object ConcreteRun {
   def run(file: String, out: String = "ConcreteRunResult.dot", timeout: Timeout.T = Timeout.seconds(10)): ConcreteRun.graph.G =
     RunUtil.run(file, machine, timeout, out).asInstanceOf[ConcreteRun.graph.G]
 
-  def eval(expr: SchemeExp, timeout: Timeout.T = Timeout.seconds(90)): ConcreteRun.graph.G =
-    RunUtil.run(expr, machine, timeout, "ConcreteEval.dot").asInstanceOf[ConcreteRun.graph.G]
+  def eval(expr: String, timeout: Timeout.T = Timeout.seconds(90)): ConcreteRun.graph.G =
+    RunUtil.run(AtomlangParser.parse(LanguagePrelude.atomlangPrelude ++ expr), machine, timeout, "ConcreteEval.dot").asInstanceOf[ConcreteRun.graph.G]
 }
 
 

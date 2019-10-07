@@ -104,8 +104,8 @@ object ConcreteAddress {
 case class TimestampAddress[T, C]()(implicit val time: Timestamp[T, C]) {
   /* A timestamp address just bundles a name address with a timestamp */
   case class A(nameAddr: NameAddress.A, t: T) extends Address {
-    def printable         = nameAddr.printable
-    override def toString = nameAddr.toString
+    def printable: Boolean = nameAddr.printable
+    override def toString  = nameAddr.toString
   }
   val nameAlloc = NameAddress.Alloc[T, C]
   object Alloc extends Allocator[A, T, C] {

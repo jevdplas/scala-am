@@ -1,5 +1,6 @@
 package scalaam.core
 
+import scalaam.lattice.BoolLattice
 import scalaam.util.Show
 
 /** Error raised when trying to construct the top element of a lattice which doesn't have one */
@@ -43,11 +44,11 @@ object Lattice {
   def apply[L: Lattice]: Lattice[L] = implicitly
 
   implicit def SetLattice[A: Show] = new Lattice[Set[A]] {
-    def show(x: Set[A])                                           = "{" ++ x.map(Show[A].show _).mkString(",") ++ "}"
-    def top                                                       = throw LatticeTopUndefined
-    def bottom                                                    = Set.empty
-    def join(x: Set[A], y: => Set[A])                             = x.union(y)
-    def subsumes(x: Set[A], y: => Set[A])                         = y.subsetOf(x)
-    def eql[B: scalaam.lattice.BoolLattice](x: Set[A], y: Set[A]) = ???
+    def show(x: Set[A]): String                                            = "{" ++ x.map(Show[A].show _).mkString(",") ++ "}"
+    def top                                                                = throw LatticeTopUndefined
+    def bottom: Set[A]                                                     = Set.empty
+    def join(x: Set[A], y: => Set[A]): Set[A]                              = x.union(y)
+    def subsumes(x: Set[A], y: => Set[A]): Boolean                         = y.subsetOf(x)
+    def eql[B: scalaam.lattice.BoolLattice](x: Set[A], y: Set[A]): B       = ???
   }
 }

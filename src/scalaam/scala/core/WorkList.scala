@@ -1,7 +1,5 @@
 package scalaam.core
 
-import scala.language.higherKinds
-
 /** A worklist is an abstract set of elements */
 trait WorkList[L[_]] {
 
@@ -19,7 +17,7 @@ object WorkList {
 
   /** Any Scala Seq is a worklist */
   implicit object SeqWorkList extends WorkList[Seq] {
-    def pick[A](w: Seq[A])              = w.headOption.map(x => (x, w.tail))
-    def append[A](w: Seq[A], s: Set[A]) = w ++ s
+    def pick[A](w: Seq[A]): Option[(A, Seq[A])] = w.headOption.map(x => (x, w.tail))
+    def append[A](w: Seq[A], s: Set[A]): Seq[A] = w ++ s
   }
 }
