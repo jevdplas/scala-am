@@ -370,11 +370,7 @@ object ConcreteRun {
   ](StoreType.ConcreteStore, CSem.sem, CSem.tid.Alloc())
   val graph = DotGraph[machine.State, machine.Transition]()
 
-  def run(
-           file: String,
-           out: String = "ConcreteRunResult.dot",
-           timeout: Timeout.T = Timeout.seconds(10)
-         ): ConcreteRun.graph.G = {
+  def run(file: String, out: String = "ConcreteRunResult.dot", timeout: Timeout.T = Timeout.seconds(10)): ConcreteRun.graph.G = {
     val f       = scala.io.Source.fromFile(file)
     val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
     val t0      = System.nanoTime
@@ -386,6 +382,24 @@ object ConcreteRun {
       println(s"Time: ${(t1 - t0) / 1000000}ms")
     }
     f.close()
+    result.toFile(out)
+    import Graph.GraphOps
+    println(s"States: ${result.nodes}")
+    Dot.toImage(out)
+    result
+  }
+
+  def eval(expr: String, timeout: Timeout.T = Timeout.seconds(90)): ConcreteRun.graph.G = {
+    val out     = "ConcreteEval.dot"
+    val content = StandardPrelude.atomlangPrelude ++ expr
+    val t0      = System.nanoTime
+    val result  = machine.run[graph.G](AtomlangParser.parse(content), timeout)
+    val t1      = System.nanoTime
+    if (timeout.reached) {
+      println("Time out!")
+    } else {
+      println(s"Time: ${(t1 - t0) / 1000000}ms")
+    }
     result.toFile(out)
     import Graph.GraphOps
     println(s"States: ${result.nodes}")

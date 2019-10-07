@@ -1,27 +1,52 @@
-(define buffer (atom '()))
-(define done (atom #f))
-(define (do-something element) (display element) (newline))
-(define (producer n)
-  (if (= n 0)
-    (reset! done #t)
-    (begin
-      (swap! buffer (lambda (curr) (cons n curr)))
-      (producer (- n 1)))))
-(define (consumer) ; Susceptible to ABA problem!
-  (let ((buf (read buffer)))
-    (cond ((and (null? buf) (read done)) 'done)
-      ((null? buf) (consumer)
-        (#t
-          (compare-and-set! buffer buf (cdr buf))
-          (do-something (car buf)))
-          (consumer)))))
+(define (append l1 l2)
+  (if (null? l1)
+    l2
+    (cons (car l1) (append (cdr l1) l2))))
 
-(define producer-thrd (future (producer 1)))
+(define (reverse l)
+  (let loop ((cur l)
+              (res '()))
+    (if (null? cur)
+      res
+      (loop (cdr cur)
+        (cons (car cur) res)))))
 
-(define consumer-thrds (list
-                         (future (consumer))
-                         (future (consumer))))
+(define (merge l-one l-two)
+  (let loop ((l1 l-one)
+              (l2 l-two)
+              (res '()))
+    (cond ((null? l1) (append (reverse res) l2))
+      ((null? l2) (append (reverse res) l1))
+      ((<= (car l1) (car l2)) (loop (cdr l1) l2 (cons (car l1) res)))
+      (else (loop l1 (cdr l2) (cons (car l2) res))))))
 
-(deref producer-thrd)
-(deref (car consumer-thrds))
-(deref (cadr consumer-thrds))
+(define (split-at lst n)
+  (let loop ((m n)
+              (lt lst)
+              (fs '()))
+    (if (= m 0)
+      (cons fs lt)
+      (loop (- m 1)
+        (cdr lt)
+        (cons (car lt) fs)))))
+
+(define (mergesort lst)
+  (let ((len (length lst)))
+    (cond ((>= 1 len) lst)
+      ; ((>= 10 len) (bubble-sort lst))
+      (else
+        (let* ((splt (split-at lst (floor (/ len 2))))
+                (snd  (future (mergesort (cdr splt))))
+                (fst  (mergesort (car splt))))
+          (merge fst (deref snd)))))))
+
+
+(define (sorted? l)
+  (if (or (null? l) (null? (cdr l)))
+    #t
+    (if (<= (car l) (cadr l))
+      (sorted? (cdr l))
+      #f)))
+
+(define lst '(0 0 0 0 0 0 0 0))
+(sorted? (mergesort lst))

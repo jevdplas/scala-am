@@ -815,7 +815,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     object Newline extends NoStoreOperation("newline", Some(0)) {
       // TODO re-enable printing! (This is just very annoying during benchmarking.)
       override def call() = {
-        /* println(""); */
+        // println()
         MayFailSuccess(bool(false))
       }
     }

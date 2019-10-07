@@ -29,7 +29,7 @@ object ConcreteTID {
   case class TID[T, C](exp: C, t: T, n: Int, pos: Position) extends threadID {
 
     /** Prints this tid. */
-    override def toString: String = s"$pos"
+    override def toString: String = s"$n"
   }
 
   case class Alloc[T, C]()(implicit val timestamp: Timestamp[T, C])
