@@ -1,3 +1,4 @@
+/*
 package scalaam.bench
 
 import java.io.{BufferedWriter, FileWriter}
@@ -93,3 +94,4 @@ object BenchSoundness {
     writer.close()
   }
 }
+*/

@@ -1,13 +1,15 @@
 package scalaam
 
+import scalaam.StandardPrelude.atomlangPrelude
 import scalaam.bench.BenchSoundnessUsingConcrete.CSem
 import scalaam.core._
 import scalaam.graph.{DotGraph, Graph}
 import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
-import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp, SchemeLattice, SchemeVar}
+import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
 import scalaam.lattice.{Concrete, Type}
 import scalaam.machine.{ConcreteConcurrentAAM, ConcurrentAAM, Strategy}
 import scalaam.machine.Strategy.Strategy
+import Sem._
 
 import scala.machine._
 
@@ -38,98 +40,32 @@ object Dot {
 
 object Sem {
 
-  import scalaam.core._
-  import scalaam.language.atomlang._
-  import scalaam.language.scheme._
-
   val address   = NameAddress
   val tid       = ExpTimeTID
   val timestamp = ZeroCFA[SchemeExp]()
-  val lattice =
-    new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
-  val sem = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](
-    address.Alloc[timestamp.T, SchemeExp],
-    tid.Alloc()
-  )
+  val lattice   = new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
+  val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
 }
 
 object AAMRun {
 
-  import scalaam.graph._
-  import Sem._
-
-  val sem = new AtomlangSemantics[address.A, Sem.lattice.L, timestamp.T, SchemeExp, tid.threadID](
-    address.Alloc[timestamp.T, SchemeExp],
-    tid.Alloc()
-  )
-  val machine = new ConcurrentAAM[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](
-    StoreType.DeltaStore,
-    sem,
-    tid.Alloc()
-  )
+  val machine = new ConcurrentAAM[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.DeltaStore, sem, tid.Alloc())
   val graph = DotGraph[machine.State, machine.Transition]()
 
-  def run(
-      file: String,
-      out: String = "AAMRunResult.dot",
-      timeout: Timeout.T = Timeout.seconds(10),
-      strategy: Strategy = Strategy.AllInterleavings
-  ): AAMRun.graph.G = {
-    val f       = scala.io.Source.fromFile(file)
-    val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
-    val t0      = System.nanoTime
-    val result  = machine.run[graph.G](AtomlangParser.parse(content), timeout, strategy)
-    val t1      = System.nanoTime
-    if (timeout.reached) {
-      println("Time out!")
-    } else {
-      println(s"Time: ${(t1 - t0) / 1000000}ms")
-    }
-    f.close()
-    result.toFile(out)
-    import Graph.GraphOps
-    println(s"States: ${result.nodes}")
-    Dot.toImage(out)
-    result
-  }
+  def run(file: String, out: String = "AAMRunResult.dot", timeout: Timeout.T = Timeout.seconds(10), strategy: Strategy = Strategy.AllInterleavings): AAMRun.graph.G =
+    RunUtil.run(file, machine, timeout, out).asInstanceOf[AAMRun.graph.G]
 }
 
 /* To be used with the console: `sbt console`, then scalaam.ModAtomRun.run(file) */
 object ModAtomRun {
 
-  import scalaam.graph._
-  import Sem._
-
-  val machine = new ModAtomAnalysis[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](
-    StoreType.DeltaStore,
-    sem,
-    tid.Alloc()
-  )
+  val machine = new ModAtomAnalysis[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.DeltaStore, sem, tid.Alloc())
   val graph = DotGraph[machine.State, machine.Transition]()
 
-  def run(
-      file: String,
-      out: String = "ModAtomRunResult.dot",
-      timeout: Timeout.T = Timeout.seconds(10)
-  ): ModAtomRun.graph.G = {
-    val f       = scala.io.Source.fromFile(file)
-    val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
-    val t0      = System.nanoTime
-    val result  = machine.run[graph.G](AtomlangParser.parse(content), timeout)
-    val t1      = System.nanoTime
-    if (timeout.reached) {
-      println("Time out!")
-    } else {
-      println(s"Time: ${(t1 - t0) / 1000000}ms")
-    }
-    f.close()
-    result.toFile(out)
-    import Graph.GraphOps
-    println(s"States: ${result.nodes}")
-    Dot.toImage(out)
-    result
-  }
+  def run(file: String, out: String = "ModAtomRunResult.dot", timeout: Timeout.T = Timeout.seconds(10)): ModAtomRun.graph.G =
+    RunUtil.run(file, machine, timeout, out).asInstanceOf[ModAtomRun.graph.G]
 
+  /*
   def logValues(
       content: String,
       timeout: Timeout.T = Timeout.seconds(10)
@@ -183,13 +119,11 @@ object ModAtomRun {
               map + (id -> SchemeLattice[Sem.lattice.L, SchemeExp, address.A].join(map(id), value))
           }
       )
-  }
+  } */
 }
 
 /* To be used with the console: `sbt console`, then scalaam.IncAtomRun.run(file) */
 object IncAtomRun {
-
-  import Sem._
 
   val machine = new IncAtomAnalysis[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](
     StoreType.DeltaStore,
@@ -198,29 +132,10 @@ object IncAtomRun {
   )
   val graph = DotGraph[machine.State, machine.Transition]()
 
-  def run(
-      file: String,
-      out: String = "IncAtomRunResult.dot",
-      timeout: Timeout.T = Timeout.seconds(10)
-  ): IncAtomRun.graph.G = {
-    val f       = scala.io.Source.fromFile(file)
-    val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
-    val t0      = System.nanoTime
-    val result  = machine.run[graph.G](AtomlangParser.parse(content), timeout)
-    val t1      = System.nanoTime
-    if (timeout.reached) {
-      println("Time out!")
-    } else {
-      println(s"Time: ${(t1 - t0) / 1000000}ms")
-    }
-    f.close()
-    result.toFile(out)
-    import Graph.GraphOps
-    println(s"States: ${result.nodes}")
-    Dot.toImage(out)
-    result
-  }
+  def run(file: String, out: String = "IncAtomRunResult.dot", timeout: Timeout.T = Timeout.seconds(10)): IncAtomRun.graph.G =
+    RunUtil.run(file, machine, timeout, out).asInstanceOf[IncAtomRun.graph.G]
 
+  /*
   def logValues(
       content: String,
       timeout: Timeout.T = Timeout.seconds(10)
@@ -271,85 +186,25 @@ object IncAtomRun {
               map + (id -> SchemeLattice[Sem.lattice.L, SchemeExp, address.A].join(map(id), value))
           }
       )
-  }
+  } */
 }
 
 object IncAtomThesis {
 
-  import scalaam.core._
-  import scalaam.graph._
-  import scalaam.language.atomlang._
-  import scalaam.language.scheme._
-  import Sem._
-
-  val machine = new IncAtom[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](
-    StoreType.DeltaStore,
-    sem,
-    tid.Alloc()
-  )
+  val machine = new IncAtom[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.DeltaStore, sem, tid.Alloc())
   val graph = DotGraph[machine.State, machine.Transition]()
 
-  def run(
-      file: String,
-      out: String = "IncAtomThesis.dot",
-      timeout: Timeout.T = Timeout.seconds(10)
-  ): IncAtomThesis.graph.G = {
-    val f       = scala.io.Source.fromFile(file)
-    val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
-    val t0      = System.nanoTime
-    val result  = machine.run[graph.G](AtomlangParser.parse(content), timeout)
-    val t1      = System.nanoTime
-    if (timeout.reached) {
-      println("Time out!")
-    } else {
-      println(s"Time: ${(t1 - t0) / 1000000}ms")
-    }
-    f.close()
-    result.toFile(out)
-    import Graph.GraphOps
-    println(s"States: ${result.nodes}")
-    Dot.toImage(out)
-    result
-  }
+  def run(file: String, out: String = "IncAtomThesis.dot", timeout: Timeout.T = Timeout.seconds(10)): IncAtomThesis.graph.G =
+    RunUtil.run(file, machine, timeout, out).asInstanceOf[IncAtomThesis.graph.G]
 }
 
 object ModAtomThesis {
 
-  import scalaam.core._
-  import scalaam.graph._
-  import scalaam.language.atomlang._
-  import scalaam.language.scheme._
-  import Sem._
-
-  val machine = new ModAtom[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](
-    StoreType.DeltaStore,
-    sem,
-    tid.Alloc()
-  )
+  val machine = new ModAtom[SchemeExp, address.A, Sem.lattice.L, timestamp.T, tid.threadID](StoreType.DeltaStore, sem, tid.Alloc())
   val graph = DotGraph[machine.State, machine.Transition]()
 
-  def run(
-           file: String,
-           out: String = "ModAtomThesis.dot",
-           timeout: Timeout.T = Timeout.seconds(10)
-         ): ModAtomThesis.graph.G = {
-    val f       = scala.io.Source.fromFile(file)
-    val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
-    val t0      = System.nanoTime
-    val result  = machine.run[graph.G](AtomlangParser.parse(content), timeout)
-    val t1      = System.nanoTime
-    if (timeout.reached) {
-      println("Time out!")
-    } else {
-      println(s"Time: ${(t1 - t0) / 1000000}ms")
-    }
-    f.close()
-    result.toFile(out)
-    import Graph.GraphOps
-    println(s"States: ${result.nodes}")
-    Dot.toImage(out)
-    result
-  }
+  def run(file: String, out: String = "ModAtomThesis.dot", timeout: Timeout.T = Timeout.seconds(10)): ModAtomThesis.graph.G =
+    RunUtil.run(file, machine, timeout, out).asInstanceOf[ModAtomThesis.graph.G]
 }
 
 object ConcreteRun {
@@ -361,51 +216,14 @@ object ConcreteRun {
     Concrete.S, Concrete.B, Concrete.I, Concrete.R, Concrete.C, Concrete.Sym](true) // Need concrete comparison!
   val sem       = new AtomlangSemantics[address.A, lattice.L, timestamp.T, SchemeExp, tid.threadID](address.Alloc[timestamp.T, SchemeExp], tid.Alloc())
 
-  val machine = new ConcreteConcurrentAAM[
-    SchemeExp,
-    CSem.address.A,
-    CSem.lattice.L,
-    CSem.timestamp.T,
-    CSem.tid.threadID
-  ](StoreType.ConcreteStore, CSem.sem, CSem.tid.Alloc())
+  val machine = new ConcreteConcurrentAAM[SchemeExp, CSem.address.A, CSem.lattice.L, CSem.timestamp.T, CSem.tid.threadID](StoreType.ConcreteStore, CSem.sem, CSem.tid.Alloc())
   val graph = DotGraph[machine.State, machine.Transition]()
 
-  def run(file: String, out: String = "ConcreteRunResult.dot", timeout: Timeout.T = Timeout.seconds(10)): ConcreteRun.graph.G = {
-    val f       = scala.io.Source.fromFile(file)
-    val content = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
-    val t0      = System.nanoTime
-    val result  = machine.run[graph.G](AtomlangParser.parse(content), timeout)
-    val t1      = System.nanoTime
-    if (timeout.reached) {
-      println("Time out!")
-    } else {
-      println(s"Time: ${(t1 - t0) / 1000000}ms")
-    }
-    f.close()
-    result.toFile(out)
-    import Graph.GraphOps
-    println(s"States: ${result.nodes}")
-    Dot.toImage(out)
-    result
-  }
+  def run(file: String, out: String = "ConcreteRunResult.dot", timeout: Timeout.T = Timeout.seconds(10)): ConcreteRun.graph.G =
+    RunUtil.run(file, machine, timeout, out).asInstanceOf[ConcreteRun.graph.G]
 
-  def eval(expr: String, timeout: Timeout.T = Timeout.seconds(90)): ConcreteRun.graph.G = {
-    val out     = "ConcreteEval.dot"
-    val content = StandardPrelude.atomlangPrelude ++ expr
-    val t0      = System.nanoTime
-    val result  = machine.run[graph.G](AtomlangParser.parse(content), timeout)
-    val t1      = System.nanoTime
-    if (timeout.reached) {
-      println("Time out!")
-    } else {
-      println(s"Time: ${(t1 - t0) / 1000000}ms")
-    }
-    result.toFile(out)
-    import Graph.GraphOps
-    println(s"States: ${result.nodes}")
-    Dot.toImage(out)
-    result
-  }
+  def eval(expr: SchemeExp, timeout: Timeout.T = Timeout.seconds(90)): ConcreteRun.graph.G =
+    RunUtil.run(expr, machine, timeout, "ConcreteEval.dot").asInstanceOf[ConcreteRun.graph.G]
 }
 
 object StandardPrelude {
@@ -414,4 +232,34 @@ object StandardPrelude {
           |  (let ((vl (read at)))
           |    (if (not (compare-and-set! at vl (fn vl)))
           |      (swap! at fn))))""".stripMargin
+}
+
+object RunUtil {
+  def readFile(file: String): SchemeExp = {
+    val f   = scala.io.Source.fromFile(file)
+    val exp = AtomlangParser.parse(atomlangPrelude ++ f.getLines().mkString("\n"))
+    f.close()
+    exp
+  }
+
+  // TODO: Cleanup return type.
+  def run[A <: Address, V, T, C](file: String, machine: MachineAbstraction[SchemeExp, A, V, T, C], timeout: Timeout.T, out: String): Any =
+    run(readFile(file), machine, timeout, out)
+
+  def run[A <: Address, V, T, C](exp: SchemeExp, machine: MachineAbstraction[SchemeExp, A, V, T, C], timeout: Timeout.T, out: String): Any = {
+    val graph   = DotGraph[machine.State, machine.Transition]()
+    val t0      = System.nanoTime
+    val result  = machine.run[graph.G](exp, timeout)
+    val t1      = System.nanoTime
+    if (timeout.reached) {
+      println("Time out!")
+    } else {
+      println(s"Time: ${(t1 - t0) / 1000000}ms")
+    }
+    result.toFile(out)
+    import Graph.GraphOps
+    println(s"States: ${result.nodes}")
+    Dot.toImage(out)
+    result
+  }
 }
