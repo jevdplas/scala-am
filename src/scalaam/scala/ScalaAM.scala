@@ -1,6 +1,5 @@
 package scalaam
 
-import scalaam.StandardPrelude.atomlangPrelude
 import scalaam.bench.BenchSoundnessUsingConcrete.CSem
 import scalaam.core._
 import scalaam.graph.{DotGraph, Graph}
@@ -10,6 +9,7 @@ import scalaam.lattice.{Concrete, Type}
 import scalaam.machine.{ConcreteConcurrentAAM, ConcurrentAAM, Strategy}
 import scalaam.machine.Strategy.Strategy
 import Sem._
+import scalaam.language.LanguagePrelude
 
 import scala.machine._
 
@@ -226,18 +226,12 @@ object ConcreteRun {
     RunUtil.run(expr, machine, timeout, "ConcreteEval.dot").asInstanceOf[ConcreteRun.graph.G]
 }
 
-object StandardPrelude {
-  val atomlangPrelude: String =
-    """(define (swap! at fn)
-          |  (let ((vl (read at)))
-          |    (if (not (compare-and-set! at vl (fn vl)))
-          |      (swap! at fn))))""".stripMargin
-}
+
 
 object RunUtil {
   def readFile(file: String): SchemeExp = {
     val f   = scala.io.Source.fromFile(file)
-    val exp = AtomlangParser.parse(atomlangPrelude ++ f.getLines().mkString("\n"))
+    val exp = AtomlangParser.parse(LanguagePrelude.atomlangPrelude ++ f.getLines().mkString("\n"))
     f.close()
     exp
   }

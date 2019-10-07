@@ -12,12 +12,7 @@ object BenchConfig {
 
   /* **** Benchmarks **** */
 
-  object Prelude extends Enumeration {
-    type Prelude = Value
-    val lock, list, none = Value
-  }
-
-  import Prelude._
+  import scalaam.language.LanguagePrelude.Prelude._
 
   // List of benchmarks with the required prelude (none means only the standard prelude).
   val benchmarks: List[(String, Prelude)] = List(
@@ -58,30 +53,6 @@ object BenchConfig {
     ("./test/Atomlang/VMCAI2020/minimax.scm", none), // 31.5
     ("./test/Atomlang/VMCAI2020/mceval.scm", none), // 105
     )
-
-  // Lock implementation by means of atoms.
-  val lockPrelude: String =
-    """(define (t/new-lock)
-          |  (atom #f))
-          |(define (t/acquire lock)
-          |  (let try ()
-          |    (if (compare-and-set! lock #f #t)
-          |        #t
-          |        (try))))
-          |(define (t/release lock)
-          |  (reset! lock #f))""".stripMargin
-
-  // Implementation of two basic list primitives.
-  val listPrelude: String =
-    """(define (map f l)
-          |  (if (null? l)
-          |      '()
-          |      (cons (f (car l))
-          |            (map f (cdr l)))))
-          |(define (for-each f l)
-          |  (if (not (null? l))
-          |      (begin (f (car l))
-          |             (for-each f (cdr l)))))""".stripMargin
 
   // Avoid output being buffered.
   def display(data: String): Unit = {

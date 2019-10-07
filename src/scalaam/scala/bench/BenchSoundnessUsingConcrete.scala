@@ -6,7 +6,6 @@ import java.util.{Calendar, Date}
 
 import scala.util.control.Breaks._
 import au.com.bytecode.opencsv.CSVWriter
-import scalaam.StandardPrelude
 import scalaam.bench.BenchConfig._
 import scalaam.core.ConcreteAddress.Pointer
 import scalaam.core.ConcreteVal._
@@ -16,6 +15,7 @@ import scalaam.core._
 import scalaam.language.atomlang._
 import scalaam.language.scheme._
 import scalaam.graph.DotGraph
+import scalaam.language.LanguagePrelude
 
 import scala.machine.IncAtomAnalysis
 
@@ -88,7 +88,7 @@ object BenchSoundnessUsingConcrete {
         try {
             val f = scala.io.Source.fromFile(file)
             // Add the necessary preludes to the file contents.
-            val content: String = StandardPrelude.atomlangPrelude ++ f.getLines.mkString("\n")
+            val content: String = LanguagePrelude.atomlangPrelude ++ f.getLines.mkString("\n")
             f.close()
             compare(content)
         } catch {

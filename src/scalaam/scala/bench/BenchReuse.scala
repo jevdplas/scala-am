@@ -5,11 +5,11 @@ import java.text.SimpleDateFormat
 import java.util.{Calendar, Date}
 
 import au.com.bytecode.opencsv.CSVWriter
-import scalaam.StandardPrelude
-import scalaam.bench.BenchConfig.Prelude._
 import scalaam.bench.BenchConfig._
 import scalaam.core._
 import scalaam.graph.DotGraph
+import scalaam.language.LanguagePrelude
+import scalaam.language.LanguagePrelude.Prelude.Prelude
 import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
 import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
 import scalaam.lattice.Type
@@ -31,11 +31,7 @@ object BenchReuse {
     try {
       val f = scala.io.Source.fromFile(file)
       // Add the necessary preludes to the file contents.
-      val content: String = StandardPrelude.atomlangPrelude ++ (atPrelude match {
-        case Prelude.lock => lockPrelude
-        case Prelude.list => listPrelude
-        case Prelude.none => ""
-      }) ++ f.getLines.mkString("\n")
+      val content: String = LanguagePrelude.atomlangPrelude ++ LanguagePrelude.selectPrelude(atPrelude) ++ f.getLines.mkString("\n")
       f.close()
       val name               = file.split("/").last.dropRight(4) // DropRight removes ".scm".
       val program: SchemeExp = AtomlangParser.parse(content)

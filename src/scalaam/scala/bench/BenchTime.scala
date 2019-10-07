@@ -16,9 +16,9 @@ import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date}
 
-import scalaam.bench.BenchConfig.Prelude._
 import scalaam.bench.BenchConfig._
-import scalaam.StandardPrelude
+import scalaam.language.LanguagePrelude
+import scalaam.language.LanguagePrelude.Prelude.Prelude
 
 /**  Contains utilities to compare the different machines. Compares both the runtime and state space size. */
 object BenchTime {
@@ -87,11 +87,7 @@ object BenchTime {
     try {
       val f = scala.io.Source.fromFile(file)
       // Add the necessary preludes to the file contents.
-      val content: String = StandardPrelude.atomlangPrelude ++ (atPrelude match {
-        case Prelude.lock => lockPrelude
-        case Prelude.list => listPrelude
-        case Prelude.none => ""
-      }) ++ f.getLines.mkString("\n")
+      val content: String = LanguagePrelude.atomlangPrelude ++ LanguagePrelude.selectPrelude(atPrelude) ++ f.getLines.mkString("\n")
       f.close()
       val program: SchemeExp = AtomlangParser.parse(content)
       var modStats: List[Measurement] = List()

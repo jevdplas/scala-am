@@ -1,8 +1,0 @@
-(define atom list)
-(define read car)
-(define (future x) x)
-(define (deref x) x)
-(define (compare-and-set! x old new)
-  (if (eq? (car x) old)
-      (set-car! x new)))(define reset! set-car!)
-(define (swap! x f)(set-car! x (f (car x))))
