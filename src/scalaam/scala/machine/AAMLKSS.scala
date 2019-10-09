@@ -129,8 +129,8 @@ class AAMLKSS[E <: Expression, A <: Address, V, T](val sem: Semantics[E, A, V, T
     }
   }
 
-  type Transition = NoTransition
-  val empty = new NoTransition
+  type Transition = BaseTransition
+  val empty = BaseTransition()
 
   class StoreMap(val content: Map[State, Store[A, V]]) {
     def add(kv: (State, Store[A, V])): (StoreMap, Boolean) =

@@ -89,13 +89,13 @@ class GAAM[E <: Expression, A <: Address, V, T](val sem: Semantics[E, A, V, T, E
 
     private def integrate(actions: Set[Action.A]): Set[State] = {
       actions.map({
-        case Action.Value(v, _) =>
+        case Action.Value(v, _, _) =>
           State(ControlKont(v), lkont, Timestamp[T, E].tick(t))
-        case Action.Push(frame, e, env, _) =>
+        case Action.Push(frame, e, env, _, _) =>
           State(ControlEval(e, env), lkont.push(frame), Timestamp[T, E].tick(t))
-        case Action.Eval(e, env, _) =>
+        case Action.Eval(e, env, _, _) =>
           State(ControlEval(e, env), lkont, Timestamp[T, E].tick(t))
-        case Action.StepIn(fexp, _, e, env, _) =>
+        case Action.StepIn(fexp, _, e, env, _, _) =>
           val next = KontAddr(e, t)
           kstore.extend(next, Set(lkont))
           State(ControlEval(e, env), LKont.empty(next), Timestamp[T, E].tick(t, fexp))
@@ -150,8 +150,8 @@ class GAAM[E <: Expression, A <: Address, V, T](val sem: Semantics[E, A, V, T, E
     }
   }
 
-  type Transition = NoTransition
-  val empty = new NoTransition
+  type Transition = BaseTransition
+  val empty = BaseTransition()
 
   var store: GlobalStore[A, V]            = GlobalStore.empty[A, V]
   var kstore: GlobalStore[KA, Set[LKont]] = GlobalStore.empty[KA, Set[LKont]]

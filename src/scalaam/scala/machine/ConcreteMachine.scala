@@ -75,8 +75,8 @@ class ConcreteMachine[E <: Expression, A <: Address, V, T](val sem: Semantics[E,
     }
   }
 
-  type Transition = NoTransition
-  val empty = new NoTransition
+  type Transition = BaseTransition
+  val empty = BaseTransition()
 
   def run[G](program: E, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
     val oldConcrete = Config.concrete
@@ -101,13 +101,13 @@ class ConcreteMachine[E <: Expression, A <: Address, V, T](val sem: Semantics[E,
           println(s"Initial state was $state")
         }
         val state2 = actions.head match {
-          case Action.Value(v, store2) =>
+          case Action.Value(v, store2, _) =>
             State(ControlKont(v), store2, konts, Timestamp[T, E].tick(state.t))
-          case Action.Push(frame, e, env, store2) =>
+          case Action.Push(frame, e, env, store2, _) =>
             State(ControlEval(e, env), store2, frame :: konts, Timestamp[T, E].tick(state.t))
-          case Action.Eval(e, env, store2) =>
+          case Action.Eval(e, env, store2, _) =>
             State(ControlEval(e, env), store2, konts, Timestamp[T, E].tick(state.t))
-          case Action.StepIn(fexp, _, e, env, store2) =>
+          case Action.StepIn(fexp, _, e, env, store2, _) =>
             State(ControlEval(e, env), store2, konts, Timestamp[T, E].tick(state.t, fexp))
           case Action.Err(err) =>
             State(ControlError(err), state.store, konts, Timestamp[T, E].tick(state.t))
