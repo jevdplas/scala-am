@@ -398,7 +398,7 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
           tid_,
           ControlEval(fst, env),
           cc_,
-          timestamp.initial(tid_.toString),
+          timestamp.initial(tid_.pos.toString), //timestamp.initial(tid_.toString),
           Store.empty[KA, Set[Kont]](t).extend(cc_, Set(Kont(frame, HaltKontAddr)))
         )
         val curPState = Context(tid, ControlKont(tidv), cc, timestamp.tick(time), kstore)
@@ -522,7 +522,7 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
     loop(state)
     //println(s"Execution finished, in ${timeout.time} seconds, waiting for graph")
     val res = Await.result(graph, Duration.Inf)
-    println(s"Number of nodes: ${ev.nodes(res)}")
+    //println(s"Number of nodes: ${ev.nodes(res)}")
     res
   }
 }
