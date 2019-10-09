@@ -2,8 +2,8 @@ package scalaam.language.scheme
 
 import scalaam.core._
 import scalaam.core.ConcreteVal._
-import scala.lattice._
-import scala.util.{Monoid, MonoidInstances}
+import scalaam.lattice._
+import scalaam.util.{Monoid, MonoidInstances}
 import SchemeOps._
 import UnaryOperator._
 import BinaryOperator._

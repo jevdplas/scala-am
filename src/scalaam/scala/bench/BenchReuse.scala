@@ -12,9 +12,9 @@ import scalaam.language.LanguagePrelude
 import scalaam.language.LanguagePrelude.Prelude.Prelude
 import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
 import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
-import scala.lattice.Type
+import scalaam.lattice.Type
 
-import scala.machine.IncAtomAnalysis
+import scalaam.machine.IncAtomAnalysis
 
 object BenchReuse {
   val address   = NameAddress

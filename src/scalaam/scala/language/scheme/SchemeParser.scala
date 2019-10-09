@@ -4,7 +4,7 @@ import scalaam.language.sexp._
 
 /* TODO[easy]: use trampolines (scala.util.control.TailCalls) to ensure that we can parse anything without blowing up the stack */
 /* TODO[easy]: free vars function (Noah?), and other helpers? */
-
+/*
 /**
   * Trait that provides a method to compile an s-expression into a Scheme expression
   */
@@ -710,6 +710,8 @@ trait SchemeUndefiner {
     case SchemeValue(value, pos)   => done(SchemeValue(value, pos))
   }
 }
+
+ */
 
 object BaseSchemeCompiler extends SchemeCompiler
 

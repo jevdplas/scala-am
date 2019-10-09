@@ -1,5 +1,6 @@
 package scalaam.language.scheme
 
+import scalaam.core.Annotations.toCheck
 import scalaam.core.Effects.Effects
 import scalaam.core._
 
@@ -356,7 +357,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       )
 
     def dereferencePointerGetAddressReturnStore(x: V, store: Store[A, V])(
-        f: (A, V, Store[A, V]) => MayFail[(V, Store[A, V], Effects), Error]
+      f: (A, V, Store[A, V]) => MayFail[(V, Store[A, V], Effects), Error]
     ): MayFail[(V, Store[A, V], Effects), Error] =
       getPointerAddresses(x).foldLeft(
         MayFail.success[(V, Store[A, V], Effects), Error]((bottom, store, Effects.noEff()))
@@ -366,16 +367,16 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
             case (accv, updatedStore, effs) =>
               /* We use the old store because the new added information can only negatively influence precision (as it didn't hold at the point of the function call */
               store.lookupMF(a) >>= (
-                  v =>
-                    /* But we pass the updated store around as it should reflect all updates */
-                    f(a, v, updatedStore) >>= {
-                      case (res, newStore, e) =>
-                        MayFail.success((join(accv, res), newStore, effs ++ e ++ Effects.rAddr(a)))
-                    }
+                v =>
+                  /* But we pass the updated store around as it should reflect all updates */
+                  f(a, v, updatedStore) >>= {
+                    case (res, newStore, e) =>
+                      MayFail.success((join(accv, res), newStore, effs ++ e ++ Effects.rAddr(a)))
+                  }
                 )
           }
+      )
 
-/*
     def dereferencePointerTR(x: V, store: Store[A, V])(
         f: V => TailRec[MayFail[V, Error]]
     ): TailRec[MayFail[V, Error]] =
@@ -386,7 +387,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
               liftTailRec(store.lookupMF(a).map(f))
                 .flatMap(fv => done(fv.flatMap(res => accv.flatMap(accvv => join(accvv, res)))))
           )
-*/
+
       )
 
     /* TODO[medium] improve these implicit classes to be able to write primitives more clearly */
@@ -413,8 +414,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     def ifThenElse(
         cond: MayFail[V, Error]
     )(thenBranch: => MayFail[V, Error])(elseBranch: => MayFail[V, Error]): MayFail[V, Error] = {
-      val latMon = scala.util.MonoidInstances.latticeMonoid[V]
-      val mfMon  = scala.util.MonoidInstances.mayFail[V](latMon)
+      val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
+      val mfMon  = scalaam.util.MonoidInstances.mayFail[V](latMon)
       cond >>= { condv =>
         val t = if (isTrue(condv)) {
           thenBranch
@@ -433,10 +434,10 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     def ifThenElseWithEffs(cond: MayFail[V, Error])(
         thenBranch: => MayFail[(V, Effects), Error]
     )(elseBranch: => MayFail[(V, Effects), Error]): MayFail[(V, Effects), Error] = {
-      val latMon = scala.util.MonoidInstances.latticeMonoid[V]
-      val effMon = scala.util.MonoidInstances.setMonoid[Effect]
-      val tupMon = scala.util.MonoidInstances.tupleMonoid(latMon, effMon)
-      val mfMon  = scala.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
+      val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
+      val effMon = scalaam.util.MonoidInstances.setMonoid[Effect]
+      val tupMon = scalaam.util.MonoidInstances.tupleMonoid(latMon, effMon)
+      val mfMon  = scalaam.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
       cond >>= { condv =>
         val t = if (isTrue(condv)) {
           thenBranch
@@ -455,10 +456,10 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     def ifThenElseCondEffs(cond: MayFail[(V, Effects), Error])(
         thenBranch: => MayFail[(V, Effects), Error]
     )(elseBranch: => MayFail[(V, Effects), Error]): MayFail[(V, Effects), Error] = {
-      val latMon = scala.util.MonoidInstances.latticeMonoid[V]
-      val effMon = scala.util.MonoidInstances.setMonoid[Effect]
-      val tupMon = scala.util.MonoidInstances.tupleMonoid(latMon, effMon)
-      val mfMon  = scala.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
+      val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
+      val effMon = scalaam.util.MonoidInstances.setMonoid[Effect]
+      val tupMon = scalaam.util.MonoidInstances.tupleMonoid(latMon, effMon)
+      val mfMon  = scalaam.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
       cond >>= { condv =>
         val t = if (isTrue(condv._1)) {
           thenBranch.map { case (v, e) => (v, e ++ condv._2) }
@@ -477,8 +478,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     def ifThenElseTR(cond: MayFail[V, Error])(
         thenBranch: => TailRec[MayFail[V, Error]]
     )(elseBranch: => TailRec[MayFail[V, Error]]): TailRec[MayFail[V, Error]] = {
-      val latMon = scala.util.MonoidInstances.latticeMonoid[V]
-      val mfMon  = scala.util.MonoidInstances.mayFail[V](latMon)
+      val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
+      val mfMon  = scalaam.util.MonoidInstances.mayFail[V](latMon)
       liftTailRec(cond >>= { condv =>
         val t = if (isTrue(condv)) {
           thenBranch
@@ -1266,17 +1267,18 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
           (x: V, y: V, _: Store[A, V]) => Eq.call(x, y).map((_, Effects.noEff()))
         )
 
+    @toCheck("Check implementation")
     abstract class AssocLike(
-        override val name: String,
-        eqFn: (V, V, Store[A, V]) => MayFail[(V, Effects), Error]
-    ) extends StoreOperation(name, Some(2)) {
+                              override val name: String,
+                              eqFn: (V, V, Store[A, V]) => MayFail[(V, Effects), Error]
+                            ) extends StoreOperation(name, Some(2)) {
       override def call(
-          e: V,
-          l: V,
-          store: Store[A, V]
-      ): MayFail[(V, Store[A, V], Effects), Error] = {
+                         e: V,
+                         l: V,
+                         store: Store[A, V]
+                       ): MayFail[(V, Store[A, V], Effects), Error] = {
         def assoc(e: V, l: V, visited: Set[V]): MayFail[(V, Effects), Error] = {
-          if (visited.contains(l) || e == bottom || l == bottom) {
+          if (visited.contains(l)) {
             (bottom, Effects.noEff())
           } else {
             ifThenElseWithEffs(isNull(l)) {
@@ -1293,13 +1295,17 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                           res2 <- ifThenElseCondEffs(eqFn(e, caarl, store)) {
                             (carl, Effects.noEff())
                           } {
-                            done(MayFail.failure(PrimitiveNotApplicable(name, List(e, l))))
+                            cdr(lv) >>= (assoc(e, _, visited + l))
                           }
-                      )
-                  )
+                        } yield res2
+                      }
+                    } {
+                      MayFail.failure(PrimitiveNotApplicable(name, List(e, l)))
+                    }
+                  } yield res
                 }
               } {
-                done(MayFail.failure(PrimitiveNotApplicable(name, List(e, l))))
+                MayFail.failure(PrimitiveNotApplicable(name, List(e, l)))
               }
             }
           }
@@ -1307,6 +1313,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         assoc(e, l, Set.empty).map(ve => (ve._1, store, ve._2))
       }
     }
+
     object Assoc
         extends AssocLike(
           "assoc",

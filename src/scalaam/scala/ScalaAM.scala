@@ -4,14 +4,13 @@ import scalaam.bench.BenchSoundnessUsingConcrete.CSem
 import scalaam.core._
 import scalaam.graph.{DotGraph, Graph}
 import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
-import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
-import scala.lattice.{Concrete, Type}
-import scala.machine.{ConcreteConcurrentAAM, ConcurrentAAM, Strategy}
-import scala.machine.Strategy.Strategy
+import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp, SchemeVar}
+import scalaam.lattice.{Concrete, Type}
+import scalaam.machine.{ConcreteConcurrentAAM, ConcurrentAAM, IncAtom, IncAtomAnalysis, ModAtom, ModAtomAnalysis, Strategy}
+import scalaam.machine.Strategy.Strategy
+
 import Sem._
 import scalaam.language.LanguagePrelude
-
-import scala.machine._
 
 object Dot {
 
@@ -250,50 +249,15 @@ object RunUtil {
     println(s"States: ${result.nodes}")
     Dot.toImage(out)
     result
-    /* Let's collect all nodes that evaluate a variable */
-      .findNodes(
-        (s: machine.State) =>
-          s.control match {
-            case machine.ControlEval(SchemeVar(id), env) =>
-              env.lookup(id.name) match {
-                case Some(_) => true
-                case None    =>
-                  // println(s"Identifier is unbound: $id")
-                  false
-              }
-            case _ => false
-          }
-      )
-      /* And evaluate the value of each variable */
-      .collect(
-        (s: machine.State) =>
-          s.control match {
-            case machine.ControlEval(SchemeVar(id), env) =>
-              (id, s.store.lookup(env.lookup(id.name).get).get)
-          }
-      )
-      /* We now have a list of pairs (variable, value).
-         Let's join all of them by variable in a single map */
-      .foldLeft(
-        Map
-          .empty[Identifier, lattice.L]
-          .withDefaultValue(SchemeLattice[lattice.L, SchemeExp, address.A].bottom)
-      )(
-        (map, pair) =>
-          pair match {
-            case (id, value) =>
-              map + (id -> SchemeLattice[lattice.L, SchemeExp, address.A].join(map(id), value))
-          }
-      )
   }
 }
 
 object SchemeRunAAMLKSS extends Interpreter {
   import scalaam.language.scheme._
-  import scala.machine._
+  import scalaam.machine._
   import scalaam.core._
   import scalaam.graph._
-  import scala.lattice._
+  import scalaam.lattice._
 
   val address   = NameAddress
   val timestamp = ZeroCFA[SchemeExp]()
@@ -310,7 +274,7 @@ object SchemeRunAAMLKSS extends Interpreter {
     val content = f.getLines.mkString("\n")
     f.close()
     val t0     = System.nanoTime
-    val result = machine.run[graph.G](SchemeUndefiner.undefine(List(SchemeParser.parse(content))), timeout)
+    val result = machine.run[graph.G](BaseSchemeUndefiner.undefine(List(SchemeParser.parse(content))), timeout)
     val t1     = System.nanoTime
     val time   = (t1 - t0) / 1000000
     if (outputDot) result.toFile("foo.dot")
@@ -322,10 +286,10 @@ object SchemeRunAAMLKSS extends Interpreter {
 
 object SchemeRunGAAM extends Interpreter {
   import scalaam.language.scheme._
-  import scala.machine._
+  import scalaam.machine._
   import scalaam.core._
   import scalaam.graph._
-  import scala.lattice._
+  import scalaam.lattice._
 
   val address   = NameAddress
   val timestamp = ZeroCFA[SchemeExp]()
@@ -342,7 +306,7 @@ object SchemeRunGAAM extends Interpreter {
     val content = f.getLines.mkString("\n")
     f.close()
     val t0     = System.nanoTime
-    val result = machine.run[graph.G](SchemeUndefiner.undefine(List(SchemeParser.parse(content))), timeout)
+    val result = machine.run[graph.G](BaseSchemeUndefiner.undefine(List(SchemeParser.parse(content))), timeout)
     val t1     = System.nanoTime
     val time   = (t1 - t0) / 1000000
     if (outputDot) result.toFile("foo.dot")

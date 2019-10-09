@@ -1,7 +1,7 @@
 package scalaam.language.lambda
 
 import scalaam.core._
-import scala.lattice.BoolLattice
+import scalaam.lattice.BoolLattice
 
 /**
   * The lattice we will use is a lattice with two extra functions: one to inject

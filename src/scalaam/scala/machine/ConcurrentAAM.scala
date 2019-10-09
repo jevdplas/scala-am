@@ -5,7 +5,7 @@ import scalaam.core.StoreType.StoreType
 import scalaam.core._
 import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
-import scala.machine.Strategy.Strategy
+import scalaam.machine.Strategy.Strategy
 
 import scalaam.core.{Expression, MachineUtil}
 

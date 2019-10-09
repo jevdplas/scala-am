@@ -78,7 +78,7 @@ object ConstantPropagation {
   type Sym = L[String]
 
   object L {
-    import scala.lattice._
+    import scalaam.lattice._
 
     implicit val stringCP: StringLattice[S] = new BaseInstance[String]("Str")
     with StringLattice[S] {

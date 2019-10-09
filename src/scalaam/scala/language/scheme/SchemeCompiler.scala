@@ -6,7 +6,7 @@ import scalaam.language.sexp._
 /**
   * Object that provides a method to compile an s-expression into a Scheme expression
   */
-object SchemeCompiler {
+trait SchemeCompiler {
   class SchemeCompilerException(reason: String, position: Position) extends Exception(reason)
   import scala.util.control.TailCalls._
 

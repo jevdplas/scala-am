@@ -4,7 +4,7 @@ import scalaam.graph._
 import Graph.GraphOps
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
-import scala.util.Show
+import scalaam.util.Show
 
 import scalaam.core.{Expression, MachineUtil}
 
@@ -124,7 +124,7 @@ class AAM[E <: Exp, A <: Address, V, T](val sem: Semantics[E, A, V, T, E])(
     private def integrate(a: KA, actions: Set[Action.A]): Set[State] =
       actions.flatMap({
         /* When a value is reached, we go to a continuation state */
-        case Action.Value(v, store) =>
+        case Action.Value(v, store, _) =>
           Set(State(ControlKont(v), store, kstore, a, Timestamp[T, E].tick(t)))
         /* When a continuation needs to be pushed, push it in the continuation store */
         case Action.Push(frame, e, env, store, _) => {
@@ -140,10 +140,10 @@ class AAM[E <: Exp, A <: Address, V, T](val sem: Semantics[E, A, V, T, E])(
           )
         }
         /* When a value needs to be evaluated, we go to an eval state */
-        case Action.Eval(e, env, store) =>
+        case Action.Eval(e, env, store, _) =>
           Set(State(ControlEval(e, env), store, kstore, a, Timestamp[T, E].tick(t)))
         /* When a function is stepped in, we also go to an eval state */
-        case Action.StepIn(fexp, _, e, env, store) =>
+        case Action.StepIn(fexp, _, e, env, store, _) =>
           Set(State(ControlEval(e, env), store, kstore, a, Timestamp[T, E].tick(t, fexp)))
         /* When an error is reached, we go to an error state */
         case Action.Err(err) =>

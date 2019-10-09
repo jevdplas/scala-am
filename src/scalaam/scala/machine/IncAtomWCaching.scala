@@ -21,7 +21,7 @@ import scalaam.core.Expression
   * <b>Important:</b> note that the implementation is incremental in the construction of the inner-loop (intra-modular) results and <i>not</i>
   * with regard to source code changes.
   *
-  * @see scala.machine.IncrementalConcurrentModular
+  * @see scalaam.machine.IncrementalConcurrentModular
   */
 class IncAtomWCaching[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
     t: StoreType,
@@ -291,7 +291,7 @@ class IncAtomWCaching[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdenti
   * StoreWrapper that contains a version number indicating the version of the store. Analogous to WrappedStore in ConcurrentModular.scala.
   * @param store   The store that is wrapped.
   * @param version The version number that is associated with the wrapped store.
-  * @see scala.machine.ConcurrentModular.WrappedStore for implementation details.
+  * @see scalaam.machine.ConcurrentModular.WrappedStore for implementation details.
   */
 /*
 case class TimestampedStore[A <: Address, V](store: Store[A, V], version: Int = 0)(implicit val lattice: Lattice[V]) extends Store[A, V] {

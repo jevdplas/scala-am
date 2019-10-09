@@ -8,7 +8,7 @@ import scalaam.core.Identifier
   * will be converted to (let ((_x0 1)) (let ((_x1 2)) _x1)). This is useful to
   * perform ANF conversion.
   */
-object SchemeRenamer {
+trait SchemeRenamer {
 
   /** Maps each variables to their alpha-renamed version (eg. x -> _x0) */
   type NameMap = Map[String, String]

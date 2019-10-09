@@ -3,7 +3,6 @@ import org.scalatest.prop._
 import scalaam.core._
 import scalaam.language.scheme._
 import scalaam.machine._
-import scalaam.lattice._
 
 /** Tests that encodes Chapter 6 of R5RS (only for specified behaviour,
  * unspecified behaviour is not tested because it's... unspecified). This is

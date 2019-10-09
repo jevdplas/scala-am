@@ -44,7 +44,7 @@ object Type {
   type Sym = T
 
   object T {
-    import scala.lattice._
+    import scalaam.lattice._
 
     implicit val typeIsString: StringLattice[S] = new BaseInstance("Str") with StringLattice[S] {
       def inject(x: String): T = Top

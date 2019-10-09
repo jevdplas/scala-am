@@ -14,7 +14,7 @@ import scalaam.core.{Position, Identifier}
   *     (f foo))
   * Which is semantically equivalent with respect to the end result
   */
-object SchemeUndefiner {
+trait SchemeUndefiner {
   import scala.util.control.TailCalls._
 
   def undefine(exps: List[SchemeExp]): SchemeExp =

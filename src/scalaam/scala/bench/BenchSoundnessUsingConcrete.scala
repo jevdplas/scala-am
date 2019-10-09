@@ -10,14 +10,14 @@ import scalaam.bench.BenchConfig._
 import scalaam.core.Annotations.toCheck
 import scalaam.core.ConcreteAddress.Pointer
 import scalaam.core.ConcreteVal._
-import scala.lattice.{Concrete, Type}
-import scala.machine.ConcreteConcurrentAAM
+import scalaam.lattice.{Concrete, Type}
+import scalaam.machine.ConcreteConcurrentAAM
 import scalaam.core._
 import scalaam.language.atomlang._
 import scalaam.language.scheme._
 import scalaam.graph.DotGraph
 import scalaam.language.LanguagePrelude
-import scala.machine.IncAtomAnalysis
+import scalaam.machine.IncAtomAnalysis
 
 object BenchSoundnessUsingConcrete {
 

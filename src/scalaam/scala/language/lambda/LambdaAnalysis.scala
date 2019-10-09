@@ -2,10 +2,10 @@ package scalaam.language.lambda
 
 object LambdaAnalysis {
   def main(args: Array[String]) = {
-    import scala.machine._
+    import scalaam.machine._
     import scalaam.core._
     import scalaam.graph._
-    import scala.lattice._
+    import scalaam.lattice._
 
     /* To run an analysis, we instanciate a number of components */
 

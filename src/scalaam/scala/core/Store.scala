@@ -240,6 +240,7 @@ object Store {
         })
       case StoreType.DeltaStore => new DeltaStore(values.toMap, Set())
     }
+}
 
 object Profiler {
   val methodsCount: scala.collection.mutable.Map[String, Int] =
@@ -283,10 +284,4 @@ case class ProfiledStore[A <: Address, V](val store: Store[A, V]) extends Store[
     }
   }
   def subsumes(that: Store[A, V]) = profileCall("store.subsumes") { store.subsumes(that) }
-}
-
-object Store {
-  def initial[A <: Address, V: Lattice](values: Iterable[(A, V)]): Store[A, V] =
-    new ProfiledStore(BasicStore(values.toMap))
-  def empty[A <: Address, V: Lattice]: Store[A, V] = initial[A, V](List())
 }
