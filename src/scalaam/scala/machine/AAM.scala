@@ -169,7 +169,7 @@ class AAM[Exp <: Expression, A <: Address, V, T](val t: StoreType, val sem: Sema
       State(
         ControlEval(exp, env),
         store,
-        Store.empty[KA, Set[Kont]],
+        Store.empty[KA, Set[Kont]](t),
         HaltKontAddr,
         Timestamp[T, Exp].initial("")
       )
@@ -203,7 +203,7 @@ class AAM[Exp <: Expression, A <: Address, V, T](val t: StoreType, val sem: Sema
     import scala.concurrent.duration._
     val fvs = program.fv
     val initialEnv = Environment.initial[A](sem.initialEnv).restrictTo(fvs)
-    val initialStore = Store.initial[A, V](sem.initialStore)
+    val initialStore = Store.initial[A, V](t, sem.initialStore)
     val initialState = State.inject(program, initialEnv, initialStore)
     val worklist = scala.collection.mutable.Queue(initialState)
     val visited = scala.collection.mutable.Map[KA, Set[State]]().withDefaultValue(Set.empty[State])

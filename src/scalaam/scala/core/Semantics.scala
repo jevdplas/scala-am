@@ -4,7 +4,7 @@ import scalaam.core.Effects.Effects
 
 trait Frame extends SmartHash
 
-trait Semantics[E <: Expression, Addr <: Address, V, T, C] {
+trait Semantics[Exp <: Expression, Addr <: Address, V, T, C] {
   implicit val timestamp: Timestamp[T, C]
   implicit val lattice: Lattice[V]
   val allocator: Allocator[Addr, T, C]
@@ -12,12 +12,12 @@ trait Semantics[E <: Expression, Addr <: Address, V, T, C] {
   object Action {
     trait A
     case class Value(v: V, store: Store[Addr, V], effs: Effects = Set.empty)                                      extends A
-    case class Push(frame: Frame, e: E, env: Environment[Addr], store: Store[Addr, V], effs: Effects = Set.empty) extends A
-    case class Eval(e: E, env: Environment[Addr], store: Store[Addr, V], effs: Effects = Set.empty)               extends A
+    case class Push(frame: Frame, e: Exp, env: Environment[Addr], store: Store[Addr, V], effs: Effects = Set.empty) extends A
+    case class Eval(e: Exp, env: Environment[Addr], store: Store[Addr, V], effs: Effects = Set.empty)               extends A
     case class StepIn(
-        fexp: E,
-        clo: (E, Environment[Addr]),
-        e: E,
+        fexp: Exp,
+        clo: (Exp, Environment[Addr]),
+        e: Exp,
         env: Environment[Addr],
         store: Store[Addr, V],
         effs: Effects = Set.empty
@@ -28,7 +28,7 @@ trait Semantics[E <: Expression, Addr <: Address, V, T, C] {
     case class NewFuture[TID <: ThreadIdentifier, F](
                                                       tid: TID,
                                                       tidv: V,
-                                                      first: Expression,
+                                                      first: Exp,
                                                       fram: F,
                                                       env: Environment[Addr],
                                                       store: Store[Addr, V],
@@ -39,7 +39,7 @@ trait Semantics[E <: Expression, Addr <: Address, V, T, C] {
         store: Store[Addr, V],
         effs: Effects = Set.empty
     ) extends A
-    // case class         Swap[E](value: V, atomExp: E, funv: V, funExp: E, args: List[(E, V)], env: Environment[Addr], store: Store[Addr, V], effs: Effects[Addr] = Set.empty) extends A
+    // case class         Swap[Exp](value: V, atomExp: Exp, funv: V, funExp: Exp, args: List[(Exp, V)], env: Environment[Addr], store: Store[Addr, V], effs: Effects[Addr] = Set.empty) extends A
 
     val None: Set[A]                         = Set.empty
     implicit def actionToSet(act: A): Set[A] = Set(act)
@@ -50,7 +50,7 @@ trait Semantics[E <: Expression, Addr <: Address, V, T, C] {
     }
   }
 
-  def stepEval(e: E, env: Environment[Addr], store: Store[Addr, V], t: T): Set[Action.A]
+  def stepEval(e: Exp, env: Environment[Addr], store: Store[Addr, V], t: T): Set[Action.A]
 
   def stepKont(v: V, frame: Frame, store: Store[Addr, V], t: T): Set[Action.A]
   def initialBindings: Iterable[(String, Addr, V)] = List()
