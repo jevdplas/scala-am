@@ -1,6 +1,5 @@
 package scalaam.language.scheme
 
-import scalaam.core.{Position, Identifier}
 import scalaam.language.sexp._
 
 /* TODO[easy]: use trampolines (scala.util.control.TailCalls) to ensure that we can parse anything without blowing up the stack */
@@ -738,5 +737,5 @@ object SchemeParser {
   /**
     * Parse a string representing a Scheme program
     */
-  def parse(s: String): SchemeExp = undefine(SExpParser.parse(s).map(compile _))
+  def parse(s: String): SchemeExp = SchemeBody(SExpParser.parse(s).map(compile _))
 }

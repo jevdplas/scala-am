@@ -30,7 +30,7 @@ class ParserTestsComplete extends ParserTests with SchemeBenchmarks with Atomlan
 class SchemeParserTests extends ParserTests with SchemeBenchmarks
 class AtomlangParserTests extends ParserTests with AtomlangBenchmarks
 
-class LexerSpec extends PropSpec with TableDrivenPropertyChecks with Matchers {
+class LexerTests extends PropSpec with TableDrivenPropertyChecks with Matchers {
   val lexical = new SExpLexer
   def checkExpected(parser: lexical.Parser[lexical.SExpToken])(input: String, expected: String) =
     parser(new scala.util.parsing.input.CharArrayReader(input.toCharArray)) match {

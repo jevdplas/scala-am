@@ -11,6 +11,9 @@ trait Environment[A <: Address] {
   /** Gets all the keys of the environment */
   def keys: Iterable[String]
 
+  /** Restrict the environment to only certain keys */
+  def restrictTo(keys: Set[String]): Environment[A]
+
   /** Checks if a predicate is true for all elements of the environment */
   def forall(p: ((String, A)) => Boolean): Boolean
 
@@ -41,11 +44,13 @@ case class BasicEnvironment[A <: Address](content: Map[String, A]) extends Envir
       .filter({ case (_, a) => a.printable })
       .map({ case (k, v) => s"$k: $v" })
       .mkString(", ") + "}"
-  def keys: Iterable[String]                                     = content.keys
-  def forall(p: ((String, A)) => Boolean): Boolean               = content.forall(p)
-  def lookup(name: String): Option[A]                            = content.get(name)
-  def extend(name: String, a: A): BasicEnvironment[A]            = this.copy(content = content + (name -> a))
-  def extend(values: Iterable[(String, A)]): BasicEnvironment[A] = this.copy(content = content ++ values)
+  def keys = content.keys
+  def restrictTo(keys: Set[String]) =
+    this.copy(content = content.view.filterKeys(k => keys.contains(k)).toMap)
+  def forall(p: ((String, A)) => Boolean)   = content.forall(p)
+  def lookup(name: String)                  = content.get(name)
+  def extend(name: String, a: A)            = this.copy(content = content + (name -> a))
+  def extend(values: Iterable[(String, A)]) = this.copy(content = content ++ values)
 }
 
 /* Default environment constructors */

@@ -1,15 +1,13 @@
 package scalaam.language.sexp
 
-import scalaam.core.{Identifier, Position}
-
-import scala.core.Expression
+import scalaam.core.{Position, Identifier, Exp}
 
 /**
   * S-expressions and related values
   */
 sealed abstract class Value
 case class ValueString(value: String) extends Value {
-  override def toString = "\"" + value + "\""
+  override def toString = s""""$value""""
 }
 case class ValueSymbol(sym: String) extends Value {
   override def toString = sym
@@ -42,7 +40,14 @@ object ValueNil extends Value {
   * resides in the input file, and as tagging information for the abstract
   * machine.
   */
-trait SExp extends Expression
+/* [merge] removed this */
+// trait SExp extends Expression
+/* [merge] instead of this */
+trait SExp extends Exp {
+  val pos: Position
+  def fv = Set()
+}
+/* [merge] end */
 
 /**
   * An s-expression is made of pairs, e.g., (foo bar) is represented as the pair

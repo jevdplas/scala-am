@@ -8,12 +8,15 @@ import SchemeOps._
 import UnaryOperator._
 import BinaryOperator._
 
-import scala.core.Expression
-
-/** Defines a Scheme lattice based on other lattices */
+/** Defines a Scheme lattice based on other lattices.
+  * Example usage:
+  *    val address = NameAddress
+  *    val lattice = new MakeSchemeLattice[SchemeExp, address.A, Type.S, Type.B, Type.I, Type.R, Type.C, Type.Sym]
+  * Now `lattice.L` is a SchemeLattice, of which the implicit for the typeclass is available in the current scope.
+  */
 /** TODO[medium]: use Show and ShowStore here */
 class MakeSchemeLattice[
-    Exp <: Expression,
+    E <: Exp,
     A <: Address,
     S: StringLattice,
     B: BoolLattice,
@@ -51,12 +54,16 @@ class MakeSchemeLattice[
     override def toString = SymbolLattice[Sym].show(s)
   }
 
-  /** TODO[medium] find a way not to have a type parametre here */
+  /** TODO[medium] find a way not to have a type parameter here */
   case class Prim[Primitive](prim: Primitive) extends Value {
     override def toString = s"#prim<$prim>"
   }
-  case class Clo(lambda: Exp, env: Environment[A]) extends Value {
-    override def toString = s"#clo@${lambda.pos}"
+  case class Clo(lambda: E, env: Environment[A], name: Option[String]) extends Value {
+    def printName = name match {
+      case None => s"anonymous@${lambda.pos}"
+      case Some(name) => name
+    }
+    override def toString = s"#<closure $printName>"
   }
 
   case class Cons(car: L, cdr: L) extends Value {
@@ -155,9 +162,6 @@ class MakeSchemeLattice[
       case _       => false
     }
 
-//    import scala.language.implicitConversions
-//    implicit def mayFailSuccess(l: Value): MayFail[Value, Error] = MayFail.success(l)
-//    implicit def mayFailError(err: Error): MayFail[Value, Error] = MayFail.failure(err)
     def unaryOp(op: UnaryOperator)(x: Value): MayFail[Value, Error] =
       if (x == Bot) {
         MayFail.success(Bot)
@@ -437,16 +441,23 @@ class MakeSchemeLattice[
               case (_: Cons, _: Cons)       => Bool(BoolLattice[B].inject(x == y))
               case (_: Vec, _: Vec)         => Bool(BoolLattice[B].inject(x == y))
               case (_: Pointer, _: Pointer) =>
-                if (concreteOP)
-                  Bool(BoolLattice[B].inject(x == y)) /* In the concrete, we can compare the actual pointers. */
-                else
-                  Bool(BoolLattice[B].top) /* In the abstract, we can't know for sure that equal addresses are equal. */
-              case _ => False
+                if (Config.concrete) {
+                  Bool(BoolLattice[B].inject(x == y))
+                } else {
+                   /* we can't know for sure that equal addresses are eq (in the abstract). */
+                  Bool(BoolLattice[B].top)
+                }
+              case _                        => False
             })
           case StringAppend =>
             (x, y) match {
               case (Str(s1), Str(s2)) => MayFail.success(Str(StringLattice[S].append(s1, s2)))
               case _                  => MayFail.failure(OperatorNotApplicable("string-append", List(x, y)))
+            }
+          case StringRef =>
+            (x, y) match {
+              case (Str(s), Int(n)) => MayFail.success(Char(StringLattice[S].ref(s, n)))
+              case _                => MayFail.failure(OperatorNotApplicable("string-ref", List(x, y)))
             }
           case StringLt =>
             (x, y) match {
@@ -462,7 +473,7 @@ class MakeSchemeLattice[
     def bool(x: Boolean): Value                   = Bool(BoolLattice[B].inject(x))
     def char(x: scala.Char): Value                = Char(CharLattice[C].inject(x))
     def primitive[Primitive](x: Primitive): Value = Prim(x)
-    def closure(x: schemeLattice.Closure): Value  = Clo(x._1, x._2)
+    def closure(x: schemeLattice.Closure, name: Option[String]): Value  = Clo(x._1, x._2.restrictTo(x._1.fv),name)
     def symbol(x: String): Value                  = Symbol(SymbolLattice[Sym].inject(x))
     def nil: Value                                = Nil
     def cons(car: L, cdr: L): Value               = Cons(car, cdr)
@@ -470,9 +481,9 @@ class MakeSchemeLattice[
     def future(tid: ThreadIdentifier): Value      = Future(tid)
     def pointer(a: A): Value                      = Pointer(a)
 
-    def getClosures(x: Value): Set[schemeLattice.Closure] = x match {
-      case Clo(lam, env) => Set((lam, env))
-      case _             => Set()
+    def getClosures(x: Value): Set[(schemeLattice.Closure,Option[String])] = x match {
+      case Clo(lam, env, name) => Set(((lam, env),name))
+      case _                => Set()
     }
     def getPrimitives[Primitive](x: Value): Set[Primitive] = x match {
       case Prim(p: Primitive @unchecked) => Set(p)
@@ -492,7 +503,6 @@ class MakeSchemeLattice[
       case Cons(_, cdr) => MayFail.success(cdr)
       case _            => MayFail.failure(TypeError("expecting cons to access cdr", x))
     }
-
     def getFutures(x: Value): Set[ThreadIdentifier] = x match {
       case Future(tid) => Set(tid)
       case _           => Set()
@@ -506,18 +516,20 @@ class MakeSchemeLattice[
       case (Vec(size, content, init), Int(index)) => {
         val comp = IntLattice[I].lt(index, size)
         val t: L = if (BoolLattice[B].isTrue(comp)) {
-          /* XXX: init doesn't have to be included if we know for sure that index is precise enough */
-          if (concreteOP) {
-            val vals = content.find{case (index2, _) => BoolLattice[B].isTrue(IntLattice[I].eql(index, index2))}
-            if (vals.isEmpty)
+          val vals = content.view
+            .filterKeys(index2 => BoolLattice[B].isTrue(IntLattice[I].eql(index, index2)))
+            .values
+          if (Config.concrete) {
+            val res = vals.foldLeft(schemeLattice.bottom)((acc, v) => schemeLattice.join(acc, v))
+            if (res == schemeLattice.bottom) {
+              /* No element stored, return init */
               init
-            else
-              vals.get._2
+            } else {
+              res
+            }
           } else {
-            content
-              .filterKeys(index2 => BoolLattice[B].isTrue(IntLattice[I].eql(index, index2)))
-              .values
-              .foldLeft(init)((acc, v) => schemeLattice.join(acc, v))
+            /* XXX: init doesn't have to be included if we know for sure that index is precise enough */
+            vals.foldLeft(init)((acc, v) => schemeLattice.join(acc, v))
           }
         } else {
           schemeLattice.bottom
@@ -535,14 +547,17 @@ class MakeSchemeLattice[
         case (Vec(size, content, init), Int(index)) => {
           val comp = IntLattice[I].lt(index, size)
           val t: L = if (BoolLattice[B].isTrue(comp)) {
-            if (concreteOP)
-              Element(Vec(size, content + (index -> newval), init))
-            else
             Element(
               Vec(
                 size,
-                content + (index -> schemeLattice
-                  .join(content.get(index).getOrElse(schemeLattice.bottom), newval)),
+                content + (index ->
+                  (if (Config.concrete) {
+                    newval
+                  } else {
+                    /* Joins the new value with the previous in index, if it exists */
+                    schemeLattice.join(content.get(index).getOrElse(schemeLattice.bottom), newval)
+                  })
+                ),
                 init
               )
             )
@@ -570,7 +585,7 @@ class MakeSchemeLattice[
       case Char(c)          => CharLattice[C].concreteValues(c)
       case Symbol(s)        => SymbolLattice[Sym].concreteValues(s)
       case Prim(prim)       => Set(ConcretePrim(prim))
-      case Clo(lambda, env) => Set(ConcreteClosure(lambda, env))
+      case Clo(lambda, env) => Set(ConcreteClosure(lambda, env, name))
       case Nil              => Set(ConcreteNil)
       case Pointer(a)       => Set(ConcretePointer(a))
       case Cons(car, cdr) =>
@@ -649,7 +664,7 @@ class MakeSchemeLattice[
   }
   implicit val lMFMonoid: Monoid[MayFail[L, Error]] = MonoidInstances.mayFail[L]
 
-  val schemeLattice: SchemeLattice[L, Exp, A] = new SchemeLattice[L, Exp, A] {
+  val schemeLattice: SchemeLattice[L, E, A] = new SchemeLattice[L, E, A] {
     def show(x: L)             = x.toString /* TODO[easy]: implement better */
     def isTrue(x: L): Boolean  = x.foldMapL(Value.isTrue(_))(boolOrMonoid)
     def isFalse(x: L): Boolean = x.foldMapL(Value.isFalse(_))(boolOrMonoid)
@@ -674,7 +689,7 @@ class MakeSchemeLattice[
     def vectorSet(vector: L, index: L, newval: L): MayFail[L, Error] =
       vector.foldMapL(vec => index.foldMapL(i => Value.vectorSet(vec, i, newval)))
 
-    def getClosures(x: L): Set[Closure] = x.foldMapL(x => Value.getClosures(x))(setMonoid)
+    def getClosures(x: L): Set[(Closure,Option[String])] = x.foldMapL(x => Value.getClosures(x))(setMonoid)
     def getPrimitives[Primitive](x: L): Set[Primitive] =
       x.foldMapL(x => Value.getPrimitives[Primitive](x))(setMonoid)
     def getPointerAddresses(x: L): Set[A]       = x.foldMapL(x => Value.getPointerAddresses(x))(setMonoid)
@@ -687,7 +702,7 @@ class MakeSchemeLattice[
     def char(x: scala.Char): L                = Element(Value.char(x))
     def bool(x: Boolean): L                   = Element(Value.bool(x))
     def primitive[Primitive](x: Primitive): L = Element(Value.primitive[Primitive](x))
-    def closure(x: Closure): L                = Element(Value.closure(x))
+    def closure(x: Closure, name: Option[String]): L = Element(Value.closure(x,name))
     def symbol(x: String): L                  = Element(Value.symbol(x))
     def cons(car: L, cdr: L): L               = Element(Value.cons(car, cdr))
     def atom(data: L): L                      = Element(Value.atom(data))
@@ -706,6 +721,6 @@ class MakeSchemeLattice[
   }
 
   object L {
-    implicit val lattice: SchemeLattice[L, Exp, A] = schemeLattice
+    implicit val lattice: SchemeLattice[L, E, A] = schemeLattice
   }
 }

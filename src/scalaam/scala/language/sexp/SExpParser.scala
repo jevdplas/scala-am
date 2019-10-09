@@ -50,7 +50,7 @@ trait SExpTokens extends Tokens {
     def chars = s
   }
   case class TString(s: String) extends SExpToken {
-    def chars = "\"" + s + "\""
+    def chars = s""""$s""""
   }
   case class TInteger(n: Int) extends SExpToken {
     def chars = n.toString
@@ -112,7 +112,7 @@ class SExpLexer extends Lexical with SExpTokens {
   def chr(c: Char): Parser[Char] = elem(s"character $c", _ == c)
   def sign: Parser[Option[Char]] = opt(chr('+') | chr('-'))
   def stringContentNoEscape: Parser[String] =
-    rep(chrExcept('\\', '\"')) ^^ (_.mkString)
+    rep(chrExcept('\\', '"')) ^^ (_.mkString)
   def stringContent: Parser[String] = {
     (stringContentNoEscape ~ '\\' ~ any ~ stringContent ^^ {
       case s1 ~ '\\' ~ c ~ s2 => s"$s1\\$c$s2"
@@ -123,6 +123,8 @@ class SExpLexer extends Lexical with SExpTokens {
   /* R5RS: Tokens which require implicit termination (identifiers, numbers, characters, and dot) may be terminated by any <delimiter>, but not necessarily by anything else.  */
   def delimiter: Parser[Unit] =
     (whitespaceChar | eol | eoi | chr('(') | chr(')') | chr('\"') | chr(';')) ^^ (_ => ())
+/* [merge] removed following line instead of previous one */
+//    (whitespaceChar | eol | eoi | chr('(') | chr(')') | chr('"') | chr(';')) ^^ (_ => ())
 
   def boolean: Parser[SExpToken] =
     '#' ~> ('t' ^^^ TBoolean(true) | 'f' ^^^ TBoolean(false))
@@ -138,8 +140,8 @@ class SExpLexer extends Lexical with SExpTokens {
   def character: Parser[SExpToken] =
     '#' ~> '\\' ~> any ^^ (c => TCharacter(c))
   def string: Parser[SExpToken] = {
-    ('\"' ~> stringContent ~ chrExcept('\\') <~ '\"' ^^ { case s ~ ending => TString(s + ending) }) |
-      ('\"' ~> stringContent <~ '\"' ^^ (s => TString(s)))
+    ('"' ~> stringContent ~ chrExcept('\\') <~ '"' ^^ { case s ~ ending => TString(s + ending) }) |
+      ('"' ~> stringContent <~ '"' ^^ (s => TString(s)))
   }
   def identifier: Parser[SExpToken] = {
     def specialInitial: Parser[Char] =

@@ -1,5 +1,7 @@
 package scalaam.graph
 
+/** A graph representation that can be saved in a .dot file for visualization
+  * purposes */
 case class DotGraph[N <: GraphElement, E <: GraphElement]() {
   class G(
       val ids: Map[N, Int],
@@ -37,8 +39,9 @@ case class DotGraph[N <: GraphElement, E <: GraphElement]() {
     def out(writer: java.io.Writer): Unit = {
       writer.write("digraph G {\n")
       _nodes.foreach((n) => {
-        val id      = ids(n)
-        val label   = n.label.replace("<", "&lt;").replace(">", "&gt;")
+        val id = ids(n)
+        val label =
+          n.label.replace("<", "&lt;").replace(">", "&gt;").replace("&lt;br/&gt;", "<br/>")
         val color   = n.color
         val tooltip = n.metadata.toString.replace("<", "&lt;").replace(">", "&gt;")
         writer.write(

@@ -7,7 +7,7 @@ object SchemeOps {
     val
     /* Check the type of a value */
     IsNull, IsBoolean, IsCons, IsPointer, IsChar, IsSymbol, IsString, IsInteger, IsReal, IsVector,
-        IsAtom, IsFuture, /* Negate a value */
+    IsAtom, IsFuture, /* TODO: should have this somewhere else? */
     Not, /* Unary arithmetic operations */
     Ceiling, Floor, Round, Random, Sqrt, /* Transcendental functions */
     Sin, ASin, Cos, ACos, Tan, ATan, Log, /* Length operations */
@@ -25,7 +25,7 @@ object SchemeOps {
     NumEq, /* number equality */
     Eq, /* physical equality */
     /* String operations */
-    StringAppend, StringLt = Value
+    StringAppend, StringRef, StringLt = Value
   }
   type BinaryOperator = BinaryOperator.Value
 }

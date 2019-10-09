@@ -1,9 +1,7 @@
 language: scala
 scala:
-  - 2.12.7
-  - 2.11.12
+  - 2.13
 jdk:
-  - oraclejdk8
   - openjdk8
 
-script: sbt test
+script: travis_wait 30 sbt test

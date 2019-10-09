@@ -1,145 +1,143 @@
 package scalaam.machine
 
-import scalaam.core.StoreType.StoreType
+import scalaam.graph._
+import Graph.GraphOps
 import scalaam.core._
-import scalaam.graph.Graph
-import scalaam.graph.Graph.GraphOps
 
-import scala.core.{Expression, MachineUtil}
-import scala.util.control.TailCalls._
-
-// Based on https://github.com/acieroid/scala-am/blob/e5d16e78418e71cedbc76048013480ac16f5c407/src/main/scala/machine/ConcreteMachine.scala
-class ConcreteMachine[Exp <: Expression, A <: Address, V, T](
-    val t: StoreType,
-    val sem: Semantics[Exp, A, V, T, Exp]
-)(implicit val timestamp: Timestamp[T, Exp], implicit val lattice: Lattice[V])
-    extends MachineAbstraction[Exp, A, V, T, Exp]
-    with MachineUtil[Exp, A, V] {
-
-  import sem.Action.{A => Act, Err, Eval, Push, StepIn, Value}
-
-  /** Evaluate an expression using the given semantics and with a given timeout. */
-  def eval(exp: Exp, timeout: Timeout.T): ConcreteMachine.this.Result = {
-
-    def next(action: Act, store: Store[A, V], stack: List[Frame], t: T): TailRec[Result] = {
-      action match {
-        case Value(v, store, _) =>
-          tailcall(loop(ControlKont(v), store, stack, Timestamp[T, Exp].tick(t)))
-        case Push(f, e, env, store, _) =>
-          tailcall(loop(ControlEval(e, env), store, f :: stack, Timestamp[T, Exp].tick(t)))
-        case Eval(e, env, store, _) =>
-          tailcall(loop(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t)))
-        case StepIn(f, _, e, env, store, _) =>
-          tailcall(loop(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t, f)))
-        case Err(e) => done(ResultError(e))
-        case a      => throw new Exception(s"Unsupported action: $a.")
-      }
-    }
-
-    def loop(control: Control, store: Store[A, V], stack: List[Frame], t: T): TailRec[Result] = {
-      if (timeout.reached) done(ResultTimeOut())
-      else {
-        control match {
-          case ControlEval(exp, env) =>
-            val actions = sem.stepEval(exp, env, store, t)
-            if (actions.size == 1)
-              tailcall(next(actions.head, store, stack, t))
-            else done(ResultInvalidState(actions, stack))
-          case ControlKont(v) =>
-            stack match {
-              case Nil => done(ResultSuccess(v))
-              case f :: cc =>
-                val actions = sem.stepKont(v, f, store, t)
-                if (actions.size == 1) {
-                  tailcall(next(actions.head, store, cc, t))
-                } else done(ResultInvalidState(actions, stack))
-            }
-          case ControlError(e) => done(ResultError(e))
-        }
-      }
-    }
-
-    loop(
-      ControlEval(exp, Environment.initial[A](sem.initialEnv)),
-      Store.initial[A, V](t, sem.initialStore),
-      List(),
-      Timestamp[T, Exp].initial("")
-    ).result
+/** Similar to BasicStore, but always perform strong updates when update is called */
+case class ConcreteStore[A <: Address, V](val content: Map[A, V])(implicit val lat: Lattice[V])
+    extends Store[A, V] {
+  override def toString              = content.view.filterKeys(_.printable).mkString("\n")
+  def keys                           = content.keys
+  def restrictTo(keys: Set[A])       = ConcreteStore(content.view.filterKeys(a => keys.contains(a)).toMap)
+  def forall(p: ((A, V)) => Boolean) = content.forall({ case (a, v) => p((a, v)) })
+  def lookup(a: A)                   = content.get(a)
+  def extend(a: A, v: V) = content.get(a) match {
+    case None => new ConcreteStore[A, V](content + (a -> v))
+    case Some(v2) =>
+      println(
+        s"Losing precision on concrete store when extending key $a with new value $v (old value is $v2)"
+      )
+      new ConcreteStore[A, V](content + (a -> lat.join(v, v2)))
   }
-
-  case class State(control: Control, store: Store[A, V], stack: List[Frame], t: T)
-      extends BaseMachineState {
-    def halted: Boolean = (stack, control) match {
-      case (Nil, ControlKont(_)) => true
-      case _                     => false
-    }
-
-    def next(
-        actions: Set[sem.Action.A],
-        store: Store[A, V],
-        stack: List[Frame],
-        t: T
-    ): Option[State] = {
-      if (actions.size == 1) {
-        actions.head match {
-          case Value(v, store, _) =>
-            Some(State(ControlKont(v), store, stack, Timestamp[T, Exp].tick(t)))
-          case Push(f, e, env, store, _) =>
-            Some(State(ControlEval(e, env), store, f :: stack, Timestamp[T, Exp].tick(t)))
-          case Eval(e, env, store, _) =>
-            Some(State(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t)))
-          case StepIn(f, _, e, env, store, _) =>
-            Some(State(ControlEval(e, env), store, stack, Timestamp[T, Exp].tick(t, f)))
-          case Err(e) => Some(State(ControlError(e), store, stack, Timestamp[T, Exp].tick(t)))
-        }
-      } else
-        Some(
-          State(
-            MachineError(s"Expected 1 state, got: ${actions.size}", actions, stack),
-            store,
-            stack,
-            Timestamp[T, Exp].tick(t)
-          )
-        )
-    }
-
-    def step(): Option[State] = control match {
-      case ControlEval(exp, env) =>
-        val actions = sem.stepEval(exp, env, store, t)
-        next(actions, store, stack, t)
-      case ControlKont(v) =>
-        stack match {
-          case Nil => None
-          case f :: cc =>
-            val actions = sem.stepKont(v, f, store, t)
-            next(actions, store, cc, t)
-        }
-      case _ => None
-    }
-  }
-
-  /** Evaluate an expression using the given semantics and with a given timeout. */
-  def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
-
-    @scala.annotation.tailrec
-    def loop(state: State, graph: G): G = {
-      if (timeout.reached) graph
-      else if (state.halted) graph
-      else
-        state.step() match {
-          case Some(state_) => loop(state_, graph.addEdge(state, empty, state_))
-          case None         => graph
-        }
-    }
-
-    loop(
-      State(
-        ControlEval(program, Environment.initial[A](sem.initialEnv)),
-        Store.initial[A, V](t, sem.initialStore),
-        List(),
-        Timestamp[T, Exp].initial("")
-      ),
-      Graph[G, State, Transition].empty
+  override def update(a: A, v: V) = new ConcreteStore(content + (a -> v)) /* No presence check */
+  def join(that: Store[A, V])     =
+    /* In practice, join shouldn't be called on a concrete store */
+    keys.foldLeft(that)((acc, k) => lookup(k).fold(acc)(v => acc.extend(k, v)))
+  def subsumes(that: Store[A, V]) =
+    that.forall(
+      (binding: (A, V)) => content.get(binding._1).exists(v => lat.subsumes(v, binding._2))
     )
+}
+
+class ConcreteMachine[E <: Exp, A <: Address, V, T](val sem: Semantics[E, A, V, T, E])(
+    implicit val timestamp: Timestamp[T, E],
+    implicit val lattice: Lattice[V]
+) extends MachineAbstraction[E, A, V, T, E]
+    with AAMUtils[E, A, V, T] {
+
+  val Action = sem.Action
+
+  case class State(control: Control, store: Store[A, V], konts: List[Frame], t: T)
+      extends GraphElement
+      with SmartHash {
+    override def toString = control.toString
+    override def label    = toString
+    override def color =
+      if (halted) {
+        Colors.Yellow
+      } else {
+        control match {
+          case _: ControlEval  => Colors.Green
+          case _: ControlKont  => Colors.Pink
+          case _: ControlError => Colors.Red
+        }
+      }
+    override def metadata =
+      GraphMetadataMap(
+        Map(
+          "halted" -> GraphMetadataBool(halted),
+          "type" -> (control match {
+            case _: ControlEval  => GraphMetadataString("eval")
+            case _: ControlKont  => GraphMetadataString("kont")
+            case _: ControlError => GraphMetadataString("error")
+          })
+        ) ++ (control match {
+          case ControlKont(v) => Map("value" -> GraphMetadataValue[V](v))
+          case _              => Map()
+        })
+      )
+
+    def halted: Boolean = control match {
+      case _: ControlEval  => false
+      case _: ControlKont  => konts.isEmpty
+      case _: ControlError => true
+    }
+  }
+
+  type Transition = NoTransition
+  val empty = new NoTransition
+
+  def run[G](program: E, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
+    val oldConcrete = Config.concrete
+    Config.concrete = true
+    var state = State(
+      ControlEval(program, Environment.initial[A](sem.initialEnv)),
+      new ConcreteStore[A, V](sem.initialStore.toMap),
+      List(),
+      Timestamp[T, E].initial("")
+    )
+    var graph    = Graph[G, State, Transition].empty
+    var finished = false
+    def applyAction(konts: List[Frame], actions: Set[Action.A]): Unit = {
+      if (actions.size == 0) {
+        println(
+          s"Got no action while one was expected when stepping state $state. Terminating concrete machine."
+        )
+        finished = true;
+      } else {
+        if (actions.size > 1) {
+          println(s"Got more than one action (${actions.size}) in concrete machine. Picking the first one.")
+          println(s"Initial state was $state")
+        }
+        val state2 = actions.head match {
+          case Action.Value(v, store2) =>
+            State(ControlKont(v), store2, konts, Timestamp[T, E].tick(state.t))
+          case Action.Push(frame, e, env, store2) =>
+            State(ControlEval(e, env), store2, frame :: konts, Timestamp[T, E].tick(state.t))
+          case Action.Eval(e, env, store2) =>
+            State(ControlEval(e, env), store2, konts, Timestamp[T, E].tick(state.t))
+          case Action.StepIn(fexp, _, e, env, store2) =>
+            State(ControlEval(e, env), store2, konts, Timestamp[T, E].tick(state.t, fexp))
+          case Action.Err(err) =>
+            State(ControlError(err), state.store, konts, Timestamp[T, E].tick(state.t))
+        }
+        graph = graph.addEdge(state, empty, state2)
+        state = state2
+      }
+    }
+    while (!finished) {
+      if (timeout.reached) {
+        finished = true
+      } else {
+        state.control match {
+          case ControlEval(e, env) =>
+            applyAction(state.konts, sem.stepEval(e, env, state.store, state.t))
+          case ControlKont(v) =>
+            state.konts match {
+              case frame :: tl =>
+                applyAction(tl, sem.stepKont(v, frame, state.store, state.t))
+              case Nil =>
+                println(s"Concrete machine finished its execution with value $v")
+                finished = true
+            }
+          case ControlError(err) =>
+            println(s"Concrete machine finished its execution with error $err")
+            finished = true
+        }
+      }
+    }
+    Config.concrete = oldConcrete
+    graph
   }
 }

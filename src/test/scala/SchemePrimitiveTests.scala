@@ -536,13 +536,13 @@ abstract class SchemePrimitiveTests[A <: Address, V, T, C](
     ("(let ((vec (vector 'a 'b 'c))) (and (equal? (vector-ref vec 0) 'a) (equal? (vector-ref vec 1) 'b) (equal? (vector-ref vec 2) 'c)))", t),
     ("(let ((vec (vector 0 '(2 2 2 2) \"Anna\"))) (vector-set! vec 1 '(\"Sue\" \"Sue\")) (and (equal? (vector-ref vec 0) 0) (equal? (vector-ref vec 1) '(\"Sue\" \"Sue\")) (equal? (vector-ref vec 2) \"Anna\")))", t)
   ))
-  
+
   r5rs("vector?", Table(
     ("program", "answer"),
     ("(vector? (vector 'a 'b 'c))", t),
     ("(vector? 'a)", f)
   ))
-  
+
   r5rs("vector-length", Table(
     ("program", "answer"),
     ("(vector-length (vector))", number(0)),
@@ -573,13 +573,22 @@ abstract class SchemePrimitiveAAMTests[A <: Address, T, V](
   val machine = new AAM[SchemeExp, A, V, T](StoreType.DeltaStore, sem)
 }
 
-object ConcreteSchemeLattice extends MakeSchemeLattice[SchemeExp, NameAddress.A, Concrete.S, Concrete.B, Concrete.I, Concrete.R, Concrete.C, Concrete.Sym]
-object ConstantPropagationSchemeLattice extends MakeSchemeLattice[SchemeExp, NameAddress.A, ConstantPropagation.S, Concrete.B, ConstantPropagation.I, ConstantPropagation.R, ConstantPropagation.C, ConstantPropagation.Sym]
-object TypeSchemeLattice extends MakeSchemeLattice[SchemeExp, NameAddress.A, Type.S, Concrete.B, Type.I, Type.R, Type.C, Type.Sym]
-
 object ConcreteSchemeTimestamp extends ConcreteTimestamp[SchemeExp]
 object ZeroCFASchemeTimestamp extends ZeroCFA[SchemeExp]
+object ConcreteSchemeAddress extends TimestampAddress[ConcreteSchemeTimestamp.T, SchemeExp]
 
+/* [merge] kept this */
 class ConcreteSchemePrimitiveAAMTests extends SchemePrimitiveAAMTests[NameAddress.A, ConcreteSchemeTimestamp.T, ConcreteSchemeLattice.L](NameAddress.Alloc[ConcreteSchemeTimestamp.T, SchemeExp])
 class ConstantPropagationSchemePrimitiveAAMTests extends SchemePrimitiveAAMTests[NameAddress.A, ConcreteSchemeTimestamp.T, ConstantPropagationSchemeLattice.L](NameAddress.Alloc[ConcreteSchemeTimestamp.T, SchemeExp])
 class TypeSchemePrimitiveAAMTests extends SchemePrimitiveAAMTests[NameAddress.A, ConcreteSchemeTimestamp.T, TypeSchemeLattice.L](NameAddress.Alloc[ConcreteSchemeTimestamp.T, SchemeExp])
+/* [merge] until now */
+
+/* [merge] removed */
+/*object ConcreteSchemeLattice extends MakeSchemeLattice[SchemeExp, ConcreteSchemeAddress.A, Concrete.S, Concrete.B, Concrete.I, Concrete.R, Concrete.C, Concrete.Sym]
+object ConcreteConstantPropagationSchemeLattice extends MakeSchemeLattice[SchemeExp, ConcreteSchemeAddress.A, ConstantPropagation.S, Concrete.B, ConstantPropagation.I, ConstantPropagation.R, ConstantPropagation.C, ConstantPropagation.Sym]
+object ConcreteTypeSchemeLattice extends MakeSchemeLattice[SchemeExp, ConcreteSchemeAddress.A, Type.S, Concrete.B, Type.I, Type.R, Type.C, Type.Sym]
+
+class ConcreteSchemePrimitiveAAMTests extends SchemePrimitiveAAMTests[ConcreteSchemeAddress.A, ConcreteSchemeTimestamp.T, ConcreteSchemeLattice.L](ConcreteSchemeAddress.Alloc)
+class ConstantPropagationSchemePrimitiveAAMTests extends SchemePrimitiveAAMTests[ConcreteSchemeAddress.A, ConcreteSchemeTimestamp.T, ConcreteConstantPropagationSchemeLattice.L](ConcreteSchemeAddress.Alloc)
+class TypeSchemePrimitiveAAMTests extends SchemePrimitiveAAMTests[ConcreteSchemeAddress.A, ConcreteSchemeTimestamp.T, ConcreteTypeSchemeLattice.L](ConcreteSchemeAddress.Alloc)
+ *//* [merge] until now */
