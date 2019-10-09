@@ -319,6 +319,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
 
     import schemeLattice._
     import scala.util.control.TailCalls._
+
     def liftTailRec(x: MayFail[TailRec[MayFail[V, Error]], Error]): TailRec[MayFail[V, Error]] =
       x match {
         case MayFailSuccess(v)   => tailcall(v)
@@ -923,7 +924,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
             } else {
               throw new Exception(s"Incorrect car/cdr operation: $name")
             }
-        )
+        ).toList
       override def call(v: V, store: Store[A, V]) =
         for {
           (v, effs) <- spec.foldLeft(MayFail.success[(V, Effects), Error]((v, Effects.noEff())))(
@@ -1003,9 +1004,9 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
 
     object Length extends StoreOperation("length", Some(1)) {
       override def call(l: V, store: Store[A, V]) = {
-        def length(l: V, visited: Set[V]): TailRec[MayFail[V, Error]] =
+        def length(l: V, visited: Set[V]): TailRec[MayFail[(V, Effects), Error]] =
           if (visited.contains(l)) {
-            done(bottom)
+            done((bottom, Effects.noEff()))
           } else {
             ifThenElseTR(isPointer(l)) {
               /* dereferences the pointer and applies length to the result */
@@ -1034,7 +1035,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
               }
             }
           }
-        length(l, Set()).map(ve => (ve._1, store, ve._2))
+        length(l, Set()).result.map(ve => (ve._1, store, ve._2))
       }
     }
 
