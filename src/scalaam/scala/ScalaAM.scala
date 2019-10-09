@@ -1,14 +1,13 @@
-package scalaam
-import scalaam.core._
+package scala
 
 import scalaam.bench.BenchSoundnessUsingConcrete.CSem
 import scalaam.core._
 import scalaam.graph.{DotGraph, Graph}
 import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
 import scalaam.language.scheme.{MakeSchemeLattice, SchemeExp}
-import scalaam.lattice.{Concrete, Type}
-import scalaam.machine.{ConcreteConcurrentAAM, ConcurrentAAM, Strategy}
-import scalaam.machine.Strategy.Strategy
+import scala.lattice.{Concrete, Type}
+import scala.machine.{ConcreteConcurrentAAM, ConcurrentAAM, Strategy}
+import scala.machine.Strategy.Strategy
 import Sem._
 import scalaam.language.LanguagePrelude
 
@@ -101,7 +100,6 @@ object ModAtomRun {
           }
       )
       /* And evaluate the value of each variable */
-<<<<<<< HEAD
       .collect(evalVar)
       /* We now have a list of pairs (variable, value).
                Let's join all of them by variable in a single map */
@@ -180,7 +178,6 @@ object IncAtomRun {
         (map, pair) =>
           pair match {
             case (id, value) =>
-<<<<<<< HEAD
               map + (id -> SchemeLattice[Sem.lattice.L, SchemeExp, address.A].join(map(id), value))
           }
       )
@@ -293,10 +290,10 @@ object RunUtil {
 
 object SchemeRunAAMLKSS extends Interpreter {
   import scalaam.language.scheme._
-  import scalaam.machine._
+  import scala.machine._
   import scalaam.core._
   import scalaam.graph._
-  import scalaam.lattice._
+  import scala.lattice._
 
   val address   = NameAddress
   val timestamp = ZeroCFA[SchemeExp]()
@@ -325,10 +322,10 @@ object SchemeRunAAMLKSS extends Interpreter {
 
 object SchemeRunGAAM extends Interpreter {
   import scalaam.language.scheme._
-  import scalaam.machine._
+  import scala.machine._
   import scalaam.core._
   import scalaam.graph._
-  import scalaam.lattice._
+  import scala.lattice._
 
   val address   = NameAddress
   val timestamp = ZeroCFA[SchemeExp]()

@@ -1,6 +1,6 @@
 package scalaam.language.sexp
 
-import scalaam.core.{Position, Identifier, Exp}
+import scalaam.core.{Position, Identifier, Expression}
 
 /**
   * S-expressions and related values
@@ -43,7 +43,7 @@ object ValueNil extends Value {
 /* [merge] removed this */
 // trait SExp extends Expression
 /* [merge] instead of this */
-trait SExp extends Exp {
+trait SExp extends Expression {
   val pos: Position
   def fv = Set()
 }

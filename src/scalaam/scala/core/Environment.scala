@@ -1,7 +1,8 @@
 package scalaam.core
 
 /** Error raised when a variable is unbound when looked up in an environment.
-  * @see [[scalaam.core.Error]]
+ *
+  * @see [[scala.core.Error]]
   */
 case class UnboundVariable(id: Identifier) extends Error
 

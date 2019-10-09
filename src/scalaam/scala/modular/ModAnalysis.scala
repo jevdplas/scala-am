@@ -5,7 +5,7 @@ import scala.collection.mutable.Map
 import scala.collection.mutable.Set
 import scala.collection.mutable.Queue
 
-abstract class ModAnalysis[Expr <: Exp](program: Expr) {
+abstract class ModAnalysis[Expr <: Expression](program: Expr) {
 
   // parameterized by a 'intra-component' representation
   type IntraComponent

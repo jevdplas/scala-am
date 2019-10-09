@@ -2,7 +2,7 @@ package scalaam.lattice
 
 import scalaam.core.{Lattice, ConcreteVal}
 import scalaam.core.ConcreteVal._
-import scalaam.util.Show
+import scala.util.Show
 
 object Concrete {
   sealed trait L[+X] {
@@ -61,7 +61,7 @@ object Concrete {
   /* TODO[easy]: the bool lattice implementation could be specialized (see the old "ConcreteBoolEfficient" implementation). Whether this results in a speed improvement should be evaluated */
 
   object L {
-    import scalaam.lattice._
+    import scala.lattice._
 
     implicit class FoldMapOps[X](content: Set[X]) {
       def foldMap[Y: Lattice](f: X => Y): Y =

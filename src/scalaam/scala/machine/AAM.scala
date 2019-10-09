@@ -4,8 +4,9 @@ import scalaam.graph._
 import Graph.GraphOps
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
+import scala.util.Show
 
-import scala.core.{Expression, MachineUtil}
+import scalaam.core.{Expression, MachineUtil}
 
 /**
   * Implementation of a CESK machine following the AAM approach (Van Horn, David,

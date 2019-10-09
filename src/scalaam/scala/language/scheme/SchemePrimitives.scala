@@ -413,8 +413,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     def ifThenElse(
         cond: MayFail[V, Error]
     )(thenBranch: => MayFail[V, Error])(elseBranch: => MayFail[V, Error]): MayFail[V, Error] = {
-      val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
-      val mfMon  = scalaam.util.MonoidInstances.mayFail[V](latMon)
+      val latMon = scala.util.MonoidInstances.latticeMonoid[V]
+      val mfMon  = scala.util.MonoidInstances.mayFail[V](latMon)
       cond >>= { condv =>
         val t = if (isTrue(condv)) {
           thenBranch
@@ -433,10 +433,10 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     def ifThenElseWithEffs(cond: MayFail[V, Error])(
         thenBranch: => MayFail[(V, Effects), Error]
     )(elseBranch: => MayFail[(V, Effects), Error]): MayFail[(V, Effects), Error] = {
-      val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
-      val effMon = scalaam.util.MonoidInstances.setMonoid[Effect]
-      val tupMon = scalaam.util.MonoidInstances.tupleMonoid(latMon, effMon)
-      val mfMon  = scalaam.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
+      val latMon = scala.util.MonoidInstances.latticeMonoid[V]
+      val effMon = scala.util.MonoidInstances.setMonoid[Effect]
+      val tupMon = scala.util.MonoidInstances.tupleMonoid(latMon, effMon)
+      val mfMon  = scala.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
       cond >>= { condv =>
         val t = if (isTrue(condv)) {
           thenBranch
@@ -455,10 +455,10 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     def ifThenElseCondEffs(cond: MayFail[(V, Effects), Error])(
         thenBranch: => MayFail[(V, Effects), Error]
     )(elseBranch: => MayFail[(V, Effects), Error]): MayFail[(V, Effects), Error] = {
-      val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
-      val effMon = scalaam.util.MonoidInstances.setMonoid[Effect]
-      val tupMon = scalaam.util.MonoidInstances.tupleMonoid(latMon, effMon)
-      val mfMon  = scalaam.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
+      val latMon = scala.util.MonoidInstances.latticeMonoid[V]
+      val effMon = scala.util.MonoidInstances.setMonoid[Effect]
+      val tupMon = scala.util.MonoidInstances.tupleMonoid(latMon, effMon)
+      val mfMon  = scala.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
       cond >>= { condv =>
         val t = if (isTrue(condv._1)) {
           thenBranch.map { case (v, e) => (v, e ++ condv._2) }
@@ -477,8 +477,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     def ifThenElseTR(cond: MayFail[V, Error])(
         thenBranch: => TailRec[MayFail[V, Error]]
     )(elseBranch: => TailRec[MayFail[V, Error]]): TailRec[MayFail[V, Error]] = {
-      val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
-      val mfMon  = scalaam.util.MonoidInstances.mayFail[V](latMon)
+      val latMon = scala.util.MonoidInstances.latticeMonoid[V]
+      val mfMon  = scala.util.MonoidInstances.mayFail[V](latMon)
       liftTailRec(cond >>= { condv =>
         val t = if (isTrue(condv)) {
           thenBranch

@@ -1,6 +1,5 @@
-package scala.core
+package scalaam.core
 
-import scalaam.core.{Address, Environment, Error, Frame, MachineAbstraction, SmartHash}
 import scalaam.graph._
 
 trait MachineUtil[Exp <: Expression, A <: Address, V] {

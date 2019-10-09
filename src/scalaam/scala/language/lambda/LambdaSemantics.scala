@@ -159,7 +159,6 @@ case class LambdaSemantics[V, A <: Address, T, C](allocator: Allocator[A, T, C])
     * `fexp` has been evaluated to the value `f`, and the arguments have been
     * evaluated to the values contained in `argsv`. We need the store to
     * evaluate this call. */
->>>>>>> 92fa163013b9a2379a3d93c2ed499193f90ef037
   def evalCall(
       f: V,
       fexp: LambdaExp,

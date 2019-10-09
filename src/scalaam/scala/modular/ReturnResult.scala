@@ -4,7 +4,7 @@ import scalaam.core._
 import scala.collection.mutable.Map
 import scala.collection.mutable.Set
 
-trait ReturnResult[Expr <: Exp] extends ModAnalysis[Expr] {
+trait ReturnResult[Expr <: Expression] extends ModAnalysis[Expr] {
 
   // parameterized by a type that represents the result of an intra-analysis
   type Result

@@ -4,7 +4,7 @@ import scalaam.core.Effects.Effects
 
 trait Frame extends SmartHash
 
-trait Semantics[E <: Exp, Addr <: Address, V, T, C] {
+trait Semantics[E <: Expression, Addr <: Address, V, T, C] {
   implicit val timestamp: Timestamp[T, C]
   implicit val lattice: Lattice[V]
   val allocator: Allocator[Addr, T, C]
@@ -26,13 +26,13 @@ trait Semantics[E <: Exp, Addr <: Address, V, T, C] {
 
     // Action used when a new future needs to be created.
     case class NewFuture[TID <: ThreadIdentifier, F](
-        tid: TID,
-        tidv: V,
-        first: Exp,
-        fram: F,
-        env: Environment[Addr],
-        store: Store[Addr, V],
-        effs: Effects = Set.empty
+                                                      tid: TID,
+                                                      tidv: V,
+                                                      first: Expression,
+                                                      fram: F,
+                                                      env: Environment[Addr],
+                                                      store: Store[Addr, V],
+                                                      effs: Effects = Set.empty
     ) extends A
     case class DerefFuture[TID <: ThreadIdentifier](
         tid: TID,

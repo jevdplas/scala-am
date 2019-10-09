@@ -1,4 +1,4 @@
-package scala.machine
+package scalaam.machine
 
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
@@ -6,7 +6,7 @@ import scalaam.core._
 import scalaam.graph.{BaseTransition, Graph}
 import scalaam.graph.Graph.GraphOps
 
-import scala.core.Expression
+import scalaam.core.Expression
 
 /**
   * Implementation of an optimised version of the IncrementalConcurrentModular machine. Two optimisations are implemented: <br>

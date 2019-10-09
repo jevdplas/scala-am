@@ -1,13 +1,12 @@
-package scala.machine
+package scalaam.machine
 
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
-import scalaam.machine.AAM
 import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
 
-import scala.core.{Expression, MachineUtil}
+import scalaam.core.MachineUtil
 
 class ModAtom[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
     val t: StoreType,

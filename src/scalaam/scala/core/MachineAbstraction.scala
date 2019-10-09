@@ -2,8 +2,6 @@ package scalaam.core
 
 import scalaam.graph.{BaseTransition, Graph, GraphElement}
 
-import scala.core.Expression
-
 /**
   * The interface of the machine abstraction itself.
   * A machine abstraction is parameterized by:
@@ -12,7 +10,7 @@ import scala.core.Expression
   *   - A type of timestamp T
   *   - A type of context for the timestamp C
   */
-trait MachineAbstraction[E <: Exp, A <: Address, V, T, C] {
+trait MachineAbstraction[E <: Expression, A <: Address, V, T, C] {
   implicit val timestamp: Timestamp[T, C]
   implicit val lattice: Lattice[V]
 

@@ -2,8 +2,8 @@ package scalaam.language.scheme
 
 import scalaam.core._
 import scalaam.core.ConcreteVal._
-import scalaam.lattice._
-import scalaam.util.{Monoid, MonoidInstances}
+import scala.lattice._
+import scala.util.{Monoid, MonoidInstances}
 import SchemeOps._
 import UnaryOperator._
 import BinaryOperator._
@@ -16,7 +16,7 @@ import BinaryOperator._
   */
 /** TODO[medium]: use Show and ShowStore here */
 class MakeSchemeLattice[
-    E <: Exp,
+    E <: Expression,
     A <: Address,
     S: StringLattice,
     B: BoolLattice,
@@ -590,15 +590,15 @@ class MakeSchemeLattice[
       case Pointer(a)       => Set(ConcretePointer(a))
       case Cons(car, cdr) =>
         val ccar: Set[ConcreteVal] =
-          car.foldMapL(concreteValues)(scalaam.util.MonoidInstances.setMonoid)
+          car.foldMapL(concreteValues)(scala.util.MonoidInstances.setMonoid)
         val ccdr: Set[ConcreteVal] =
-          cdr.foldMapL(concreteValues)(scalaam.util.MonoidInstances.setMonoid)
+          cdr.foldMapL(concreteValues)(scala.util.MonoidInstances.setMonoid)
         Set(ConcreteCons(ccar, ccdr))
       case _: Vec      => ???
       case Future(tid) => Set(ConcreteFuture(tid))
       case Atom(data) =>
         val cdata: Set[ConcreteVal] =
-          data.foldMapL(concreteValues)(scalaam.util.MonoidInstances.setMonoid)
+          data.foldMapL(concreteValues)(scala.util.MonoidInstances.setMonoid)
         Set(ConcreteAtom(cdata))
     }
 

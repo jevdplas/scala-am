@@ -8,7 +8,7 @@ import scalaam.language.scheme.{SchemeExp, SchemeOps, SchemePrimitives}
 /**
   * Trait containing the implementation of the primitives for Atomlang.
   *
-  * This trait requires [[scalaam.language.scheme.SchemePrimitives]] to be part of all mix-ins in which it is mixed in,
+  * This trait requires [[scala.language.scheme.SchemePrimitives]] to be part of all mix-ins in which it is mixed in,
   * as the Atomlang primitives are a superset of the Scheme primitives.
   *
   * @tparam A The type of addresses.

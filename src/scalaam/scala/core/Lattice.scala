@@ -1,7 +1,6 @@
 package scalaam.core
 
-import scalaam.lattice.BoolLattice
-import scalaam.util.Show
+import scala.util.Show
 
 /** Error raised when trying to construct the top element of a lattice which doesn't have one */
 object LatticeTopUndefined extends ScalaAMException
@@ -24,7 +23,7 @@ trait Lattice[L] extends PartialOrdering[L] with Show[L] {
   def subsumes(x: L, y: => L): Boolean
 
   /** Equality check, returning an abstract result */
-  def eql[B: scalaam.lattice.BoolLattice](x: L, y: L): B
+  def eql[B: scala.lattice.BoolLattice](x: L, y: L): B
 
   /** For PartialOrdering[L]: a lattice has a partial order, defined by subsumes... */
   final def lteq(x: L, y: L): Boolean = subsumes(y, x)
@@ -49,6 +48,6 @@ object Lattice {
     def bottom: Set[A]                                                     = Set.empty
     def join(x: Set[A], y: => Set[A]): Set[A]                              = x.union(y)
     def subsumes(x: Set[A], y: => Set[A]): Boolean                         = y.subsetOf(x)
-    def eql[B: scalaam.lattice.BoolLattice](x: Set[A], y: Set[A]): B       = ???
+    def eql[B: scala.lattice.BoolLattice](x: Set[A], y: Set[A]): B       = ???
   }
 }

@@ -1,14 +1,11 @@
-package scala.machine
+package scalaam.machine
 
 import scalaam.core.Annotations._
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
-import scalaam.machine.AAM
 import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
-
-import scala.core.{Expression, MachineUtil}
 
 abstract class AtomAnalysis[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](val t: StoreType, val sem: Semantics[Exp, A, V, T, Exp], val allocator: TIDAllocator[TID, T, Exp])
                                                                                             (implicit val timestamp: Timestamp[T, Exp], implicit val lattice: Lattice[V])

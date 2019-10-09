@@ -7,16 +7,16 @@ import java.util.{Calendar, Date}
 import scala.util.control.Breaks._
 import au.com.bytecode.opencsv.CSVWriter
 import scalaam.bench.BenchConfig._
+import scalaam.core.Annotations.toCheck
 import scalaam.core.ConcreteAddress.Pointer
 import scalaam.core.ConcreteVal._
-import scalaam.lattice.{Concrete, Type}
-import scalaam.machine.ConcreteConcurrentAAM
+import scala.lattice.{Concrete, Type}
+import scala.machine.ConcreteConcurrentAAM
 import scalaam.core._
 import scalaam.language.atomlang._
 import scalaam.language.scheme._
 import scalaam.graph.DotGraph
 import scalaam.language.LanguagePrelude
-
 import scala.machine.IncAtomAnalysis
 
 object BenchSoundnessUsingConcrete {
@@ -276,6 +276,7 @@ object BenchSoundnessUsingConcrete {
         clat.concreteValues(lat).map(convertValue).fold(alat.bottom)(alat.join(_, _))
     }
 
+    @toCheck("ConcreteClosure: is name handled correctly?")
     def convertValue(value: ConcreteVal): ASem.lattice.L = value match {
         case ConcreteNumber(x) => alat.number(x)
         case ConcreteReal(x) => alat.real(x)
@@ -286,7 +287,7 @@ object BenchSoundnessUsingConcrete {
         case ConcretePrim(p: CSem.sem.Primitive) =>
             alat.primitive(ASem.sem.allPrimitives.find(_.name == p.name).get)
         case ConcreteNil => alat.nil
-        case ConcreteClosure(exp, env) =>
+        case ConcreteClosure(exp, env, name) =>
             val env2 = env.keys.foldLeft(Environment.empty[ASem.address.A])(
                 (env2, k) =>
                     env2.extend(
@@ -298,7 +299,7 @@ object BenchSoundnessUsingConcrete {
                         }
                     )
             )
-            alat.closure((exp.asInstanceOf[SchemeExp], env2))
+            alat.closure((exp.asInstanceOf[SchemeExp], env2), name)
         case ConcretePointer(CSem.address.Variable(nameAddr, _)) =>
             alat.pointer(ASem.address.Variable(nameAddr))
         case ConcretePointer(Pointer(name, _)) =>

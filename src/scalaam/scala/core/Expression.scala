@@ -1,7 +1,11 @@
-package scala.core
+package scalaam.core
 
-import scalaam.core.Position
+/** An expression */
+trait Expression extends SmartHash {
 
-trait Expression {
-  val pos: Position
+  /** The position of the expression in its source file */
+  def pos: Position
+
+  /** The set of free variables appearing in this expression */
+  def fv: Set[String]
 }

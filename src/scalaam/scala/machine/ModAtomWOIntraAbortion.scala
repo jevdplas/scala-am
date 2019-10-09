@@ -1,13 +1,12 @@
-package scala.machine
+package scalaam.machine
 
 import scalaam.core.Effects.Effects
 import scalaam.core.StoreType.StoreType
 import scalaam.core._
 import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
-import scalaam.machine.AAM
 
-import scala.core.{Expression, MachineUtil}
+import scalaam.core.{Expression, MachineUtil}
 
 // TODO verify that bottom is returned - at least add comment (?).
 /**

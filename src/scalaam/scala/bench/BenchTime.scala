@@ -4,10 +4,10 @@ import scalaam.core._
 import scalaam.graph._
 import scalaam.language.atomlang._
 import scalaam.language.scheme._
-import scalaam.lattice._
-import scalaam.machine.ConcurrentAAM
+import scala.lattice._
+import scala.machine.ConcurrentAAM
 
-import scala.core.MachineUtil
+import scalaam.core.MachineUtil
 import scala.machine._
 import Graph.GraphOps
 import au.com.bytecode.opencsv.CSVWriter

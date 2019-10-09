@@ -5,9 +5,9 @@ import scalaam.core.StoreType.StoreType
 import scalaam.core._
 import scalaam.graph.Graph.GraphOps
 import scalaam.graph._
-import scalaam.machine.Strategy.Strategy
+import scala.machine.Strategy.Strategy
 
-import scala.core.{Expression, MachineUtil}
+import scalaam.core.{Expression, MachineUtil}
 
 /**
   * Implementation of an abstract PCESK machine. This machine uses parts of an underlying AAM.<br><br>
