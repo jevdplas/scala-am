@@ -2,7 +2,6 @@ package scalaam.modular
 
 import scalaam.core._
 import scala.collection.mutable.Map
-import scala.collection.mutable.Set
 
 trait ReturnResult[Expr <: Expression] extends ModAnalysis[Expr] {
 

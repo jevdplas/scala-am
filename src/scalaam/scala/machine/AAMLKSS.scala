@@ -45,9 +45,9 @@ class AAMLKSS[E <: Expression, A <: Address, V, T](val sem: Semantics[E, A, V, T
         val states = acc._1
         val kstore = acc._2
         act match {
-          case Action.Value(v, store) =>
+          case Action.Value(v, store, _) =>
             (states + ((State(ControlKont(v), lkont, Timestamp[T, E].tick(t)), store)), kstore)
-          case Action.Push(frame, e, env, store) =>
+          case Action.Push(frame, e, env, store, _) =>
             (
               states + (
                 (
@@ -57,9 +57,9 @@ class AAMLKSS[E <: Expression, A <: Address, V, T](val sem: Semantics[E, A, V, T
               ),
               kstore
             )
-          case Action.Eval(e, env, store) =>
+          case Action.Eval(e, env, store, _) =>
             (states + ((State(ControlEval(e, env), lkont, Timestamp[T, E].tick(t)), store)), kstore)
-          case Action.StepIn(fexp, _, e, env, store) =>
+          case Action.StepIn(fexp, _, e, env, store, _) =>
             val next = KontAddr(e, t)
             (
               states + (

@@ -1,7 +1,7 @@
 package scalaam.machine
 
 import scalaam.core._
-import scala.util.Show
+import scalaam.util.Show
 
 /** A number of things are factored out of the AAM-based analysis classes to
   * enable reusability by similar machine abstractions */

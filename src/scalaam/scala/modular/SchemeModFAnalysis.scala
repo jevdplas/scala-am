@@ -201,9 +201,9 @@ class SchemeModFAnalysis(program: SchemeExp)
       val primitives = lattice.getPrimitives[schemeSemantics.Primitive](fval)
       primitives.foldLeft(lattice.bottom)((acc,prm) => lattice.join(acc,
         prm.call(fexp, args, StoreAdapter, this) match {
-          case MayFailSuccess((vlu,_))  => vlu
-          case MayFailBoth((vlu,_),_)   => vlu
-          case MayFailError(_)          => lattice.bottom
+          case MayFailSuccess((vlu,_, _))  => vlu
+          case MayFailBoth((vlu,_, _),_)   => vlu
+          case MayFailError(_)             => lattice.bottom
         }))
     }
     // some helpers

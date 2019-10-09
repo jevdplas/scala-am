@@ -41,29 +41,23 @@ class AAM[Exp <: Expression, A <: Address, V, T](val t: StoreType, val sem: Sema
   trait KA extends Address with SmartHash {
     def printable = true
   }
+
   case class KontAddr(exp: Exp, time: T) extends KA {
     override def toString = s"Kont(${exp.toString.take(10)})"
   }
+
   case object HaltKontAddr extends KA {
     override def toString = "Halt"
   }
 
   case class Kont(f: Frame, next: KA) extends SmartHash
+
   implicit val kontShow = new Show[Kont] {
     def show(k: Kont) = "kont($f)"
   }
   implicit val kontSetLattice = Lattice.SetLattice[Kont]
-  /* [merge] to here */
 
-  /* [merge] kept from here */
-class AAM[E <: Exp, A <: Address, V, T](val sem: Semantics[E, A, V, T, E])(
-    implicit val timestamp: Timestamp[T, E],
-    implicit val lattice: Lattice[V]
-) extends MachineAbstraction[E, A, V, T, E]
-    with AAMUtils[E, A, V, T] {
-
-  val Action = sem.Action
-  /* [merge] to here */
+    val Action = sem.Action
 
   /**
     * A machine state is made of a control component, a value store, a
@@ -71,48 +65,48 @@ class AAM[E <: Exp, A <: Address, V, T](val sem: Semantics[E, A, V, T, E])(
     * continuation lives.
     */
   case class State(control: Control, store: Store[A, V], kstore: Store[KA, Set[Kont]], a: KA, t: T)
-      extends BaseMachineState
+    extends BaseMachineState {
 
-  /* [merge] removed */
-  /*
-      extends GraphElement
-      with SmartHash {
-    override def toString = control.toString
+    /* [merge] removed */
+    /*
+    extends GraphElement
+    with SmartHash {
+  override def toString = control.toString
 
-    override def label = toString
-    override def color =
-      if (halted) {
-        Colors.Yellow
-      } else {
-        control match {
-          case _: ControlEval  => Colors.Green
-          case _: ControlKont  => Colors.Pink
-          case _: ControlError => Colors.Red
-        }
+  override def label = toString
+  override def color =
+    if (halted) {
+      Colors.Yellow
+    } else {
+      control match {
+        case _: ControlEval  => Colors.Green
+        case _: ControlKont  => Colors.Pink
+        case _: ControlError => Colors.Red
       }
-    override def metadata =
-      GraphMetadataMap(
-        Map(
-          "halted" -> GraphMetadataBool(halted),
-          "type" -> (control match {
-            case _: ControlEval  => GraphMetadataString("eval")
-            case _: ControlKont  => GraphMetadataString("kont")
-            case _: ControlError => GraphMetadataString("error")
-          })
-        ) ++ (control match {
-          case ControlKont(v) => Map("value" -> GraphMetadataValue[V](v))
-          case _              => Map()
+    }
+  override def metadata =
+    GraphMetadataMap(
+      Map(
+        "halted" -> GraphMetadataBool(halted),
+        "type" -> (control match {
+          case _: ControlEval  => GraphMetadataString("eval")
+          case _: ControlKont  => GraphMetadataString("kont")
+          case _: ControlError => GraphMetadataString("error")
         })
-      )*/
-/* [merge] end */
+      ) ++ (control match {
+        case ControlKont(v) => Map("value" -> GraphMetadataValue[V](v))
+        case _              => Map()
+      })
+    )*/
+    /* [merge] end */
 
     /**
       * Checks if the current state is a final state. It is the case if it
       * reached the end of the computation, or an error
       */
     def halted: Boolean = control match {
-      case _: ControlEval  => false
-      case _: ControlKont  => a == HaltKontAddr
+      case _: ControlEval => false
+      case _: ControlKont => a == HaltKontAddr
       case _: ControlError => true
     }
 
@@ -125,7 +119,7 @@ class AAM[E <: Exp, A <: Address, V, T](val sem: Semantics[E, A, V, T, E])(
       actions.flatMap({
         /* When a value is reached, we go to a continuation state */
         case Action.Value(v, store, _) =>
-          Set(State(ControlKont(v), store, kstore, a, Timestamp[T, E].tick(t)))
+          Set(State(ControlKont(v), store, kstore, a, Timestamp[T, Exp].tick(t)))
         /* When a continuation needs to be pushed, push it in the continuation store */
         case Action.Push(frame, e, env, store, _) => {
           val next = KontAddr(e, t)
@@ -135,19 +129,19 @@ class AAM[E <: Exp, A <: Address, V, T](val sem: Semantics[E, A, V, T, E])(
               store,
               kstore.extend(next, Set(Kont(frame, a))),
               next,
-              Timestamp[T, E].tick(t)
+              Timestamp[T, Exp].tick(t)
             )
           )
         }
         /* When a value needs to be evaluated, we go to an eval state */
         case Action.Eval(e, env, store, _) =>
-          Set(State(ControlEval(e, env), store, kstore, a, Timestamp[T, E].tick(t)))
+          Set(State(ControlEval(e, env), store, kstore, a, Timestamp[T, Exp].tick(t)))
         /* When a function is stepped in, we also go to an eval state */
         case Action.StepIn(fexp, _, e, env, store, _) =>
-          Set(State(ControlEval(e, env), store, kstore, a, Timestamp[T, E].tick(t, fexp)))
+          Set(State(ControlEval(e, env), store, kstore, a, Timestamp[T, Exp].tick(t, fexp)))
         /* When an error is reached, we go to an error state */
         case Action.Err(err) =>
-          Set(State(ControlError(err), store, kstore, a, Timestamp[T, E].tick(t)))
+          Set(State(ControlError(err), store, kstore, a, Timestamp[T, Exp].tick(t)))
       })
 
     /**
@@ -156,6 +150,7 @@ class AAM[E <: Exp, A <: Address, V, T](val sem: Semantics[E, A, V, T, E])(
     def step: Set[State] = control match {
       /** In a eval state, call the semantic's evaluation method */
       case ControlEval(e, env) => integrate(a, sem.stepEval(e, env, store, t))
+
       /** In a continuation state, call the semantics' continuation method */
       case ControlKont(v) =>
         kstore.lookup(a) match {
@@ -165,30 +160,34 @@ class AAM[E <: Exp, A <: Address, V, T](val sem: Semantics[E, A, V, T, E])(
             })
           case None => Set()
         }
+
       /** In an error state, the state is not able to make a step */
       case ControlError(_) => Set()
     }
   }
 
   object State {
-    def inject(exp: E, env: Environment[A], store: Store[A, V]) =
+    def inject(exp: Exp, env: Environment[A], store: Store[A, V]) =
       State(
         ControlEval(exp, env),
         store,
         Store.empty[KA, Set[Kont]],
         HaltKontAddr,
-        Timestamp[T, E].initial("")
+        Timestamp[T, Exp].initial("")
       )
 
     /** TODO: do this without typeclass, e.g., class State extends WithKey[KA](a) */
     implicit val stateWithKey = new WithKey[State] {
       type K = KA
+
       def key(st: State) = st.a
     }
     implicit val stateWithKey2 = new WithKey2[State] {
       type K1 = KA
       type K2 = Control
+
       def key1(st: State) = st.a
+
       def key2(st: State) = st.control
     }
   }
@@ -200,19 +199,21 @@ class AAM[E <: Exp, A <: Address, V, T](val sem: Semantics[E, A, V, T, E])(
     * program (otherwise it will just visit every reachable state). A @param
     * timeout can also be given.
     */
-  def run[G](program: E, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
+  def run[G](program: Exp, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
     import scala.concurrent.{Await, Future}
     import scala.concurrent.ExecutionContext.Implicits.global
     import scala.concurrent.duration._
-    val fvs          = program.fv
-    val initialEnv   = Environment.initial[A](sem.initialEnv).restrictTo(fvs)
+    val fvs = program.fv
+    val initialEnv = Environment.initial[A](sem.initialEnv).restrictTo(fvs)
     val initialStore = Store.initial[A, V](sem.initialStore)
     val initialState = State.inject(program, initialEnv, initialStore)
-    val worklist     = scala.collection.mutable.Queue(initialState)
-    val visited      = scala.collection.mutable.Map[KA, Set[State]]().withDefaultValue(Set.empty[State])
-    var graph        = Future { Graph[G, State, Transition].empty }
+    val worklist = scala.collection.mutable.Queue(initialState)
+    val visited = scala.collection.mutable.Map[KA, Set[State]]().withDefaultValue(Set.empty[State])
+    var graph = Future {
+      Graph[G, State, Transition].empty
+    }
 
-    while (!timeout.reached && !worklist.isEmpty) {
+    while (!timeout.reached && worklist.nonEmpty) {
       val s = worklist.dequeue
       if (!visited(s.a).contains(s) && !s.halted) {
         /* unvisited non-halted state */
