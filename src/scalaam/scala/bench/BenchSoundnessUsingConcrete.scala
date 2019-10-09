@@ -269,7 +269,7 @@ object BenchSoundnessUsingConcrete {
 
     // Convert the map outputted by the concrete machine so it uses the same lattice than the map outputted by the abstract machine.
     def convertMap(map: Map[Identifier, CSem.lattice.L]): Map[Identifier, ASem.lattice.L] = {
-        map.mapValues(convertLattice)
+        map.view.mapValues(convertLattice).toMap
     }
 
     def convertLattice(lat: CSem.lattice.L): ASem.lattice.L = {
