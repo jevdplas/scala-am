@@ -280,7 +280,8 @@ object SchemeRunAAM extends Interpreter {
   val sem = new BaseSchemeSemantics[address.A, lattice.L, timestamp.T, SchemeExp](
     address.Alloc[timestamp.T, SchemeExp]
   )
-  val machine = new AAM[SchemeExp, address.A, lattice.L, timestamp.T](sem)
+  // TODO: Check store type!
+  val machine = new AAM[SchemeExp, address.A, lattice.L, timestamp.T](StoreType.CountingStore, sem)
   val graph   = new DotGraph[machine.State, machine.Transition]
 
   def run(
@@ -463,7 +464,8 @@ object SchemeRunAAMLKSS extends Interpreter {
   val sem = new BaseSchemeSemantics[address.A, lattice.L, timestamp.T, SchemeExp](
     address.Alloc[timestamp.T, SchemeExp]
   )
-  val machine = new AAMLKSS[SchemeExp, address.A, lattice.L, timestamp.T](sem)
+  // TODO: Check store type!
+  val machine = new AAMLKSS[SchemeExp, address.A, lattice.L, timestamp.T](StoreType.CountingStore, sem)
   val graph   = new DotGraph[machine.State, machine.Transition]
 
   def run(file: String, timeout: Timeout.T = Timeout.seconds(10), outputDot: Boolean = true) = {

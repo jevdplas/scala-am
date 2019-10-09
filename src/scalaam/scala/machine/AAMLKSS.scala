@@ -2,13 +2,14 @@ package scalaam.machine
 
 import scalaam.graph._
 import Graph.GraphOps
+import scalaam.core.StoreType.StoreType
 import scalaam.core._
 
 /** This is an AAM-like machine, where local continuations are used (only
   * looping continuations are pushed on the kont store), and stores are not
   * stored in the states but rather in a separate map. The continuation
   * store itself is global. */
-class AAMLKSS[E <: Expression, A <: Address, V, T](val sem: Semantics[E, A, V, T, E])(
+class AAMLKSS[E <: Expression, A <: Address, V, T](val t: StoreType, val sem: Semantics[E, A, V, T, E])(
     implicit val timestamp: Timestamp[T, E],
     implicit val lattice: Lattice[V]
 ) extends MachineAbstraction[E, A, V, T, E]
@@ -208,9 +209,9 @@ class AAMLKSS[E <: Expression, A <: Address, V, T](val sem: Semantics[E, A, V, T
     }
     val fvs          = program.fv
     val initialEnv   = Environment.initial[A](sem.initialEnv).restrictTo(fvs)
-    val initialStore = Store.initial[A, V](sem.initialStore)
+    val initialStore = Store.initial[A, V](t, sem.initialStore)
     val state        = State.inject(program, initialEnv)
-    val kstore       = Store.empty[KA, Set[LKont]]
+    val kstore       = Store.empty[KA, Set[LKont]](t)
     loop(
       Set(state),
       VisitedSet.empty,
