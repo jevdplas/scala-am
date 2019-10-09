@@ -57,8 +57,6 @@ class AAM[Exp <: Expression, A <: Address, V, T](val t: StoreType, val sem: Sema
   }
   implicit val kontSetLattice = Lattice.SetLattice[Kont]
 
-    val Action = sem.Action
-
   /**
     * A machine state is made of a control component, a value store, a
     * continuation store, and an address representing where the current

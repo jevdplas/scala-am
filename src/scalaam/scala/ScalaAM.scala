@@ -398,7 +398,8 @@ object SchemeRunConcrete extends Interpreter {
     val t1     = System.nanoTime
     val time   = (t1 - t0) / 1000000
     if (outputDot) result.toFile("foo.dot")
-    val states = result._nodes.size
+    import Graph.GraphOps
+    val states = result.nodes
     (time, states)
   }
   def logValues(
@@ -474,7 +475,8 @@ object SchemeRunAAMLKSS extends Interpreter {
     val t1     = System.nanoTime
     val time   = (t1 - t0) / 1000000
     if (outputDot) result.toFile("foo.dot")
-    val states = result._nodes.size // TODO use implicit class Graph.GraphOps
+    import Graph.GraphOps
+    val states = result.nodes
     (time, states)
   }
 }
@@ -505,7 +507,8 @@ object SchemeRunGAAM extends Interpreter {
     val t1     = System.nanoTime
     val time   = (t1 - t0) / 1000000
     if (outputDot) result.toFile("foo.dot")
-    val states = result._nodes.size
+    import Graph.GraphOps
+    val states = result.nodes
     (time, states)
   }
 }

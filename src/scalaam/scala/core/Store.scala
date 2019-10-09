@@ -230,7 +230,7 @@ object Store {
     case StoreType.DeltaStore    => new DeltaStore(Map(), Set())
   }
 
-  def initial[A <: Address, V: Lattice](t: StoreType, values: Iterable[(A, V)] = Set()): Store[A, V] =
+  def initial[A <: Address, V: Lattice](t: StoreType, values: Iterable[(A, V)] = Iterable()): Store[A, V] =
     t match {
       case StoreType.BasicStore    => BasicStore(values.toMap)
       case StoreType.ConcreteStore => ConcreteStore(values.toMap)

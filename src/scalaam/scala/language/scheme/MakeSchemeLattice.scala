@@ -577,28 +577,28 @@ class MakeSchemeLattice[
     }
 
     def concreteValues(x: Value): Set[ConcreteVal] = x match {
-      case Bot              => Set()
-      case Str(s)           => StringLattice[S].concreteValues(s)
-      case Bool(b)          => BoolLattice[B].concreteValues(b)
-      case Int(i)           => IntLattice[I].concreteValues(i)
-      case Real(r)          => RealLattice[R].concreteValues(r)
-      case Char(c)          => CharLattice[C].concreteValues(c)
-      case Symbol(s)        => SymbolLattice[Sym].concreteValues(s)
-      case Prim(prim)       => Set(ConcretePrim(prim))
-      case Clo(lambda, env) => Set(ConcreteClosure(lambda, env, name))
-      case Nil              => Set(ConcreteNil)
-      case Pointer(a)       => Set(ConcretePointer(a))
-      case Cons(car, cdr) =>
+      case Bot                    => Set()
+      case Str(s)                 => StringLattice[S].concreteValues(s)
+      case Bool(b)                => BoolLattice[B].concreteValues(b)
+      case Int(i)                 => IntLattice[I].concreteValues(i)
+      case Real(r)                => RealLattice[R].concreteValues(r)
+      case Char(c)                => CharLattice[C].concreteValues(c)
+      case Symbol(s)              => SymbolLattice[Sym].concreteValues(s)
+      case Prim(prim)             => Set(ConcretePrim(prim))
+      case Clo(lambda, env, name) => Set(ConcreteClosure(lambda, env, name))
+      case Nil                    => Set(ConcreteNil)
+      case Pointer(a)             => Set(ConcretePointer(a))
+      case Cons(car, cdr)         =>
         val ccar: Set[ConcreteVal] =
-          car.foldMapL(concreteValues)(scala.util.MonoidInstances.setMonoid)
+          car.foldMapL(concreteValues)(scalaam.util.MonoidInstances.setMonoid)
         val ccdr: Set[ConcreteVal] =
-          cdr.foldMapL(concreteValues)(scala.util.MonoidInstances.setMonoid)
+          cdr.foldMapL(concreteValues)(scalaam.util.MonoidInstances.setMonoid)
         Set(ConcreteCons(ccar, ccdr))
-      case _: Vec      => ???
-      case Future(tid) => Set(ConcreteFuture(tid))
-      case Atom(data) =>
+      case _: Vec                 => ???
+      case Future(tid)            => Set(ConcreteFuture(tid))
+      case Atom(data)             =>
         val cdata: Set[ConcreteVal] =
-          data.foldMapL(concreteValues)(scala.util.MonoidInstances.setMonoid)
+          data.foldMapL(concreteValues)(scalaam.util.MonoidInstances.setMonoid)
         Set(ConcreteAtom(cdata))
     }
 
