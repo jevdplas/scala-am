@@ -793,13 +793,13 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     object Pairp extends StoreOperation("pair?", Some(1)) {
       /* TODO[easy]: this should be a store operation that dereferences the pointer to check if it is indeed a cons */
       override def call(x: V, store: Store[A, V]) =
-        (ifThenElse(isPointer(x)) {
+        (ifThenElseWithEffs(isPointer(x)) {
           dereferencePointer(x, store) { v =>
             isCons(v)
           }
         } {
-          bool(false)
-        }).map(v => (v, store))
+          (bool(false), Effects.noEff())
+        }).map(ve => (ve._1, store, ve._2))
     }
     object Charp extends NoStoreOperation("char?", Some(1)) {
       override def call(x: V) = isChar(x)
