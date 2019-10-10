@@ -224,7 +224,7 @@ class IncAtomWCaching[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdenti
               oStateAcc.results + (stid -> retVal),
               iState.store,
               iState.kstore,
-              oStateAcc.edges -- fromInterference.map(_._1) ++ iState.edges.mapValues(
+              oStateAcc.edges -- fromInterference.map(_._1) ++ iState.edges.view.mapValues(
                 set => set.map((BaseTransition(iteration.toString), _))
               )
             )
@@ -287,13 +287,13 @@ class IncAtomWCaching[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdenti
   }
 }
 
+/*
 /**
   * StoreWrapper that contains a version number indicating the version of the store. Analogous to WrappedStore in ConcurrentModular.scala.
   * @param store   The store that is wrapped.
   * @param version The version number that is associated with the wrapped store.
   * @see scalaam.machine.ConcurrentModular.WrappedStore for implementation details.
   */
-/*
 case class TimestampedStore[A <: Address, V](store: Store[A, V], version: Int = 0)(implicit val lattice: Lattice[V]) extends Store[A, V] {
     def                       keys: Iterable[A] = store.keys
     def forall(p: ((A, V)) => Boolean): Boolean = store.forall(p)
@@ -343,7 +343,7 @@ class TimestampedStore[A <: Address, V](
     vs: Int = 0
 )(override implicit val lat: Lattice[V])
     extends DeltaStore[A, V](content, updated) {
-  override def toString = content.filterKeys(_.printable).mkString("\n")
+  override def toString = content.view.filterKeys(_.printable).mkString("\n") // TODO: see whether .toMap needs to be inserted.
 
   def version = vs
 

@@ -507,7 +507,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
 
     def pure(x: MayFail[V, Error]): MayFail[(V, Effects), Error] =
       x >>= { xv => (xv, Effects.noEff()) }
-    def pureF[A](f: A => MayFail[V, Error])(x: A): MayFail[(V, Effects), Error] =
+    def pureF[T1](f: T1 => MayFail[V, Error])(x: T1): MayFail[(V, Effects), Error] =
       f(x) >>= { v => pure(v) }
     def ifThenElseTRWithEff(cond: MayFail[(V, Effects), Error])(
       thenBranch: => TailRec[MayFail[(V, Effects), Error]],

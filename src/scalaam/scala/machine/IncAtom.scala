@@ -179,7 +179,7 @@ class IncAtom[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
             oStateAcc.results + (stid -> retVal),
             iState.store,
             iState.kstore,
-            oStateAcc.edges -- fromInterference ++ iState.edges.mapValues(
+            oStateAcc.edges -- fromInterference ++ iState.edges.view.mapValues(
               set => set.map((BaseTransition(iteration.toString), _))
             )
           )

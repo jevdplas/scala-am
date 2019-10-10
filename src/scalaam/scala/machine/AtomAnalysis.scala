@@ -346,7 +346,7 @@ abstract class AtomAnalysis[Exp <: Expression, A <: Address, V, T, TID <: Thread
                              oStateAcc.results + (stid -> retVal),
                              iState.store,
                              iState.kstore,
-                             oStateAcc.edges ++ iState.edges.mapValues(set => set.map((BaseTransition(iteration.toString), _))))
+                             oStateAcc.edges ++ iState.edges.view.mapValues(set => set.map((BaseTransition(iteration.toString), _)))) // TODO: see whether .toMap must be inserted.
             }
             //    },
             , iteration + 1)

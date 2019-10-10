@@ -188,7 +188,7 @@ case class CountingStore[A <: Address, V](content: Map[A, (Count, V)])(implicit 
 case class DeltaStore[A <: Address, V](val content: Map[A, V], val updated: Set[A])(
     implicit val lat: Lattice[V]
 ) extends Store[A, V] {
-  override def toString = content.filterKeys(_.printable).mkString("\n")
+  override def toString = content.view.filterKeys(_.printable).mkString("\n") // TODO: see whether .toMap must be added.
 
   def keys                           = content.keys
   def forall(p: ((A, V)) => Boolean) = content.forall({ case (a, v) => p((a, v)) })

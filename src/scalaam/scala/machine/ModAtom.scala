@@ -433,8 +433,8 @@ class ModAtom[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
                 oStateAcc.results + (stid -> retVal),
                 store,
                 kstore,
-                oStateAcc.edges ++ graph.mapValues(
-                  set => set.map((BaseTransition(iteration.toString), _))
+                oStateAcc.edges ++ graph.view.mapValues(
+                  set => set.map((BaseTransition(iteration.toString), _)) // TODO: see whether .toMap needs to be inserted.
                 )
               )
             )

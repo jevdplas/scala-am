@@ -133,7 +133,7 @@ object BenchTime {
       val sc = to.time // Seconds passed.
       val re = sc > timeout // Check whether timeout has occurred.
       val st = rs.nodes
-      display(n + " ")
+      display(s"$n ")
       // If a timeout is reached, this will probably be the case for all iterations, so abort.
       // Also, do not record the result, since it is only partial.
       if (re) return List((-1, st)) // Return the number of states explored before timeout.
