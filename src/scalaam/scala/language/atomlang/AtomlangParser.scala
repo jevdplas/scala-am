@@ -6,23 +6,26 @@ import scalaam.language.sexp._
 
 /** Object that provides a method to compile an s-expression into an Atomlang (Scheme) expression. */
 object AtomlangCompiler extends SchemeCompiler {
+  import scala.util.control.TailCalls._
 
   /** List of reserved keywords for Atomlang. */
   override def reserved: List[String] = super.reserved ++ List("deref", "future")
 
+  override def compile(exp: SExp): SchemeExp = _compile(exp).result
+
   /** Compiles an s-expression into an Atomlang (Scheme) expression. */
   // TODO update compile so it returns a TailRec
-  override def compile(exp: SExp): SchemeExp = exp match {
+  override def _compile(exp: SExp): TailRec[SchemeExp] = exp match {
     case SExpPair(SExpId(Identifier("deref", _)), SExpPair(expr, SExpValue(ValueNil, _), _), _) =>
-      AtomlangDeref(this.compile(expr), exp.pos)
+      tailcall(this._compile(expr)).map(AtomlangDeref(_, exp.pos))
     case SExpPair(SExpId(Identifier("deref", _)), _, _) =>
       throw new Exception(s"Invalid Atomlang deref: $exp (${exp.pos}).")
     case SExpPair(SExpId(Identifier("future", _)), body, _) =>
-      AtomlangFuture(this.compileBody(body).result, exp.pos)
+      tailcall(this.compileBody(body)).map(AtomlangFuture(_, exp.pos))
     //Fixme: re-enable when needed!
     //case SExpPair(SExpId(Identifier("swap!", _)), SExpPair(atom, SExpPair(fun, args, _), _), _) => AtomlangSwap(this.compile(atom), this.compile(fun), this.compileBody(args), exp.pos)
     //case SExpPair(SExpId(Identifier("swap!", _)), _, _) => throw new Exception(s"Invalid Atomlang swap!: $exp (${exp.pos})")
-    case _ => super.compile(exp)
+    case _ => super._compile(exp)
   }
 }
 
