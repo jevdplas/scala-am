@@ -59,7 +59,7 @@ object AtomlangUndefiner extends SchemeUndefiner {
   import scala.util.control.TailCalls._
 
   /** Replaces defines in a program by letrec expressions. */
-  def undefineExpr(exp: SchemeExp): TailRec[SchemeExp] = exp match {
+  override def undefineExpr(exp: SchemeExp): TailRec[SchemeExp] = exp match {
     case AtomlangDeref(exp, pos) => tailcall(this.undefine1(exp)).map(e => AtomlangDeref(e, pos))
     case AtomlangFuture(body, pos) =>
       tailcall(this.undefineBody(body)).map(b => AtomlangFuture(b, pos))
