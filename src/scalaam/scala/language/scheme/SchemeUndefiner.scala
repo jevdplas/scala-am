@@ -62,9 +62,8 @@ trait SchemeUndefiner {
       tailcall(this.undefine(exps, List())).map(List(_))
     case SchemeDefineVariable(_, _, _) :: _ =>
       tailcall(this.undefine(exps, List())).map(List(_))
-    case exp :: rest => {
+    case exp :: rest =>
       this.undefineExpr(exp).flatMap(e2 => tailcall(this.undefineBody(rest)).flatMap(e3 => done(e2 :: e3)))
-    }
   }
 
   def undefineExpr(exp: SchemeExp): TailRec[SchemeExp] = exp match {

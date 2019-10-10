@@ -73,7 +73,7 @@ object AtomlangUndefiner extends SchemeUndefiner {
                 .map(argsv => AtomlangSwap(atomv, funv, argsv, pos))
           )
       )
-    case _ => tailcall(super.undefine1(exp))
+    case _ => tailcall(super.undefineExpr(exp))
   }
 }
 
