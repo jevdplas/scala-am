@@ -4,6 +4,10 @@ import scalaam.core.Annotations.toCheck
 import scalaam.core.Effects.Effects
 import scalaam.core._
 
+/* For future improvements:
+   - how to handle primitives that can call back to the user code? Have primitives return an action rather than a value?
+   - should all primitives be implemented with TailRec? That would make their implementation more consistent, but what's the cost in terms of time/memory?
+ */
 trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C] {
   implicit val timestamp: Timestamp[T, C]
   implicit val schemeLattice: SchemeLattice[V, SchemeExp, A]
@@ -326,6 +330,12 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         case MayFailError(err)   => done(MayFailError(err))
         case MayFailBoth(v, err) => tailcall(v).map(_.addErrors(err))
       }
+    def liftTailRecWithEff(x: MayFail[TailRec[MayFail[(V, Effects), Error]], Error]): TailRec[MayFail[(V, Effects), Error]] =
+      x match {
+        case MayFailSuccess(v)   => tailcall(v)
+        case MayFailError(err)   => done(MayFailError(err))
+        case MayFailBoth(v, err) => tailcall(v).map(_.addErrors(err))
+      }
 
     /** Dereferences a pointer x (which may point to multiple addresses) and applies a function to its value, joining everything together, generating a read effect. */
     def dereferencePointer(x: V, store: Store[A, V])(
@@ -379,16 +389,15 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       )
 
     def dereferencePointerTR(x: V, store: Store[A, V])(
-        f: V => TailRec[MayFail[V, Error]]
-    ): TailRec[MayFail[V, Error]] =
-      getPointerAddresses(x).foldLeft(done(MayFail.success[V, Error](bottom)))(
-        (acc: TailRec[MayFail[V, Error]], a: A) =>
+        f: V => TailRec[MayFail[(V, Effects), Error]]
+    ): TailRec[MayFail[(V, Effects), Error]] =
+      getPointerAddresses(x).foldLeft(done(MayFail.success[(V, Effects), Error]((bottom, Effects.noEff()))))(
+        (acc: TailRec[MayFail[(V, Effects), Error]], a: A) =>
           acc.flatMap(
             accv =>
-              liftTailRec(store.lookupMF(a).map(f))
-                .flatMap(fv => done(fv.flatMap(res => accv.flatMap(accvv => join(accvv, res)))))
+              liftTailRecWithEff(store.lookupMF(a).map(f))
+                .flatMap(fv => done(fv.flatMap((res: (V, Effects)) => accv.flatMap(accvv => (join(accvv._1, res._1), accvv._2 ++ res._2)))))
           )
-
       )
 
     /* TODO[medium] improve these implicit classes to be able to write primitives more clearly */
@@ -492,6 +501,25 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         } else {
           done(MayFail.success[V, Error](latMon.zero))
         }
+        t.flatMap(tval => f.map(fval => mfMon.append(tval, fval)))
+      })
+    }
+
+    def pure(x: MayFail[V, Error]): MayFail[(V, Effects), Error] =
+      x >>= { xv => (xv, Effects.noEff()) }
+    def pureF[A](f: A => MayFail[V, Error])(x: A): MayFail[(V, Effects), Error] =
+      f(x) >>= { v => pure(v) }
+    def ifThenElseTRWithEff(cond: MayFail[(V, Effects), Error])(
+      thenBranch: => TailRec[MayFail[(V, Effects), Error]],
+    )(elseBranch: => TailRec[MayFail[(V, Effects), Error]]): TailRec[MayFail[(V, Effects), Error]] = {
+      val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
+      val effMon = scalaam.util.MonoidInstances.setMonoid[Effect]
+      val tupMon = scalaam.util.MonoidInstances.tupleMonoid(latMon, effMon)
+      val mfMon  = scalaam.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
+      liftTailRecWithEff(cond >>= { condv =>
+        val empty = MayFail.success[(V, Effects), Error]((latMon.zero, condv._2))
+        val t = if (isTrue(condv._1)) { thenBranch } else { done(empty) }
+        val f = if (isFalse(condv._1)) { elseBranch } else { done(empty) }
         t.flatMap(tval => f.map(fval => mfMon.append(tval, fval)))
       })
     }
@@ -793,6 +821,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     object Pairp extends StoreOperation("pair?", Some(1)) {
       /* TODO[easy]: this should be a store operation that dereferences the pointer to check if it is indeed a cons */
       override def call(x: V, store: Store[A, V]) =
+        // TODO: was (or _)(isCons(x), isPointer(x)), but the following is better
+        // however it does not compile
         (ifThenElse(isPointer(x)) {
           dereferencePointer(x, store) { v =>
             isCons(v)
@@ -1008,29 +1038,29 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
           if (visited.contains(l)) {
             done((bottom, Effects.noEff()))
           } else {
-            ifThenElseTR(isPointer(l)) {
+            ifThenElseTRWithEff(pure(isPointer(l))) {
               /* dereferences the pointer and applies length to the result */
               dereferencePointerTR(l, store) { consv =>
                 tailcall(length(consv, visited + l))
               }
             } {
-              ifThenElseTR(isCons(l)) {
+              ifThenElseTRWithEff(pure(isCons(l))) {
                 /* length of the list is length of its cdr plus one */
-                liftTailRec(
+                liftTailRecWithEff(
                   cdr(l) >>= (
                       cdr =>
                         tailcall(length(cdr, visited + l)).flatMap(
-                          lengthcdr => liftTailRec(lengthcdr.flatMap(l => done(plus(number(1), l))))
+                          lengthcdr => liftTailRecWithEff(lengthcdr.flatMap(l => done(plus(number(1), l))))
                         )
                     )
                 )
               } {
-                ifThenElseTR(isNull(l)) {
+                ifThenElseTRWithEff(pure(isNull(l))) {
                   /* length of null is 0 */
-                  done(number(0))
+                  done(pure(number(0)))
                 } {
                   /* not a list */
-                  done(MayFail.failure(PrimitiveNotApplicable("length", List(l))))
+                  done(MayFail[(V, Effects), Error].failure(PrimitiveNotApplicable("length", List(l))))
                 }
               }
             }
