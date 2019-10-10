@@ -6,7 +6,7 @@ import scalaam.core._
 import scalaam.graph.{BaseTransition, Graph}
 import scalaam.graph.Graph.GraphOps
 
-import scalaam.core.{Expression, MachineUtil}
+import scalaam.core.Expression
 
 // TODO IncAtom may perform too much work by restarting the same reanalysis from multiple points within the thread (not visible in results but longer analysis time).
 // TODO Therefore, only restart the analysis from the earliest point in the thread (-> pps benchmark?).

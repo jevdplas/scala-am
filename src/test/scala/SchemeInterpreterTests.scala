@@ -1,3 +1,5 @@
+// TODO: what is this? Is this an old version? A class with an identical name already exists in InterpreterTests.scala.
+/*
 import scalaam.core._
 import scalaam.language.scheme._
 import scalaam.machine._
@@ -54,3 +56,4 @@ abstract class SchemeInterpreterGAAMTests[A <: Address, T, V](
 }
 
 class TypeSchemeInterpreterGAAMTests extends SchemeInterpreterGAAMTests[NameAddress.A, ZeroCFASchemeTimestamp.T, TypeSchemeLattice.L](NameAddress.Alloc[ZeroCFASchemeTimestamp.T, SchemeExp], BenchmarkTestKind.SchemeRunAbstract, "GAAM/Type")
+*/

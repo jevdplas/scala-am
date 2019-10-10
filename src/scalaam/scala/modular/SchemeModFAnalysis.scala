@@ -26,6 +26,7 @@ class SchemeModFAnalysis(program: SchemeExp)
     def tick(cmp: IntraAnalysis)  = throw new Exception("Operation not allowed!")
   }
   case object AllocAdapter extends Allocator[Addr,IntraAnalysis,Unit] {
+    implicit val timestamp = TimestampAdapter
     def variable(id: Identifier,  intra: IntraAnalysis): Addr  = intra.allocAddr(VarAddr(id))
     def pointer[E <: Expression](exp: E, intra: IntraAnalysis): Addr  = intra.allocAddr(PtrAddr(exp))
     def primitive(name: String): Addr                          = GlobalAddr(PrmAddr(name))
