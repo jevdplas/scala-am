@@ -7,6 +7,7 @@ import scalaam.core._
 /* For future improvements:
    - how to handle primitives that can call back to the user code? Have primitives return an action rather than a value?
    - should all primitives be implemented with TailRec? That would make their implementation more consistent, but what's the cost in terms of time/memory?
+   - a lot of ifThenElse calls are just checking e.g. isPointer. This should maybe be factored out as specific constructs (e.g. ifIsPointer)
  */
 trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C] {
   implicit val timestamp: Timestamp[T, C]
@@ -330,7 +331,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         case MayFailError(err)   => done(MayFailError(err))
         case MayFailBoth(v, err) => tailcall(v).map(_.addErrors(err))
       }
-    def liftTailRecWithEff(x: MayFail[TailRec[MayFail[(V, Effects), Error]], Error]): TailRec[MayFail[(V, Effects), Error]] =
+    def liftTailRecWithEffs(x: MayFail[TailRec[MayFail[(V, Effects), Error]], Error]): TailRec[MayFail[(V, Effects), Error]] =
       x match {
         case MayFailSuccess(v)   => tailcall(v)
         case MayFailError(err)   => done(MayFailError(err))
@@ -395,7 +396,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         (acc: TailRec[MayFail[(V, Effects), Error]], a: A) =>
           acc.flatMap(
             accv =>
-              liftTailRecWithEff(store.lookupMF(a).map(f))
+              liftTailRecWithEffs(store.lookupMF(a).map(f))
                 .flatMap(fv => done(fv.flatMap((res: (V, Effects)) => accv.flatMap(accvv => (join(accvv._1, res._1), accvv._2 ++ res._2)))))
           )
       )
@@ -509,14 +510,14 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       x >>= { xv => (xv, Effects.noEff()) }
     def pureF[T1](f: T1 => MayFail[V, Error])(x: T1): MayFail[(V, Effects), Error] =
       f(x) >>= { v => pure(v) }
-    def ifThenElseTRWithEff(cond: MayFail[(V, Effects), Error])(
+    def ifThenElseTRWithEffs(cond: MayFail[(V, Effects), Error])(
       thenBranch: => TailRec[MayFail[(V, Effects), Error]],
     )(elseBranch: => TailRec[MayFail[(V, Effects), Error]]): TailRec[MayFail[(V, Effects), Error]] = {
       val latMon = scalaam.util.MonoidInstances.latticeMonoid[V]
       val effMon = scalaam.util.MonoidInstances.setMonoid[Effect]
       val tupMon = scalaam.util.MonoidInstances.tupleMonoid(latMon, effMon)
       val mfMon  = scalaam.util.MonoidInstances.mayFail[(V, Effects)](tupMon)
-      liftTailRecWithEff(cond >>= { condv =>
+      liftTailRecWithEffs(cond >>= { condv =>
         val empty = MayFail.success[(V, Effects), Error]((latMon.zero, condv._2))
         val t = if (isTrue(condv._1)) { thenBranch } else { done(empty) }
         val f = if (isFalse(condv._1)) { elseBranch } else { done(empty) }
@@ -1036,25 +1037,25 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
           if (visited.contains(l)) {
             done((bottom, Effects.noEff()))
           } else {
-            ifThenElseTRWithEff(pure(isPointer(l))) {
+            ifThenElseTRWithEffs(pure(isPointer(l))) {
               /* dereferences the pointer and applies length to the result */
               dereferencePointerTR(l, store) { consv =>
                 tailcall(length(consv, visited + l))
               }
             } {
-              ifThenElseTRWithEff(pure(isCons(l))) {
+              ifThenElseTRWithEffs(pure(isCons(l))) {
                 /* length of the list is length of its cdr plus one */
-                liftTailRecWithEff(
+                liftTailRecWithEffs(
                   cdr(l) >>= (
                       cdr =>
                         tailcall(length(cdr, visited + l)).flatMap(
                           // TODO Check correctness!
-                          lengthcdr => liftTailRecWithEff(lengthcdr.flatMap(l => done(plus(number(1), l._1).map(v => (v, l._2)))))
+                          lengthcdr => liftTailRecWithEffs(lengthcdr.flatMap(l => done(plus(number(1), l._1).map(v => (v, l._2)))))
                         )
                     )
                 )
               } {
-                ifThenElseTRWithEff(pure(isNull(l))) {
+                ifThenElseTRWithEffs(pure(isNull(l))) {
                   /* length of null is 0 */
                   done(pure(number(0)))
                 } {
@@ -1084,6 +1085,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
     // TODO: this is without vectors
     object Equal extends StoreOperation("equal?", Some(2)) {
       override def call(a: V, b: V, store: Store[A, V]) = {
+        /* TODO: use TailRec */
         def equalp(a: V, b: V, visited: Set[(V, V)]): MayFail[(V, Effects), Error] = {
           if (visited.contains((a, b)) || a == bottom || b == bottom) {
             (bottom, Effects.noEff())
@@ -1155,46 +1157,41 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         }
     }
 
-    // TODO: re-enable list? primitive.
-    /*
     /** (define (list? l) (or (and (pair? l) (list? (cdr l))) (null? l))) */
     object Listp extends StoreOperation("list?", Some(1)) {
       override def call(l: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
-        def listp(l: V, visited: Set[V]): MayFail[(V, Effects), Error] = {
+        def listp(l: V, visited: Set[V]): TailRec[MayFail[(V, Effects), Error]] = {
           if (visited.contains(l) || l == bottom) {
             /* R5RS: "all lists have finite length", and the cases where this is reached
              * include circular lists. If an abstract list reaches this point, it
              * may be also finite but will reach a true branch somewhere else, and
              * both booleans will get joined */
-            MayFail.success((bool(false), Effects.noEff()))
+            done(MayFail.success((bool(false), Effects.noEff())))
           } else {
-            ifThenElseWithEffs(isNull(l)) {
-              MayFail.success((bool(true), Effects.noEff()))
+            ifThenElseTRWithEffs(pure(isNull(l))) {
+              done(MayFail.success((bool(true), Effects.noEff())))
             } {
-              ifThenElseWithEffs(isCons(l)) {
+              ifThenElseTRWithEffs(pure(isCons(l))) {
                 /* This is a cons, check that the cdr itself is a list */
-                liftTailRec(cdr(l) >>= (cdrl => tailcall(listp(cdrl, visited + l))))
+                liftTailRecWithEffs(cdr(l) >>= (cdrl => tailcall(listp(cdrl, visited + l))))
               } {
-                ifThenElseWithEffs(isPointer(l)) {
+                ifThenElseTRWithEffs(pure(isPointer(l))) {
                   /* This is a pointer, dereference it and check if it is itself a list */
-                  dereferencePointerFunEffs(l, store) { consv =>
+                  dereferencePointerTR(l, store) { consv =>
                     listp(consv, visited + l)
                   }
                 } {
                   /* Otherwise, not a list */
-                  MayFail.success((bool(false), Effects.noEff()))
+                  done(MayFail.success((bool(false), Effects.noEff())))
                 }
               }
             }
           }
         }
-        listp(l, Set()).map(ve => (ve._1, store, ve._2))
+        listp(l, Set()).result.map(ve => (ve._1, store, ve._2))
       }
     }
-    */
 
-    // TODO re-enable primitive
-    /*
     /** (define (list-ref l index)
           (if (pair? l)
             (if (= index 0)
@@ -1207,23 +1204,23 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
           index: V,
           store: Store[A, V]
       ): MayFail[(V, Store[A, V], Effects), Error] = {
-        def listRef(l: V, index: V, visited: Set[(V, V)]): MayFail[(V, Effects), Error] = {
+        def listRef(l: V, index: V, visited: Set[(V, V)]): TailRec[MayFail[(V, Effects), Error]] = {
           if (visited.contains((l, index)) || l == bottom || index == bottom) {
-            (bottom, Effects.noEff())
+            done((bottom, Effects.noEff()))
           } else {
-            ifThenElseWithEffs(isPointer(l)) {
+            ifThenElseTRWithEffs(pure(isPointer(l))) {
               /* dereferences the pointer and list-ref that */
-              dereferencePointerFunEffs(l, store) { consv =>
+              dereferencePointerTR(l, store) { consv =>
                 listRef(consv, index, visited + ((l, index)))
               }
             } {
-              ifThenElseWithEffs(isCons(l)) {
-                ifThenElseWithEffs(numEq(index, number(0))) {
+              ifThenElseTRWithEffs(pure(isCons(l))) {
+                ifThenElseTRWithEffs(pure(numEq(index, number(0)))) {
                   /* index is 0, return car */
-                  car(l).map(v => (v, Effects.noEff()))
+                  done(car(l).map(v => (v, Effects.noEff())))
                 } {
                   /* index is >0, decrease it and continue looking into the cdr */
-                  liftTailRec(
+                  liftTailRecWithEffs(
                     cdr(l) >>= (
                         cdrl =>
                           minus(index, number(1)) >>= (
@@ -1234,18 +1231,15 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                 }
               } {
                 /* not a list */
-                done(MayFail.failure(PrimitiveNotApplicable("list-ref", List(l, index))))
+                done(MayFail.failure[(V, Effects), Error](PrimitiveNotApplicable("list-ref", List(l, index))))
               }
             }
           }
         }
-        listRef(l, index, Set.empty).map(ve => (ve._1, store, ve._2))
+        listRef(l, index, Set.empty).result.map(ve => (ve._1, store, ve._2))
       }
     }
-    */
 
-    // TODO: re-enable member and memq primitives.
-    /*
     /** (define (member e l) ; member, memq and memv are similar, the difference lies in the comparison function used
           (if (null? l)
             #f
@@ -1261,36 +1255,37 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
           l: V,
           store: Store[A, V]
       ): MayFail[(V, Store[A, V], Effects), Error] = {
-        def mem(e: V, l: V, visited: Set[V]): MayFail[(V, Effects), Error] = {
+        def mem(e: V, l: V, visited: Set[V]): TailRec[MayFail[(V, Effects), Error]] = {
           if (visited.contains(l) || e == bottom || l == bottom) {
-            (bottom, Effects.noEff())
+            done(pure(bottom))
           } else {
-            ifThenElseWithEffs(isNull(l)) {
+            ifThenElseTRWithEffs(pure(isNull(l))) {
               /* list is empty, return false */
-              (bool(false), Effects.noEff())
+              done(pure(bool(false)))
             } {
-              ifThenElseWithEffs(isPointer(l)) {
-                dereferencePointerFunEffs(l, store) { lv =>
-                  for {
-                    carl <- car(lv)
-                    res <- ifThenElseCondEffs(eqFn(e, carl, store)) {
-                      /* (car l) and e are equal, return l */
-                      (l, Effects.noEff())
-                    } {
-                      cdr(lv) >>= (mem(e, _, visited + l))
-                    }
-                  } yield res
+              ifThenElseTRWithEffs(pure(isPointer(l))) {
+                dereferencePointerTR(l, store) { lv =>
+                  liftTailRecWithEffs(car(lv) >>= { carl =>
+                    for {
+                      res <- ifThenElseTRWithEffs(eqFn(e, carl, store)) {
+                        /* (car l) and e are equal, return l */
+                        done(pure(l))
+                      } {
+                        liftTailRecWithEffs(cdr(lv) >>= (v => tailcall(mem(e, v, visited + l))))
+                      }
+                    } yield res
+                  })
                 }
               } {
                 /* not a list. Note: it may be a cons, but cons shouldn't come from the outside
                  * as they are wrapped in pointers, so it shouldn't happen that
                  * l is a cons at this point */
-                done(MayFail.failure(PrimitiveNotApplicable(name, List(e, l))))
+                done(MayFail.failure[(V, Effects), Error](PrimitiveNotApplicable(name, List(e, l))))
               }
             }
           }
         }
-        mem(e, l, Set.empty).map(ve => (ve._1, store, ve._2))
+        mem(e, l, Set.empty).result.map(ve => (ve._1, store, ve._2))
       }
     }
 
@@ -1304,7 +1299,6 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
           "memq",
           (x: V, y: V, _: Store[A, V]) => Eq.call(x, y).map((_, Effects.noEff()))
         )
-    */
 
     @toCheck("Check implementation")
     abstract class AssocLike(
@@ -1316,6 +1310,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                          l: V,
                          store: Store[A, V]
                        ): MayFail[(V, Store[A, V], Effects), Error] = {
+        /* TODO: use TailRec */
         def assoc(e: V, l: V, visited: Set[V]): MayFail[(V, Effects), Error] = {
           if (visited.contains(l)) {
             (bottom, Effects.noEff())
