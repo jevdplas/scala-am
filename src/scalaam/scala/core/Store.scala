@@ -266,6 +266,7 @@ object Profiler {
   }
 }
 
+/*
 case class ProfiledStore[A <: Address, V](val store: Store[A, V]) extends Store[A, V] {
   import Profiler.profileCall
   override def toString = profileCall("store.toString") { store.toString }
@@ -285,3 +286,4 @@ case class ProfiledStore[A <: Address, V](val store: Store[A, V]) extends Store[
   }
   def subsumes(that: Store[A, V]) = profileCall("store.subsumes") { store.subsumes(that) }
 }
+ */

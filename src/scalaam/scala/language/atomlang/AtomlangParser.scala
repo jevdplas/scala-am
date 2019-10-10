@@ -17,7 +17,7 @@ object AtomlangCompiler extends SchemeCompiler {
     case SExpPair(SExpId(Identifier("deref", _)), _, _) =>
       throw new Exception(s"Invalid Atomlang deref: $exp (${exp.pos}).")
     case SExpPair(SExpId(Identifier("future", _)), body, _) =>
-      AtomlangFuture(this.compileBody(body), exp.pos)
+      AtomlangFuture(this.compileBody(body).result, exp.pos)
     //Fixme: re-enable when needed!
     //case SExpPair(SExpId(Identifier("swap!", _)), SExpPair(atom, SExpPair(fun, args, _), _), _) => AtomlangSwap(this.compile(atom), this.compile(fun), this.compileBody(args), exp.pos)
     //case SExpPair(SExpId(Identifier("swap!", _)), _, _) => throw new Exception(s"Invalid Atomlang swap!: $exp (${exp.pos})")
