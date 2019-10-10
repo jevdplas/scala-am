@@ -1058,7 +1058,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                   done(pure(number(0)))
                 } {
                   /* not a list */
-                  done(MayFail[(V, Effects), Error].failure(PrimitiveNotApplicable("length", List(l))))
+                  done(MayFail.failure[(V, Effects), Error](PrimitiveNotApplicable("length", List(l))))
                 }
               }
             }
