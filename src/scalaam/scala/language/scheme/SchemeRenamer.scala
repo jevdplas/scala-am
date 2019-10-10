@@ -17,7 +17,7 @@ trait SchemeRenamer {
   type CountMap = Map[String, Int]
 
   def rename(exp: SchemeExp): SchemeExp =
-    rename(exp, Map[String, String](), Map[String, Int]()) match {
+    this.rename(exp, Map[String, String](), Map[String, Int]()) match {
       case (e, _) => e
     }
 
@@ -25,23 +25,23 @@ trait SchemeRenamer {
     case SchemeLambda(args, body, pos) =>
       countl(args, names, count) match {
         case (args1, names1, count1) =>
-          renameList(body, names1, count1) match {
+          this.renameList(body, names1, count1) match {
             case (body1, count2) => (SchemeLambda(args1, body1, pos), count2)
           }
       }
     case SchemeFuncall(f, args, pos) =>
-      rename(f, names, count) match {
+      this.rename(f, names, count) match {
         case (f1, count1) =>
-          renameList(args, names, count1) match {
+          this.renameList(args, names, count1) match {
             case (args1, count2) => (SchemeFuncall(f1, args1, pos), count2)
           }
       }
     case SchemeIf(cond, cons, alt, pos) =>
-      rename(cond, names, count) match {
+      this.rename(cond, names, count) match {
         case (cond1, count1) =>
-          rename(cons, names, count1) match {
+          this.rename(cons, names, count1) match {
             case (cons1, count2) =>
-              rename(alt, names, count2) match {
+              this.rename(alt, names, count2) match {
                 case (alt1, count3) => (SchemeIf(cond1, cons1, alt1, pos), count3)
               }
           }
@@ -50,17 +50,17 @@ trait SchemeRenamer {
       countl(bindings.map(_._1), names, count) match {
         /* Use old names for expressions of bindings */
         case (variables, names1, count1) =>
-          renameList(bindings.map(_._2), names, count1) match {
+          this.renameList(bindings.map(_._2), names, count1) match {
             case (exps, count2) =>
-              renameList(body, names1, count2) match {
+              this.renameList(body, names1, count2) match {
                 case (body1, count3) => (SchemeLet(variables.zip(exps), body1, pos), count3)
               }
           }
       }
     case SchemeLetStar(bindings, body, pos) =>
-      renameLetStarBindings(bindings, names, count) match {
+      this.renameLetStarBindings(bindings, names, count) match {
         case (bindings1, names1, count1) =>
-          renameList(body, names1, count1) match {
+          this.renameList(body, names1, count1) match {
             case (body1, count2) => (SchemeLetStar(bindings1, body1, pos), count2)
           }
       }
@@ -68,9 +68,9 @@ trait SchemeRenamer {
       countl(bindings.map(_._1), names, count) match {
         /* Use new names for expressions of bindings */
         case (variables, names1, count1) =>
-          renameList(bindings.map(_._2), names1, count1) match {
+          this.renameList(bindings.map(_._2), names1, count1) match {
             case (exps, count2) =>
-              renameList(body, names1, count2) match {
+              this.renameList(body, names1, count2) match {
                 case (body1, count3) => (SchemeLetrec(variables.zip(exps), body1, pos), count3)
               }
           }
@@ -78,9 +78,9 @@ trait SchemeRenamer {
     case SchemeNamedLet(name, bindings, body, pos) =>
       countl(bindings.map(_._1), names, count) match {
         case (variables, names1, count1) =>
-          renameList(bindings.map(_._2), names1, count1) match {
+          this.renameList(bindings.map(_._2), names1, count1) match {
             case (exps, count2) =>
-              renameList(body, names1, count2) match {
+              this.renameList(body, names1, count2) match {
                 case (body1, count3) =>
                   (
                     SchemeNamedLet(
@@ -95,7 +95,7 @@ trait SchemeRenamer {
           }
       }
     case SchemeSet(variable, value, pos) =>
-      rename(value, names, count) match {
+      this.rename(value, names, count) match {
         case (value1, count1) =>
           (SchemeSet(names.get(variable.name) match {
             case Some(n) => Identifier(n, variable.pos)
@@ -103,26 +103,26 @@ trait SchemeRenamer {
           }, value1, pos), count1)
       }
     case SchemeBegin(body, pos) =>
-      renameList(body, names, count) match {
+      this.renameList(body, names, count) match {
         case (body1, count1) => (SchemeBegin(body1, pos), count1)
       }
     case SchemeAnd(exps, pos) =>
-      renameList(exps, names, count) match {
+      this.renameList(exps, names, count) match {
         case (exps1, count1) => (SchemeAnd(exps1, pos), count1)
       }
     case SchemeOr(exps, pos) =>
-      renameList(exps, names, count) match {
+      this.renameList(exps, names, count) match {
         case (exps1, count1) => (SchemeOr(exps1, pos), count1)
       }
     case SchemeDefineVariable(name, value, pos) =>
       /* Keeps name untouched (maybe not correct?) */
-      rename(value, names, count) match {
+      this.rename(value, names, count) match {
         case (value1, count1) => (SchemeDefineVariable(name, value1, pos), count1)
       }
     case SchemeDefineFunction(name, args, body, pos) =>
       countl(args, names, count) match {
         case (args1, names1, count1) =>
-          renameList(body, names1, count1) match {
+          this.renameList(body, names1, count1) match {
             case (body1, count2) =>
               (SchemeDefineFunction(name, args1, body1, pos), count2)
           }
@@ -146,8 +146,8 @@ trait SchemeRenamer {
       count: CountMap
   ): (List[SchemeExp], CountMap) = exps match {
     case exp :: rest =>
-      val (exp1, count1)  = rename(exp, names, count)
-      val (rest1, count2) = renameList(rest, names, count1)
+      val (exp1, count1)  = this.rename(exp, names, count)
+      val (rest1, count2) = this.renameList(rest, names, count1)
       (exp1 :: rest1, count2)
     case Nil => (Nil, count)
   }
@@ -163,9 +163,9 @@ trait SchemeRenamer {
           /* use old names, as with a let* the variable is not yet bound in its
            * definition */
           case (v1, names1, count1) =>
-            rename(e, names, count1) match {
+            this.rename(e, names, count1) match {
               case (e1, count2) =>
-                renameLetStarBindings(rest, names1, count2) match {
+                this.renameLetStarBindings(rest, names1, count2) match {
                   case (rest1, names2, count3) =>
                     ((v1, e1) :: rest1, names2, count3)
                 }

@@ -17,7 +17,7 @@ trait SchemeCompiler {
     List("lambda", "if", "let", "let*", "letrec", "cond", "case", "set!", "begin", "define", "do")
 
   // TODO update compile so it returns a TailRec
-  def compile(exp: SExp): SchemeExp = _compile(exp).result
+  def compile(exp: SExp): SchemeExp = this._compile(exp).result
 
   def _compile(exp: SExp): TailRec[SchemeExp] = exp match {
     case SExpPair(SExpId(Identifier("quote", _)), SExpPair(quoted, SExpValue(ValueNil, _), _), _) =>
