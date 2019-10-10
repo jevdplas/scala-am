@@ -12,8 +12,8 @@ trait Store[A <: Address, V] extends SmartHash {
   /** Gets all the keys of the store */
   def keys: Iterable[A]
 
-  /** Restrict the store to only certain keys */
-  def restrictTo(keys: Set[A]): Store[A, V]
+  ///** Restrict the store to only certain keys */
+  //def restrictTo(keys: Set[A]): Store[A, V]
 
   /** Checks if a predicate is true for all elements of the store */
   def forall(p: ((A, V)) => Boolean): Boolean
@@ -60,9 +60,11 @@ case class BasicStore[A <: Address, V](val content: Map[A, V])(implicit val lat:
     case Some(v2) => new BasicStore[A, V](content + (a -> lat.join(v, v2)))
   }
 
-  def update(a: A, v: V) = extend(a, v)
+  // Same implementation than in Store trait.
+  //def update(a: A, v: V) = extend(a, v)
 
-  def updateOrExtend(a: A, v: V) = extend(a, v)
+  // Same implementation than in Store trait.
+  //def updateOrExtend(a: A, v: V) = extend(a, v)
 
   def join(that: Store[A, V]) =
     if (that.isInstanceOf[BasicStore[A, V]]) {
@@ -84,7 +86,7 @@ case class ConcreteStore[A <: Address, V](content: Map[A, V])(implicit val lat: 
 
   /* Copied from BasicStore. */
 
-  override def toString = content.filterKeys(_.printable).mkString("\n")
+  override def toString = content.view.filterKeys(_.printable).mkString("\n")
 
   def keys = content.keys
 
@@ -92,10 +94,11 @@ case class ConcreteStore[A <: Address, V](content: Map[A, V])(implicit val lat: 
 
   def lookup(a: A) = content.get(a)
 
-  def lookupMF(a: A) = content.get(a) match {
-    case Some(v) => MayFail.success(v)
-    case None    => MayFail.failure(UnboundAddress(a))
-  }
+  // +- same implementation than in Store trait.
+  //def lookupMF(a: A) = content.get(a) match {
+  //  case Some(v) => MayFail.success(v)
+  //  case None    => MayFail.failure(UnboundAddress(a))
+  //}
 
   def subsumes(that: Store[A, V]) =
     that.forall(
@@ -140,23 +143,23 @@ case class CountingStore[A <: Address, V](content: Map[A, (Count, V)])(implicit 
 
   def lookup(a: A): Option[V] = content.get(a).map(_._2)
 
-  def lookupMF(a: A): MayFail[V, Error] = content.get(a) match {
-    case Some((_, a)) => MayFail.success(a)
-    case None         => MayFail.failure(UnboundAddress(a))
-  }
+  //def lookupMF(a: A): MayFail[V, Error] = content.get(a) match {
+  // case Some((_, a)) => MayFail.success(a)
+  // case None         => MayFail.failure(UnboundAddress(a))
+  //}
 
   def extend(a: A, v: V): CountingStore[A, V] = content.get(a) match {
     case None           => this.copy(content = content + (a -> ((COne, v))))
     case Some((_, old)) => this.copy(content = content + (a -> ((CInf, lat.join(old, v)))))
   }
 
-  def update(a: A, v: V): CountingStore[A, V] = content.get(a) match {
+  override def update(a: A, v: V): CountingStore[A, V] = content.get(a) match {
     case None            => throw new RuntimeException(s"Storeupdate at non-existent index: $a -> $v.")
     case Some((COne, _)) => this.copy(content = content + (a -> ((COne, v))))
     case _               => extend(a, v)
   }
 
-  def updateOrExtend(a: A, v: V): CountingStore[A, V] = content.get(a) match {
+  override def updateOrExtend(a: A, v: V): CountingStore[A, V] = content.get(a) match {
     case None => extend(a, v)
     case _    => update(a, v)
   }
@@ -190,17 +193,17 @@ case class DeltaStore[A <: Address, V](val content: Map[A, V], val updated: Set[
   def keys                           = content.keys
   def forall(p: ((A, V)) => Boolean) = content.forall({ case (a, v) => p((a, v)) })
   def lookup(a: A)                   = content.get(a)
-  def lookupMF(a: A) = content.get(a) match {
-    case Some(a) => MayFail.success(a)
-    case None    => MayFail.failure(UnboundAddress(a))
-  }
+  //def lookupMF(a: A) = content.get(a) match {
+  //  case Some(a) => MayFail.success(a)
+  //  case None    => MayFail.failure(UnboundAddress(a))
+  //}
   def extend(a: A, v: V) = content.get(a) match {
     case None                            => new DeltaStore[A, V](content + (a -> v), updated + a)
     case Some(v2) if lat.subsumes(v2, v) => this
     case Some(v2)                        => new DeltaStore[A, V](content + (a -> (lat.join(v, v2))), updated + a)
   }
-  def update(a: A, v: V)         = extend(a, v)
-  def updateOrExtend(a: A, v: V) = extend(a, v)
+  //def update(a: A, v: V)         = extend(a, v)
+  //def updateOrExtend(a: A, v: V) = extend(a, v)
 
   def join(that: Store[A, V]) =
     if (that.isInstanceOf[DeltaStore[A, V]])
