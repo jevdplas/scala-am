@@ -11,6 +11,7 @@ object AtomlangCompiler extends SchemeCompiler {
   override def reserved: List[String] = super.reserved ++ List("deref", "future")
 
   /** Compiles an s-expression into an Atomlang (Scheme) expression. */
+  // TODO update compile so it returns a TailRec
   override def compile(exp: SExp): SchemeExp = exp match {
     case SExpPair(SExpId(Identifier("deref", _)), SExpPair(expr, SExpValue(ValueNil, _), _), _) =>
       AtomlangDeref(this.compile(expr), exp.pos)
