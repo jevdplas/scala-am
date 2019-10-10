@@ -8,6 +8,8 @@ case class AtomlangDeref(exp: SchemeExp, pos: Position) extends SchemeExp {
   override def toString: String = {
     s"(deref $exp)"
   }
+
+  def fv: Set[String] = exp.fv // TODO: verify corectness
 }
 
 /** Future creation: (future e) */
@@ -16,6 +18,8 @@ case class AtomlangFuture(exps: List[SchemeExp], pos: Position) extends SchemeEx
     val body = exps.mkString(" ")
     s"(future $body)"
   }
+
+  def fv: Set[String] = exps.flatMap(_.fv).toSet // TODO: verify correctness
 }
 
 /** Swapping an atom value: (swap! atom fun args*) */
@@ -25,4 +29,6 @@ case class AtomlangSwap(atom: SchemeExp, fun: SchemeExp, args: List[SchemeExp], 
     val ags = args.mkString(" ")
     s"(swap! $atom $fun $ags)"
   }
+
+  def fv: Set[String] = atom.fv ++ fun.fv ++ args.flatMap(_.fv).toSet // TODO: verify correctness
 }
