@@ -126,9 +126,9 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       ListPrim, /* [vv] list: List Constructors */
       /* [x]  list->string: String Constructors */
       /* [x]  list->vector: Vector Creation */
-      ListRef, /* [vv] list-ref: List Selection */
+      //ListRef, /* [vv] list-ref: List Selection */ //TODO: re-enable
       /* [x]  list-tail: List Selection */
-      Listp, /* [vv] list?: List Predicates */
+      //Listp, /* [vv] list?: List Predicates */ // TODO: re-enable
       /* [x]  load: Loading */
       Log, /* [vv] log: Scientific */
       /* [x]  magnitude: Complex */
@@ -137,8 +137,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       /* [x]  make-string: String Constructors */
       /* [x]  map: List Mapping */
       Max, /* [vv] max: Arithmetic */
-      Member, /* [vv] member: List Searching */
-      Memq, /* [v]  memq: List Searching */
+      //Member, /* [vv] member: List Searching */ // TODO: re-enable
+      //Memq, /* [v]  memq: List Searching */ // TODO: re-enable
       /* [x]  memv: List Searching */
       Min, /* [vv] min: Arithmetic */
       Modulo, /* [vv] modulo: Integer Operations */
@@ -1048,7 +1048,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
                   cdr(l) >>= (
                       cdr =>
                         tailcall(length(cdr, visited + l)).flatMap(
-                          lengthcdr => liftTailRecWithEff(lengthcdr.flatMap(l => done(plus(number(1), l))))
+                          // TODO Check correctness!
+                          lengthcdr => liftTailRecWithEff(lengthcdr.flatMap(l => done(plus(number(1), l._1).map(v => (v, l._2)))))
                         )
                     )
                 )
@@ -1154,6 +1155,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         }
     }
 
+    // TODO: re-enable list? primitive.
+    /*
     /** (define (list? l) (or (and (pair? l) (list? (cdr l))) (null? l))) */
     object Listp extends StoreOperation("list?", Some(1)) {
       override def call(l: V, store: Store[A, V]): MayFail[(V, Store[A, V], Effects), Error] = {
@@ -1188,7 +1191,10 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         listp(l, Set()).map(ve => (ve._1, store, ve._2))
       }
     }
+    */
 
+    // TODO re-enable primitive
+    /*
     /** (define (list-ref l index)
           (if (pair? l)
             (if (= index 0)
@@ -1236,7 +1242,10 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
         listRef(l, index, Set.empty).map(ve => (ve._1, store, ve._2))
       }
     }
+    */
 
+    // TODO: re-enable member and memq primitives.
+    /*
     /** (define (member e l) ; member, memq and memv are similar, the difference lies in the comparison function used
           (if (null? l)
             #f
@@ -1295,6 +1304,7 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
           "memq",
           (x: V, y: V, _: Store[A, V]) => Eq.call(x, y).map((_, Effects.noEff()))
         )
+    */
 
     @toCheck("Check implementation")
     abstract class AssocLike(
