@@ -26,12 +26,12 @@ object BenchConfig {
     ("./test/Atomlang/VMCAI2020/atomicInt.scm", none), // 0.01
     ("./test/Atomlang/VMCAI2020/pp.scm", none), // 0.02
     ("./test/Atomlang/VMCAI2020/pc.scm", none), // 0.02
-    ("./test/Atomlang/VMCAI2020/phild.scm", none), // 0.03
+    //("./test/Atomlang/VMCAI2020/phild.scm", none), // 0.03
     ("./test/Atomlang/VMCAI2020/atoms.scm", none), // 0.05
     ("./test/Atomlang/VMCAI2020/count.scm", none), // 0.05
     ("./test/Atomlang/VMCAI2020/mcarlo.scm", none), // 0.09
     ("./test/Atomlang/VMCAI2020/sieve.scm", none), // 0.01
-    ("./test/Atomlang/VMCAI2020/abp.scm", none), // 0.09
+    //("./test/Atomlang/VMCAI2020/abp.scm", none), // 0.09
 
     /* 0.1 - 1 seconds */
     ("./test/Atomlang/VMCAI2020/treiber-stack.scm", none), // 0.1
