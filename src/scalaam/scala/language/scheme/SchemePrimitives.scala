@@ -127,9 +127,9 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       ListPrim, /* [vv] list: List Constructors */
       /* [x]  list->string: String Constructors */
       /* [x]  list->vector: Vector Creation */
-      //ListRef, /* [vv] list-ref: List Selection */ //TODO: re-enable
+      ListRef, /* [vv] list-ref: List Selection */
       /* [x]  list-tail: List Selection */
-      //Listp, /* [vv] list?: List Predicates */ // TODO: re-enable
+      Listp, /* [vv] list?: List Predicates */
       /* [x]  load: Loading */
       Log, /* [vv] log: Scientific */
       /* [x]  magnitude: Complex */
@@ -138,8 +138,8 @@ trait SchemePrimitives[A <: Address, V, T, C] extends SchemeSemantics[A, V, T, C
       /* [x]  make-string: String Constructors */
       /* [x]  map: List Mapping */
       Max, /* [vv] max: Arithmetic */
-      //Member, /* [vv] member: List Searching */ // TODO: re-enable
-      //Memq, /* [v]  memq: List Searching */ // TODO: re-enable
+      Member, /* [vv] member: List Searching */
+      Memq, /* [v]  memq: List Searching */
       /* [x]  memv: List Searching */
       Min, /* [vv] min: Arithmetic */
       Modulo, /* [vv] modulo: Integer Operations */
