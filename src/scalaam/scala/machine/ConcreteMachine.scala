@@ -79,8 +79,6 @@ class ConcreteMachine[E <: Expression, A <: Address, V, T](val sem: Semantics[E,
   val empty = BaseTransition()
 
   def run[G](program: E, timeout: Timeout.T)(implicit ev: Graph[G, State, Transition]): G = {
-    val oldConcrete = Config.concrete
-    Config.concrete = true
     var state = State(
       ControlEval(program, Environment.initial[A](sem.initialEnv)),
       new ConcreteStore[A, V](sem.initialStore.toMap),
@@ -90,7 +88,7 @@ class ConcreteMachine[E <: Expression, A <: Address, V, T](val sem: Semantics[E,
     var graph    = Graph[G, State, Transition].empty
     var finished = false
     def applyAction(konts: List[Frame], actions: Set[Action.A]): Unit = {
-      if (actions.size == 0) {
+      if (actions.isEmpty) {
         println(
           s"Got no action while one was expected when stepping state $state. Terminating concrete machine."
         )
@@ -137,7 +135,6 @@ class ConcreteMachine[E <: Expression, A <: Address, V, T](val sem: Semantics[E,
         }
       }
     }
-    Config.concrete = oldConcrete
     graph
   }
 }

@@ -374,7 +374,7 @@ object SchemeRunConcrete extends Interpreter {
       Concrete.R,
       Concrete.C,
       Concrete.Sym
-    ]
+    ](true) // Important! Concrete operations!
   val sem     = new BaseSchemeSemantics[address.A, lattice.L, timestamp.T, SchemeExp](address.Alloc)
   val machine = new ConcreteMachine[SchemeExp, address.A, lattice.L, timestamp.T](sem)
   val graph   = new DotGraph[machine.State, machine.Transition]

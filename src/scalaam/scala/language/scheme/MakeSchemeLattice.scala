@@ -441,7 +441,7 @@ class MakeSchemeLattice[
               case (_: Cons, _: Cons)       => Bool(BoolLattice[B].inject(x == y))
               case (_: Vec, _: Vec)         => Bool(BoolLattice[B].inject(x == y))
               case (_: Pointer, _: Pointer) =>
-                if (Config.concrete) {
+                if (concreteOP) {
                   Bool(BoolLattice[B].inject(x == y))
                 } else {
                    /* we can't know for sure that equal addresses are eq (in the abstract). */
@@ -519,7 +519,7 @@ class MakeSchemeLattice[
           val vals = content.view
             .filterKeys(index2 => BoolLattice[B].isTrue(IntLattice[I].eql(index, index2)))
             .values
-          if (Config.concrete) {
+          if (concreteOP) {
             val res = vals.foldLeft(schemeLattice.bottom)((acc, v) => schemeLattice.join(acc, v))
             if (res == schemeLattice.bottom) {
               /* No element stored, return init */
@@ -551,7 +551,7 @@ class MakeSchemeLattice[
               Vec(
                 size,
                 content + (index ->
-                  (if (Config.concrete) {
+                  (if (concreteOP) {
                     newval
                   } else {
                     /* Joins the new value with the previous in index, if it exists */
