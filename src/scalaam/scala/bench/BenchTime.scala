@@ -13,8 +13,6 @@ import Graph.GraphOps
 import au.com.bytecode.opencsv.CSVWriter
 import java.io.BufferedWriter
 import java.io.FileWriter
-import java.text.SimpleDateFormat
-import java.util.{Calendar, Date}
 
 import scalaam.bench.BenchConfig._
 import scalaam.language.LanguagePrelude
@@ -194,16 +192,12 @@ object BenchTime {
 
   def main(args: Array[String]): Unit = {
     // Avoid overwriting old results by appending the date and time to the file name.
-    val now: Date                = Calendar.getInstance().getTime
-    val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
-    val output: String           = outputDir + "Results_TimeComparison" + format.format(now) + ".csv"
-    val fields: List[String] = List("Benchmark", "Machine", "States") ++ ((1 to startup).map(
-      "s" + _
-    ) ++ (1 to iterations).map("i" + _)).toList // Field names for the csv file.
+    val output: String           = ts("Results_TimeComparison", ".csv")
+    val fields: List[String] = List("Benchmark", "Machine", "States") ++ ((1 to startup).map("s" + _) ++ (1 to iterations).map("i" + _)).toList // Field names for the csv file.
 
     val out = new BufferedWriter(new FileWriter(output))
     writer = new CSVWriter(out)
-    texWriter = new BufferedWriter(new FileWriter(outputDir + "Results_TimeComparison" + format.format(now) + ".tex"))
+    texWriter = new BufferedWriter(new FileWriter(ts("Results_TimeComparison", ".tex")))
     writeTexTableHeading()
 
     writer.writeNext(fields.mkString(","))

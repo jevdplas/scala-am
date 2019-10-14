@@ -1,8 +1,6 @@
 package scalaam.bench
 
 import java.io.{BufferedWriter, FileWriter}
-import java.text.SimpleDateFormat
-import java.util.{Calendar, Date}
 
 import au.com.bytecode.opencsv.CSVWriter
 import scalaam.bench.BenchConfig._
@@ -60,11 +58,8 @@ object BenchReuse {
   }
 
   def main(args: Array[String]): Unit = {
-    val now: Date                = Calendar.getInstance().getTime
-    val format: SimpleDateFormat = new SimpleDateFormat("_yyyy-MM-dd-HH'h'mm")
-    val output: String           = outputDir + "Results_ReuseInc" + format.format(now) + ".csv"
+    val output: String           = ts("Results_ReuseInc", ".csv")
     val fields: String           = "Benchmark,tid,(iteration,number)*" // Field names for the csv file.
-
     val out = new BufferedWriter(new FileWriter(output))
     writer = new CSVWriter(out)
 

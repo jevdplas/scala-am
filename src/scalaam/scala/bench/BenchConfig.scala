@@ -1,5 +1,8 @@
 package scalaam.bench
 
+import java.text.SimpleDateFormat
+import java.util.{Calendar, Date}
+
 object BenchConfig {
 
   /* **** Experimental setup **** */
@@ -58,5 +61,12 @@ object BenchConfig {
   def display(data: String): Unit = {
     print(data)
     Console.out.flush()
+  }
+
+  /** Creates a fileName including the given name, suffix and a timestamp. */
+  def ts(name: String, suffix: String): String = {
+    val now: Date                = Calendar.getInstance().getTime
+    val format: SimpleDateFormat = new SimpleDateFormat("yyyy-MM-dd-HH'h'mm_")
+    outputDir + format.format(now) + name + suffix
   }
 }

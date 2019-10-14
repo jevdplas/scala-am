@@ -1,6 +1,6 @@
 package scala
 
-import scalaam.bench.BenchSoundnessUsingConcrete.CSem
+import scalaam.bench.BenchSoundness.CSem
 import scalaam.core._
 import scalaam.graph.{DotGraph, Graph}
 import scalaam.language.atomlang.{AtomlangParser, AtomlangSemantics}
