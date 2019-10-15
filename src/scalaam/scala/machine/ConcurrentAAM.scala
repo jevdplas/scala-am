@@ -337,10 +337,7 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
         kstore: KStore
     ): (Threads, VStore) = action match {
       case Value(v, store, _) => // We should not reach bottom during the evaluation of an expression!
-        if (v == lattice.bottom) {
-          println("Reached bottom during the evaluation of an expression.")
-          bottomFlag = true
-        }
+        if (v == lattice.bottom) bottomFlag = true
         (
           threads.updateThread(
             tid,
@@ -421,10 +418,13 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
 
     /** Produces the states following this state by applying the given actions. */
     def next(actions: Set[Act], threads: Threads, store: VStore, cc: KAddr): Set[State] = {
-      actions.map(
+      actions.flatMap( // TODO change back to map instead of flatMap
         action =>
-          act(threads, action, cc, time, store, kstore) match {
-            case (threads, store) => State(threads, store)
+          if (bottomFlag) None // Don't generate further states when you know there is an error.
+          else {
+            act(threads, action, cc, time, store, kstore) match {
+              case (threads, store) => Some(State(threads, store))
+            }
           }
       )
     }
@@ -502,7 +502,10 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
           System.err.println(s"Execution was not concrete! (got ${next.size} resulting states)")
           return
         }
-        if (bottomFlag) return
+        if (bottomFlag) {
+          println("Reached bottom during the evaluation of an expression.")
+          return
+        }
         loop(next.head)
       }
     }
