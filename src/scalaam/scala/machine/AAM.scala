@@ -43,7 +43,7 @@ class AAM[Exp <: Expression, A <: Address, V, T](val t: StoreType, val sem: Sema
   }
 
   case class KontAddr(exp: Exp, time: T) extends KA {
-    override def toString = s"Kont(${exp.toString.take(10)})"
+    override def toString = s"Kont(${exp.toString.take(10)})@$time"
   }
 
   case object HaltKontAddr extends KA {

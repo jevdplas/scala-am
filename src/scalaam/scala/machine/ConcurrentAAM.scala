@@ -286,7 +286,10 @@ object Strategy extends Enumeration {
   val AllInterleavings, OneInterleaving, RandomInterleaving = Value
 }
 
-class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: ThreadIdentifier](
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class ConcreteConcurrentAAM[Exp <: Expression, A <: ConcreteAddress.A, V, T, TID <: ConcreteTID.threadID](
     val t: StoreType,
     val sem: Semantics[Exp, A, V, T, Exp],
     val allocator: TIDAllocator[TID, T, Exp]
@@ -308,6 +311,7 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
   type Threads = BlockableTMap[TID, Context, V]
 
   var bottomFlag = false
+  var ks: KStore = _
 
   /**
     * The state of one thread.
@@ -337,7 +341,10 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
         kstore: KStore
     ): (Threads, VStore) = action match {
       case Value(v, store, _) => // We should not reach bottom during the evaluation of an expression!
-        if (v == lattice.bottom) bottomFlag = true
+        if (v == lattice.bottom) {
+          bottomFlag = true
+          ks = kstore
+        }
         (
           threads.updateThread(
             tid,
@@ -418,7 +425,7 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
 
     /** Produces the states following this state by applying the given actions. */
     def next(actions: Set[Act], threads: Threads, store: VStore, cc: KAddr): Set[State] = {
-      actions.flatMap( // TODO change back to map instead of flatMap
+      actions.flatMap( // TODO change back to map instead of flatMap. Now used to abort when bottomFlag is set.
         action =>
           if (bottomFlag) None // Don't generate further states when you know there is an error.
           else {
@@ -503,8 +510,23 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
           return
         }
         if (bottomFlag) {
-          println("Reached bottom during the evaluation of an expression.")
+          println("Reached bottom during the evaluation of an expression. Store:")
+          cur.store.keys.filter(a => !a.toString.startsWith("Primitive")).toList.sortWith((a, b) => a.toString < b.toString).foreach(a => println(s"$a --> ${cur.store.lookup(a)}"))
+          println("\nKstore:")
+          ks.keys.toList.sortWith((a, b) => a.toString < b.toString).foreach(a => println(s"$a --> ${ks.lookup(a)}"))
+          println()
+            if (cur.store.err) {
+                println("Gotcha!")
+                println(cur)
+                println(next)
+            }
           return
+        }
+        if (cur.store.err) {
+          println("Gotcha!")
+          println(cur)
+          println(next)
+            return
         }
         loop(next.head)
       }
@@ -522,10 +544,11 @@ class ConcreteConcurrentAAM[Exp <: Expression, A <: Address, V, T, TID <: Thread
 
     graph = graph.map(g => g.addNode(state))
     bottomFlag = false
+    ks = null
     loop(state)
-    //println(s"Execution finished, in ${timeout.time} seconds, waiting for graph")
+    println(s"Creating graph.")
     val res = Await.result(graph, Duration.Inf)
-    //println(s"Number of nodes: ${ev.nodes(res)}")
+    println(s"Finished graph creation. Graph has ${ev.nodes(res)} nodes.")
     res
   }
 }

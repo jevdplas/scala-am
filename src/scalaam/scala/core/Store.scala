@@ -8,6 +8,7 @@ case class UnboundAddress[A <: Address](a: A) extends Error
 trait Store[A <: Address, V] extends SmartHash {
 
   //def content: Map[A, V]
+  var err: Boolean = false
 
   /** Gets all the keys of the store */
   def keys: Iterable[A]
@@ -112,6 +113,12 @@ case class ConcreteStore[A <: Address, V](content: Map[A, V])(implicit val lat: 
     /*if (content.get(a).isDefined) {
       println(s"store.extend imprecision")
     }*/
+    if (v == lat.bottom && v.toString.contains("fold")) {
+      System.err.println(s"Setting $a to bottom.")
+      val s = ConcreteStore(content + (a -> v))
+      s.err = true
+      return s
+    }
     ConcreteStore(content + (a -> v))
   }
 

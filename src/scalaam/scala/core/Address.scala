@@ -69,7 +69,7 @@ object ConcreteAddress {
   case class Variable[Time](name: Identifier, time: Time) extends A {
     def printable = true
 
-    override def toString = s"@${name.name}-${name.pos}"
+    override def toString = s"&${name.name}-${name.pos}@$time"
   }
 
   /** Concrete address for a pointer. */
